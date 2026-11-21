@@ -2,6 +2,6 @@
   "storyFeatureVisible": true,
   "artSet": "drawn",
   "spokenReply": true,
-  "quartierVisible": false,
+  "quartierVisible": true,
   "grammarPilot": false
 }

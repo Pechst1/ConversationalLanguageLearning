@@ -771,3 +771,122 @@ test('a caption between voices is drawn as a caption, not under a face (#558)', 
   assert.equal(voices[voices.length - 1].latest, true, 'the last voice stays the headline');
   assert.equal(caption.latest, undefined);
 });
+
+// ===========================================================================
+// P3 — from B1 a reply may earn up to three corrections: the first open, the
+// others collapsed under it (owner decision 2, as proposed).
+// ===========================================================================
+
+const THREE = {
+  span_fr: 'que tu reviens',
+  corrected_fr: 'que tu reviennes',
+  note_native: 'After « je voudrais que » the verb takes the subjunctive.',
+  more: [
+    {
+      span_fr: 'avant que je prends',
+      corrected_fr: 'avant que je prenne',
+      note_native: 'Avant que takes the subjunctive.',
+    },
+    { span_fr: 'le appartement', corrected_fr: 'l’appartement', note_native: '« le » drops its vowel before a vowel.' },
+  ],
+};
+const THREE_LINE = 'Je voudrais que tu reviens avant que je prends le train, il fait froid dans le appartement.';
+
+test('P3: the thread model prints one fix open and two collapsed', () => {
+  const fixes = model.threadFixes(THREE);
+  assert.equal(fixes.open.fixed, 'que tu reviennes');
+  assert.deepEqual(fixes.open.notes, ['After « je voudrais que » the verb takes the subjunctive.']);
+  assert.deepEqual(
+    fixes.collapsed.map((fix) => [fix.span, fix.fixed]),
+    [
+      ['avant que je prends', 'avant que je prenne'],
+      ['le appartement', 'l’appartement'],
+    ],
+  );
+  // A correction without more (every A1–A2 reply, every older payload) is as before.
+  assert.deepEqual(model.threadFixes(SLIP).collapsed, []);
+  assert.deepEqual(model.threadFixes(null), { open: null, collapsed: [] });
+});
+
+test('P3: the local copy keeps the collapsed corrections', () => {
+  const thread = model.recordExchange(model.EMPTY_THREAD, {
+    turn: 0,
+    prompt_fr: OPENING,
+    learner_fr: THREE_LINE,
+    character_fr: 'D’accord.',
+    correction: THREE,
+  });
+  const back = model.parseLocalThread(model.serializeLocalThread(thread));
+  assert.equal(back.exchanges[0].correction.more.length, 2);
+});
+
+test('P3: the column renders the first correction open and the others collapsed', () => {
+  const s = step({
+    turn_index: 1,
+    max_turns: 3,
+    character_line_fr: 'Au comptoir ou en terrasse ?',
+    thread: [{ learner_fr: THREE_LINE, character_fr: 'Au comptoir ou en terrasse ?', correction: THREE }],
+  });
+  const html = renderToStaticMarkup(h(steps.RespondStepView, props(s)));
+  // The first: marked in the line, its corrected form always printed.
+  assert.match(html, /<span class="av2-thread__slip">que tu reviens<\/span>/);
+  assert.match(html, /<span class="av2-thread__fixed" lang="fr">que tu reviennes<\/span>/);
+  // The others: one closed disclosure button; their fixes are not printed until opened.
+  assert.equal((html.match(/class="av2-thread__morebtn"/g) || []).length, 1);
+  assert.match(html, /<button type="button" class="av2-thread__morebtn" aria-expanded="false"[^>]*>2 more corrections<\/button>/);
+  assert.ok(!html.includes('avant que je prenne'), 'collapsed until the learner opens it');
+  // Below B1 there is one correction and no disclosure.
+  const one = renderToStaticMarkup(h(steps.RespondStepView, props(turnOneOfThree())));
+  assert.ok(!one.includes('av2-thread__more'));
+});
+
+test('P3: the collapsed count is in the learner’s language', () => {
+  assert.equal(FR.thread_more_many.replace('{n}', '2'), '2 autres corrections');
+  assert.equal(DE.thread_more_one, '1 weitere Korrektur');
+  assert.equal(EN.thread_more_one, '1 more correction');
+});
+
+// Walk 2 (18 Nov, B1 days 2–6): «1 autre correction» was a <summary> the walk could not
+// open («no element found by label», «plain text, not a button»). It is now a button with
+// aria-expanded, toggled through the thread's one open note like the first correction's.
+test('P3 walk 2: the collapsed corrections open and close from a real button', () => {
+  const { LearnerLine } = require('./RespondThread.tsx');
+  const bubble = { kind: 'learner', key: 'u0', text: THREE_LINE, correction: THREE };
+  const toggled = [];
+  const onToggle = (key) => toggled.push(key);
+  const line = (openNote) => h(LearnerLine, { bubble, copy: FR, openNote, onToggle });
+
+  // Closed: a button that says so, nothing of its corrections printed.
+  const closed = renderToStaticMarkup(line(null));
+  const button = closed.match(/<button type="button" class="av2-thread__morebtn"[^>]*>([^<]*)<\/button>/);
+  assert.ok(button, 'a real <button>, not a summary or plain text');
+  assert.equal(button[1], '2 autres corrections');
+  assert.match(button[0], /aria-expanded="false"/);
+  assert.match(button[0], /aria-controls="av2-thread-more-u0"/);
+  assert.ok(!closed.includes('avant que je prenne'));
+
+  // Tapping it asks the thread to open this reply's collapsed corrections.
+  const tree = LearnerLine({ bubble, copy: FR, openNote: null, onToggle });
+  const find = (node) => {
+    if (!node || typeof node !== 'object') return null;
+    if (Array.isArray(node)) return node.map(find).find(Boolean) ?? null;
+    if (node.type === 'button' && node.props.className === 'av2-thread__morebtn') return node;
+    return find(node.props && node.props.children);
+  };
+  find(tree).props.onClick();
+  assert.deepEqual(toggled, [model.moreNoteKey('u0')]);
+
+  // Open: the button says it is open and the two corrections with their notes are shown.
+  const opened = renderToStaticMarkup(line(model.moreNoteKey('u0')));
+  assert.match(opened, /class="av2-thread__morebtn" aria-expanded="true"/);
+  const inside = opened.slice(opened.indexOf('id="av2-thread-more-u0"'));
+  assert.equal((inside.match(/class="av2-thread__fixed"/g) || []).length, 2);
+  assert.ok(inside.includes('avant que je prenne') && inside.includes('l’appartement'));
+  assert.ok(inside.includes('Avant que takes the subjunctive.'));
+
+  // Tapping again closes it (the thread's toggle sets the open note back to none).
+  find(LearnerLine({ bubble, copy: FR, openNote: model.moreNoteKey('u0'), onToggle })).props.onClick();
+  assert.deepEqual(toggled, [model.moreNoteKey('u0'), model.moreNoteKey('u0')]);
+  // Opening the first correction's note closes the others (one note open at a time).
+  assert.ok(!renderToStaticMarkup(line('u0')).includes('avant que je prenne'));
+});

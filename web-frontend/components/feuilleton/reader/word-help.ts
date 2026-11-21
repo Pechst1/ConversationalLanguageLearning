@@ -8,7 +8,10 @@
      3. the word read in its sentence (`/atelier/gloss`, 2026-10-19): its meaning
         here and its dictionary form, the sentence's translation underneath — a
         news word or an inflected form («grévistes», «reviennent») misses the
-        catalogue, and translating the whole line answered the wrong question;
+        catalogue, and translating the whole line answered the wrong question.
+        R2 (6): when that dictionary form IS a catalogue entry, the answer is the
+        entry's (kind 'gloss', with the lemma as the term to keep), so «Garder»
+        is offered for every word whose dictionary form has a meaning;
      4. the line's translation (the payload's own, else `/atelier/translate`);
      5. nothing: the sheet says so instead of inventing a gloss. */
 
@@ -16,8 +19,10 @@ import { learnerGloss, type GlossCarrier } from '@/lib/glosses';
 
 export type WordHelpGloss =
   | { kind: 'loading' }
-  /** A dictionary meaning: the catalogue's, or one the surface already knew. «Garder» may keep it. */
-  | { kind: 'gloss'; text: string; language: string | null }
+  /** A dictionary meaning: the catalogue's, or one the surface already knew. «Garder» may keep it.
+   *  `term`/`lemma`: set when the entry was found through the word's dictionary form
+   *  (the printed form missed the catalogue) — `term` is what «Garder» sends. */
+  | { kind: 'gloss'; text: string; language: string | null; term?: string; lemma?: string | null }
   /** The word's meaning in this sentence, with its dictionary form when that differs. Not a catalogue row: nothing to keep. */
   | { kind: 'context'; text: string; lemma: string | null; language: string | null }
   | { kind: 'sentence'; text: string }
@@ -53,22 +58,26 @@ export function shownLemma(lemma: string | null | undefined, surface: string): s
   return clean && fold(clean) !== fold(surface) ? clean : null;
 }
 
+/** The catalogue's meaning for `term`, or null (a 404 is the ordinary miss). */
+async function catalogueGloss(api: WordHelpApi, term: string): Promise<{ text: string; language: string | null } | null> {
+  try {
+    const entry = (await api.lookupVocabulary(term)) as Record<string, unknown> | null;
+    const text = learnerGloss(entry as GlossCarrier | null, '');
+    if (!text) return null;
+    return { text, language: typeof entry?.translation_language === 'string' ? entry.translation_language : null };
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveWordHelp(source: WordHelpSource, api: WordHelpApi): Promise<WordHelpAnswer> {
   const sentence = (source.sentence || '').trim();
   const supplied = (source.sentenceEn || '').trim();
   const known = (source.knownGloss || '').trim();
   if (known) return { gloss: { kind: 'gloss', text: known, language: source.knownGlossLanguage ?? null }, sentenceEn: supplied };
 
-  try {
-    const entry = (await api.lookupVocabulary(source.term)) as Record<string, unknown> | null;
-    const text = learnerGloss(entry as GlossCarrier | null, '');
-    if (text) {
-      const language = typeof entry?.translation_language === 'string' ? entry.translation_language : null;
-      return { gloss: { kind: 'gloss', text, language }, sentenceEn: supplied };
-    }
-  } catch {
-    /* 404 is the ordinary answer for a word that is not a catalogue entry. */
-  }
+  const entry = await catalogueGloss(api, source.term);
+  if (entry) return { gloss: { kind: 'gloss', ...entry }, sentenceEn: supplied };
 
   let translated = '';
   if (sentence && api.glossInContext) {
@@ -77,9 +86,15 @@ export async function resolveWordHelp(source: WordHelpSource, api: WordHelpApi):
       const context = await api.glossInContext(word, sentence);
       translated = (context?.translation || '').trim();
       const text = (context?.gloss || '').trim();
+      const lemma = shownLemma(context.lemma, word);
+      // The printed form missed the catalogue; its dictionary form may not (R2 (6)).
+      const byLemma = text && lemma ? await catalogueGloss(api, lemma) : null;
+      if (byLemma) {
+        return { gloss: { kind: 'gloss', ...byLemma, term: lemma as string, lemma }, sentenceEn: supplied || translated };
+      }
       if (text) {
         return {
-          gloss: { kind: 'context', text, lemma: shownLemma(context.lemma, word), language: context.language || null },
+          gloss: { kind: 'context', text, lemma, language: context.language || null },
           sentenceEn: supplied || translated,
         };
       }

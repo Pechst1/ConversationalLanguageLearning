@@ -59,6 +59,7 @@ from app.services.exercise_generation import _transform_noop_errors as _transfor
 from app.services.forge_grading import (
     FREE_PRODUCTION_ROUNDS,
     LOCAL_RIGHT,
+    accent_miss_note,
     classify_follow_up,
     describe_diff,
     drop_author_notes,
@@ -100,6 +101,7 @@ from app.services.item_bank import (
     fill_blank,
     judgement_item,
     label_table,
+    meaning_cue_text,
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
@@ -852,6 +854,34 @@ def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) ->
     return "".join(str(part.get("text", part.get("fix")) or "") for part in parts)
 
 
+def repair_line_with_spans(
+    learner: str, errata: list[dict[str, Any]] | None
+) -> tuple[str, dict[int, tuple[int, int]]] | None:
+    """:func:`repair_line_from_parts`'s line, and where each erratum's whole
+    ``corrected_target`` stands in it, by erratum index (#946).
+
+    The fix of a gap is narrowed (:func:`narrow_repair`); the span reaches over the
+    words the erratum shares with the line on either side, so it holds the whole target.
+    """
+
+    parts = repair_parts(learner, errata)
+    if parts is None:
+        return None
+    line, spans = "", {}
+    for part in parts:
+        if "fix" not in part:
+            line += str(part.get("text") or "")
+            continue
+        index = int(part["erratum"])
+        erratum = (errata or [])[index]
+        wrong = str(erratum.get("learner_text") or "").strip()
+        skip, length, _fix = narrow_repair(wrong, str(erratum.get("corrected_target") or "").strip())
+        fix = str(part.get("fix") or "")
+        spans[index] = (len(line) - skip, len(line) + len(fix) + len(wrong) - skip - length)
+        line += fix
+    return line, spans
+
+
 def _normalize(value: Any) -> str:
     text = "" if value is None else str(value)
     # Fold every smart/curly apostrophe and prime variant to a straight quote so a
@@ -1127,35 +1157,36 @@ def _extra_normalized_tokens(answer_tokens: list[Any], tokens: list[Any]) -> lis
 
 
 _FALLBACK_MEANING_CUES: dict[str, str] = {
-    "si tu viens demain nous partirons tot": "Express: If you come tomorrow, we will leave early.",
-    "s il pleut prends ton manteau": "Express: If it rains, take your coat.",
-    "si elle appelle je repondrai tout de suite": "Express: If she calls, I will answer right away.",
-    "je ne bois pas de cafe": "Express: I do not drink coffee.",
-    "elle n a pas d idee": "Express: She does not have an idea.",
-    "nous n avons pas de dossier aujourd hui": "Express: We do not have a file today.",
-    "je marchais quand une voiture est passee": "Express: I was walking when a car passed.",
-    "il faisait froid puis nous sommes entres": "Express: It was cold, then we went in.",
-    "elle attendait quand j ai repondu": "Express: She was waiting when I replied.",
-    "je voudrais partir demain": "Express: I would like to leave tomorrow.",
-    "nous pourrions venir plus tot": "Express: We could come earlier.",
-    "elle aimerait parler avec vous": "Express: She would like to speak with you.",
-    "il faut que tu sois pret": "Express: You have to be ready.",
-    "je veux qu elle vienne demain": "Express: I want her to come tomorrow.",
-    "bien qu il soit tard nous continuons": "Express: Although it is late, we are continuing.",
-    "c est le livre que j ai lu": "Express: It is the book that I read.",
-    "voici l ami qui arrive": "Express: Here is the friend who is arriving.",
-    "la ville ou j habite est calme": "Express: The city where I live is calm.",
+    "si tu viens demain nous partirons tot": "If you come tomorrow, we will leave early.",
+    "s il pleut prends ton manteau": "If it rains, take your coat.",
+    "si elle appelle je repondrai tout de suite": "If she calls, I will answer right away.",
+    "je ne bois pas de cafe": "I do not drink coffee.",
+    "elle n a pas d idee": "She does not have an idea.",
+    "nous n avons pas de dossier aujourd hui": "We do not have a file today.",
+    "je marchais quand une voiture est passee": "I was walking when a car passed.",
+    "il faisait froid puis nous sommes entres": "It was cold, then we went in.",
+    "elle attendait quand j ai repondu": "She was waiting when I replied.",
+    "je voudrais partir demain": "I would like to leave tomorrow.",
+    "nous pourrions venir plus tot": "We could come earlier.",
+    "elle aimerait parler avec vous": "She would like to speak with you.",
+    "il faut que tu sois pret": "You have to be ready.",
+    "je veux qu elle vienne demain": "I want her to come tomorrow.",
+    "bien qu il soit tard nous continuons": "Although it is late, we are continuing.",
+    "c est le livre que j ai lu": "It is the book that I read.",
+    "voici l ami qui arrive": "Here is the friend who is arriving.",
+    "la ville ou j habite est calme": "The city where I live is calm.",
 }
 
 
 def _word_bank_meaning_cue(concept: GrammarConcept | None, correct_answer: Any) -> str:
+    """The English meaning of a known fallback sentence, else ``""`` (P10)."""
     answer = _join_french_tokens(correct_answer) if isinstance(correct_answer, list) else str(correct_answer or "")
     normalized = _normalize(answer)
     if _FALLBACK_MEANING_CUES.get(normalized):
         return _FALLBACK_MEANING_CUES[normalized]
-    profile = infer_grammar_profile(concept) if concept else None
-    label = profile.label.lower() if profile else "the target grammar"
-    return f"Express a complete sentence in French using {label}; use every target chip once."
+    # P10: no meaning known, no cue — the card states its task line alone. The old
+    # «Express a complete sentence in French using …» was printed as the sentence to build.
+    return ""
 
 
 def _quoted_fragments(value: Any) -> list[str]:
@@ -3128,7 +3159,7 @@ class AtelierExerciseGenerator:
             if not (
                 filled(item.get("id"))
                 and filled(item.get("prompt"))
-                and filled(item.get("meaning_cue"))
+                # P10: an empty meaning cue is allowed — the card then states its task alone.
                 and filled(item.get("correct_answer"))
                 and len(item.get("tokens") or []) >= 1
                 and len(item.get("answer_tokens") or []) >= 1
@@ -3496,7 +3527,7 @@ class AtelierExerciseGenerator:
                 "Judge each item independently against the exact shown lesson. Only fail an item for a concrete defect listed below — not for stylistic preferences.",
                 "Concrete defects that fail an item: (1) the answer key is wrong, or is not selectable from the choices / not buildable from the chips; (2) the French in the answer key is clearly ungrammatical or unnatural; (3) the item has essentially NO connection to the target concept's grammar family (adjacent sub-skills fail unless the shown lesson explicitly explains them); (4) the prompt or labels hand over the answer so no thinking is required.",
                 "Do NOT fail an item merely for the number, style, or strength of distractors — distractor quality is repaired automatically. Two distinct plausible choices is acceptable.",
-                "For word_bank, meaning_cue must tell the learner what sentence to build, must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
+                "For word_bank, a non-empty meaning_cue must be the meaning of the sentence to build (never an instruction), must match the answer sentence's meaning, must not expose the French target sentence, prompt/tokens must not contain blanks, answer_tokens must form the complete target French sentence, and tokens must include at least one plausible distractor chip. The assembled answer_tokens MUST be a grammatically complete, natural French sentence: FAIL it if two clauses are spliced without the conjunction the meaning needs (e.g. an English cue 'I was reading WHEN the phone rang' whose French answer omits 'quand', or a si/parce que/que clause missing its connector). Do NOT fail word_bank items for chip order, token ordering, placement clarity, or extra plausible distractors; chips are intentionally unordered.",
                 "For transform items, judge ONLY the learner-facing `instruction` text (never the `expected_answer` field — that is the hidden grading key and SHOULD contain the full corrected sentence; never treat it as a spoiler). Be LENIENT: a transform passes whenever it (a) quotes the exact source word or phrase to change and (b) names a grammatical target — a tense, mood, or rule name such as 'the imparfait', 'the passé composé', 'the future', 'the present', 'its negated form'. Naming the target tense/mood is REQUIRED and is NOT a spoiler, even when the answer ends up in that tense: \"Change 'pleuvait' to the passé composé\" must PASS. Only FAIL a transform when the instruction literally writes the conjugated answer word the learner must type (for example \"change 'pleut' to 'pleuvait'\", or \"change 'avais' to 'as'\"), or when it is so vague it names neither a specific source word nor any grammatical target. Do not fail for style, prescriptiveness, or for omitting the answer word.",
                 "Do not rewrite items. Return pass/fail and one concise reason only.",
             ],
@@ -4406,8 +4437,9 @@ class AtelierExerciseGenerator:
             item["answer_tokens"] = [str(token) for token in answer_tokens]
             if not str(item.get("correct_answer") or "").strip():
                 item["correct_answer"] = _join_french_tokens(item["answer_tokens"])
-            if not str(item.get("meaning_cue") or "").strip():
-                item["meaning_cue"] = _word_bank_meaning_cue(concept, item.get("correct_answer") or item["answer_tokens"])
+            item["meaning_cue"] = meaning_cue_text(item.get("meaning_cue")) or _word_bank_meaning_cue(
+                concept, item.get("correct_answer") or item["answer_tokens"]
+            )
             # Always build the chips from the answer tokens (+ distractors) so the answer is
             # guaranteed buildable from the offered chips — the LLM's own token list is unreliable.
             chips = [str(token) for token in item["answer_tokens"]]
@@ -4802,6 +4834,21 @@ def check_answer_length(round_name: str, prompt_payload: dict[str, Any], answer_
         raise AnswerLengthError(f"This item takes at most {high} words; the answer has {words} words.")
 
 
+#: Walk of 19 Nov: a fill's own lines («You chose `prendras`, but …») said of a typed
+#: answer that it was chosen. The same line, said of what was written.
+_CHOSEN_AS_WRITTEN = (
+    (re.compile(r"^You chose\b"), "You wrote"),
+    (re.compile(r"^Tu as choisi\b"), "Tu as écrit"),
+    (re.compile(r"^(Du hast .+?) gewählt(?=[,;])"), r"\1 geschrieben"),
+)
+
+
+def _written_not_chosen(why: str) -> str:
+    for pattern, replacement in _CHOSEN_AS_WRITTEN:
+        why = pattern.sub(replacement, why, count=1)
+    return why
+
+
 class AtelierCorrectionService:
     """Exercise-aware checking and structured correction payloads."""
 
@@ -4822,6 +4869,10 @@ class AtelierCorrectionService:
         self.explanation_language = DEFAULT_GLOSS_LANGUAGE
         #: The learner's own language, for the task as their screen showed it.
         self._learner_native: str | None = None
+        #: How La Forge posed the answered item («typed», «choice», …), when it did.
+        self._posed_drill: str | None = None
+        #: R5: the interface language (French from B1), for a goal line the screen states.
+        self._learner_chrome: str | None = None
 
     def submit_attempt(
         self,
@@ -4835,9 +4886,16 @@ class AtelierCorrectionService:
         answer_payload: dict[str, Any],
         prompt_payload_override: dict[str, Any] | None = None,
         retest_of: UUID | None = None,
+        posed_drill: str | None = None,
     ) -> AtelierAttempt:
-        from app.services.chrome_language import user_chrome_language
-        self.explanation_language = user_chrome_language(user)
+        # Walk of 19 Nov: a typed fill's miss says «Tu as écrit», not «Tu as choisi».
+        self._posed_drill = posed_drill
+        # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
+        # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
+        # 2026); the chrome around it stays French from B1.
+        from app.services.chrome_language import user_chrome_language, user_correction_language
+        self.explanation_language = user_correction_language(user)
+        self._learner_chrome = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
         # WP-103 T8: an A1 learner corrects a sorted sentence with tiles.
         self._learner_band = str(getattr(user, "cefr_estimate", "") or "A1").strip().upper()[:2]
@@ -5055,7 +5113,18 @@ class AtelierCorrectionService:
             # (the model's rewrite also changed «agreable» to «agréable») must not
             # read «Line fixed» with that difference still in the line.
             in_place = repair_line_from_parts(source, errata)
-            accepted = [target, in_place if in_place and not sentence_differences(in_place, target) else None]
+            # Walk of 19 Nov: a difference that is no mistake («à Luxembourg» / «au
+            # Luxembourg») does not keep the learner's own fixed line from being right.
+            accepted = [
+                target,
+                in_place
+                if in_place and (not sentence_differences(in_place, target) or is_preference_swap(in_place, target))
+                else None,
+            ]
+            # #946 / #174: one accept-list, not one stored string. A sentence the item
+            # itself accepts is right in the correction box too, whatever line the
+            # model printed («Elle a chaud ce soir» against a stored «Elle a chaude»).
+            accepted += _accepted_answers(attempt.prompt_payload or {})
         else:
             # #503: a keyed round asks for «the corrected line» too. The line is
             # the key's own corrected answer for the item, or the learner's line
@@ -5464,8 +5533,12 @@ class AtelierCorrectionService:
         if not user or not session:
             return self._mark_ai_review_failed(attempt, "Attempt context unavailable.")
 
-        from app.services.chrome_language import user_chrome_language
-        self.explanation_language = user_chrome_language(user)
+        # R4 (walk of 19 Nov): why an answer was wrong is explained in the mother tongue
+        # at every level, as the scene's notes and the Courrier's (owner decision 18 Nov
+        # 2026); the chrome around it stays French from B1.
+        from app.services.chrome_language import user_chrome_language, user_correction_language
+        self.explanation_language = user_correction_language(user)
+        self._learner_chrome = user_chrome_language(user)
         self._learner_native = user_mother_tongue(user)
         started = time.perf_counter()
         try:
@@ -6159,6 +6232,7 @@ class AtelierCorrectionService:
                 answers.get(item["id"]),
                 band=getattr(self, "_learner_band", None),
                 language=self.explanation_language,
+                chrome=getattr(self, "_learner_chrome", None),
             )
             if extra:
                 follow_ups[str(item["id"])] = extra
@@ -6404,7 +6478,10 @@ class AtelierCorrectionService:
             else:
                 # #235: a gap lists several right fillers; the miss is measured against
                 # the closest one (a wrong article is told «une peinture», not «un tableau»).
+                # #696: the card's right line is that same closest answer, so the
+                # struck line and the line under it differ only where the learner slipped.
                 shown = verdict.expected if mode == "fill" and verdict.expected else target
+                corrected[item_id] = shown
                 errata.append(self._recognize_erratum(concept, mode, item, learner_text, str(shown or "")))
         score = round((correct_count / max(len(items), 1)) * 4, 2)
         return {
@@ -6497,7 +6574,10 @@ class AtelierCorrectionService:
             )
         if mode == "classify" and _is_judgement(item):
             return self._judgement_erratum(concept, item, learner_text, target)
-        slip = slip_note(token_diff(learner_text, target), self.explanation_language) if mode != "classify" else None
+        ops = token_diff(learner_text, target) if mode != "classify" else []
+        slip = slip_note(ops, self.explanation_language) if mode != "classify" else None
+        # #696: a line that is its answer up to an accent names that accent.
+        accent_line = accent_miss_note(ops, self.explanation_language) if mode == "fill" else None
         if slip:
             # #449: the slip's own category explains the miss, not the day's rule card.
             return self._recognize_erratum_payload(
@@ -6518,8 +6598,15 @@ class AtelierCorrectionService:
             why = (
                 ""
                 if mode == "word_bank"
-                else _copy("atelier.recognize.chose_requires", language, learner=learner_text, target=target)
+                else _copy(
+                    "atelier.recognize.wrote_requires" if self._typed_fill(mode, item, learner_text) else "atelier.recognize.chose_requires",
+                    language,
+                    learner=learner_text,
+                    target=target,
+                )
             )
+            if accent_line:
+                why = f"{why} {accent_line}".strip()
             explanation = str(item.get("explanation") or self._why_for(concept, item) or "").strip()
             outside_rule = mode == "fill" and _miss_outside_the_rule(item, learner_text, target)
             # #596: a slip the classifier can name (an article's gender or number, a verb
@@ -6532,15 +6619,19 @@ class AtelierCorrectionService:
                 # gender or number is the noun's, whatever the day's rule is.
                 category = (slip_category(ops, target) or {}).get("category", "")
                 cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
-                return self._recognize_erratum_payload(
+                erratum = self._recognize_erratum_payload(
                     concept, item, label=title, learner_text=learner_text, target=target,
                     why=" ".join(part for part in (why, named[0], cite) if part),
                     repair=named[1],
                     task_type=self._task_type_for(concept, item),
                 )
+                if normalize_language(language) != "en":
+                    self._hint_without_answer(erratum, concept, item, (named[0], named[1], self._why_for(concept, item)))
+                return erratum
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
-                why = f"{why} {_copy('atelier.recognize.other_words', language, learner=learner_text, target=target)}"
+                # Walk of 19 Nov: alone, not after «You chose X;» (a typed line was not chosen).
+                why = _copy("atelier.recognize.other_words", language, learner=learner_text, target=target)
             elif normalize_language(language) == "en" and explanation:
                 why = f"{why} {explanation}".strip()
             else:
@@ -6551,7 +6642,7 @@ class AtelierCorrectionService:
                 repair = infer_grammar_profile(concept).pattern
             else:
                 repair = self._repair_for(concept, learner_text, target)
-            return self._recognize_erratum_payload(
+            erratum = self._recognize_erratum_payload(
                 concept, item, label=_concept_title_for(concept, language), learner_text=learner_text, target=target,
                 why=why,
                 # QA-FORGE: the profile's pattern is an English formula
@@ -6559,8 +6650,19 @@ class AtelierCorrectionService:
                 repair=repair,
                 task_type=self._task_type_for(concept, item),
             )
+            if not outside_rule and normalize_language(language) != "en":
+                # R2 (walk of 17 Nov): while the solution waits, the miss said «Tu as choisi
+                # « noire » ; Règle : Les adjectifs : accord et place.» — the rule's name and
+                # nothing else, though its reason in plain words was there behind «Voir la
+                # solution». The hint is that reason (``solution_gate.learner_view`` drops any
+                # clause of it that would name the answer).
+                self._hint_without_answer(erratum, concept, item, (self._why_for(concept, item), repair))
+            return erratum
         if mode == "fill":
-            return self._fill_erratum(concept, item, learner_text, target)
+            erratum = self._fill_erratum(concept, item, learner_text, target)
+            if accent_line:
+                erratum["why_wrong"] = f"{accent_line} {erratum.get('why_wrong') or ''}".strip()
+            return erratum
         if mode == "classify":
             return self._classify_erratum(concept, item, learner_text, target)
         return self._recognize_erratum_payload(
@@ -6574,6 +6676,49 @@ class AtelierCorrectionService:
             task_type=self._task_type_for(concept, item),
         )
 
+    def _typed_fill(self, mode: str, item: dict[str, Any], learner_text: str) -> bool:
+        """Walk of 19 Nov: was this fill typed (La Forge's «Tape la forme», a gap with no
+        options, an answer that is none of them) rather than picked? A typed line was
+        written, not chosen: «Tu as écrit … », never «Tu as choisi … »."""
+
+        from app.services import solution_gate
+
+        if mode != "fill":
+            return False
+        item_id = str(item.get("id") or "fill")
+        return solution_gate.typed_answer(
+            {"items": [{**item, "id": item_id}]}, {"answers": {item_id: learner_text}}, getattr(self, "_posed_drill", None)
+        )
+
+    def _hint_without_answer(
+        self,
+        erratum: dict[str, Any],
+        concept: GrammarConcept | None,
+        item: dict[str, Any],
+        candidates: tuple[Any, ...],
+    ) -> None:
+        """R2 (walk of 17 Nov): the first miss of a choice said «Tu as choisi « noire » ;
+        Règle : Les adjectifs : accord et place.» — the rule's name and nothing else, while
+        its reason in plain words waited behind «Voir la solution». ``hint`` (what
+        ``solution_gate.learner_view`` serves while the solution waits) is the first
+        candidate reason that still says something once every clause naming the answer
+        is out; the scrub there drops those clauses again."""
+
+        from app.services import solution_gate
+
+        language = self.explanation_language
+        learner_text = str(erratum.get("learner_text") or "")
+        target = str(erratum.get("corrected_target") or "")
+        phrases, tokens = solution_gate.leak_terms(
+            {"errata": [erratum], "corrected_answer": target}, learner_text, solution_gate.task_text(item)
+        )
+        generic = {_copy("atelier.generic.why", language), _copy("atelier.generic.repair", language)}
+        for candidate in candidates:
+            text = str(candidate or "").strip()
+            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens):
+                erratum["hint"] = text
+                return
+
     def _fill_erratum(
         self,
         concept: GrammarConcept | None,
@@ -6584,7 +6729,12 @@ class AtelierCorrectionService:
         learner_norm = _normalize(learner_text)
         target_norm = _normalize(target)
         label = self._label_for(concept, item)
-        why = _copy("atelier.recognize.blank_needs", self.explanation_language, learner=learner_text, target=target)
+        why = _copy(
+            "atelier.recognize.wrote_blank_needs" if self._typed_fill("fill", item, learner_text) else "atelier.recognize.blank_needs",
+            self.explanation_language,
+            learner=learner_text,
+            target=target,
+        )
         repair = item.get("repair_hint") or self._repair_for(concept, learner_text, target)
         profile_key = infer_grammar_profile(concept).key if concept else ""
 
@@ -6630,6 +6780,8 @@ class AtelierCorrectionService:
             else:
                 why = _copy("atelier.tense.fill_needs_passe_compose", language, learner=learner_text, target=target)
             repair = _copy("atelier.tense.repair_ask_ongoing", language)
+        if self._typed_fill("fill", item, learner_text):
+            why = _written_not_chosen(why)
 
         return self._recognize_erratum_payload(
             concept,
@@ -6685,9 +6837,19 @@ class AtelierCorrectionService:
                 ),
                 "remember": False,
             }
+        # «„Elle est prête.“.»: the template closes the sentence itself.
+        why = _copy(
+            "atelier.judgement.should_be", language, sentence=sentence.rstrip(". "), corrected=corrected.rstrip(". ")
+        )
+        # Walk of 19 Nov: a judgement has two buttons, so its miss gets no retry and the
+        # right sentence is the other answer anyway. What it lacked was the reason
+        # («„Elle es prête.“ stimmt nicht; richtig ist „Elle est prête.“» and nothing else).
+        named = slip_note(token_diff(sentence, corrected, positions=True), language, corrected)
+        if named and named[0] not in why:
+            why = f"{why} {named[0]}"
         return self._recognize_erratum_payload(
             concept, item, label=label, learner_text=sentence, target=corrected,
-            why=_copy("atelier.judgement.should_be", language, sentence=sentence, corrected=corrected),
+            why=why,
             repair=repair, task_type=self._task_type_for(concept, item),
         )
 
@@ -7139,9 +7301,13 @@ class AtelierCorrectionService:
                 continue
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
+            # #696: the miss is measured against the accepted rewrite nearest to it
+            # (the one the verdict was read against), not the stored key.
+            target = verdict.expected or target
+            corrected[item_id] = target
             erratum = self._erratum(concept, item, learner, target, severity=3, recurring=True)
             ops = mark_given(token_diff(learner, target), source)
-            what = describe_diff(ops, self.explanation_language)
+            what = describe_diff(ops, self.explanation_language) or accent_miss_note(ops, self.explanation_language)
             slip = slip_note(ops, self.explanation_language)
             if slip:
                 # #449: the slip's own category explains it; the rule card does not.
@@ -7683,6 +7849,8 @@ class AtelierCorrectionService:
         read, and ``own_sentence``: the content is the learner's to choose.
         """
 
+        from app.services.free_card_contract import quoted_meanings
+
         language = mother_tongue(self.explanation_language)
         if language == "en" or item.get("type") not in {"short_sentence", "spoken_response", "conversation_turn"}:
             return item
@@ -7695,6 +7863,10 @@ class AtelierCorrectionService:
             ]
             if isinstance(value, str) and value.strip()
         ]
+        # R2 (walk of 17 Nov): a coach scene keeps the reply it wants only in its goals and
+        # its English prompt («Reply in French: "Yes, I'm suggesting it to them."»); on a
+        # French screen the learner read «Lila : « La fête des voisins ? »» and nothing more.
+        meanings.extend(meaning for meaning in quoted_meanings(raw_item) if meaning not in meanings)
         if not meanings:
             return item
         from app.services.item_bank import public_item
@@ -7801,13 +7973,23 @@ class AtelierCorrectionService:
                 "give the French in corrected_answer, list it in lexical_gaps, and do not mark the answer flawless.",
             ],
         }
-        return self._llm_correction(
+        result = self._llm_correction(
             messages=[{"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}],
             system_prompt=system_prompt,
             concepts=[concept],
             fallback=fallback,
             corrected_answer_mode="text",
         )
+        if any(isinstance(item, dict) and item.get("own_sentence") for item in compact_task.get("items") or []):
+            # R2 (walk of 17 Nov): a card that asked for a sentence of the learner's own with
+            # the rule is judged on the rule and on correct French, nothing it never stated.
+            from app.services.forge_grading import detector_check
+            from app.services.free_card_contract import only_what_the_card_asked
+
+            text = str(answer_payload.get("text") or "")
+            rule_used = not fallback.get("missing_targets") or detector_check(concept, text)["status"] == "hit"
+            result = only_what_the_card_asked(result, rule_used=rule_used)
+        return result
 
     def _correct_transform_with_llm(
         self,
@@ -8265,7 +8447,7 @@ class AtelierCorrectionService:
             "not know the French — including words inside parentheses, brackets, or quotes — do NOT silently replace it and do NOT mark the "
             "answer flawless. Keep the learner's intended meaning: put the correct French for that specific word into corrected_answer, and "
             "add an entry to lexical_gaps giving the exact fragment they wrote (learner_fragment), its language (de/en/other), the correct "
-            "French (french), and a short English gloss. An answer that leans on a non-French word is at most 'partial', never 'correct' or "
+            f"French (french), and a short gloss in {self._gloss_language_name()} (the learner's own language). An answer that leans on a non-French word is at most 'partial', never 'correct' or "
             "'accepted'. When the answer is fully French, return lexical_gaps as an empty array. "
             # WP-103 T10: the owner's «Lila cherche un poster grand» was told «poster» is English.
             "A word that looks English can be French: established loanwords such as poster, week-end, parking, sandwich, "
@@ -8279,6 +8461,14 @@ class AtelierCorrectionService:
             "corrected form, any word of corrected_target or corrected_answer the learner did not write, or the "
             "answer spelt out (write «„carte“ is feminine: which article fits?», never «carte needs une»)."
         )
+
+    def _gloss_language_name(self) -> str:
+        """P10: a lexical gap's gloss is read in the learner's own language (the
+        mother tongue), never English for everyone — «bague — ring» for a German
+        learner."""
+
+        code = mother_tongue(self._learner_native or self.explanation_language)
+        return EXPLANATION_LANGUAGE_NAMES.get(code, EXPLANATION_LANGUAGE_NAMES[DEFAULT_GLOSS_LANGUAGE])
 
     def _explanation_language_instruction(self) -> str:
         """Tell the model which language the *explanation* must be written in.

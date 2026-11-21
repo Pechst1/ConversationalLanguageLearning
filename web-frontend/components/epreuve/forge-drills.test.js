@@ -286,7 +286,7 @@ test('guard: the rafale recap never lists a sentence without its own result', ()
   });
   // The page hands the recap every row the server marked, and the rule's line.
   assert.match(PAGE, /<ForgeRafaleResult\s+rows=\{burstMarks\}/);
-  assert.match(PAGE, /reasonFor=\{\(row\) => rafaleReason\(ruleCard, row, language\)\}/);
+  assert.match(PAGE, /reasonFor=\{\(row\) => rafaleReason\(ruleCard, row, explainLanguage\)\}/);
   // A burst mark is never dropped on its way from the server.
   const marks = Lib.burstRows({ burst: rows.map((row) => ({ item_id: row.itemId, sentence: row.sentence, answer: row.answer, expected: row.expected, correct: row.correct })) });
   assert.deepEqual(marks.map((mark) => mark.correct), rows.map((row) => row.correct));
@@ -445,4 +445,39 @@ test('Déclic lands a typed answer and a spot line on the rule, display only', (
   assert.match(gate, /drill === 'spot'/);
   assert.match(gate, /drill === 'typed'/);
   assert.doesNotMatch(gate, /'mine'|'rafale'|'tiles'|'dictation'|'judge'/);
+});
+
+// R5 · check walk of 19 Nov (B1.1, English): «Cette phrase enfreint la règle. After pour,
+// sans and avant de…» — a French lead-in glued to an English reason. The lead-in explains
+// too: the whole line is in the learner's own language, marked once.
+test('a B1 rafale miss explains in one language, the learner’s own, lead-in included (R5)', () => {
+  const fc = forgeCopy('fr');
+  const rows = [
+    { itemId: 'j-1', sentence: 'Margaux cherche la stylo.', answer: 'Correct', expected: 'À corriger', correct: false, correctedFr: 'Margaux cherche le stylo.' },
+    { itemId: 'j-2', sentence: 'Margaux cherche le stylo.', answer: 'À corriger', expected: 'Correct', correct: false, correctedFr: null },
+  ];
+  for (const lang of ['en', 'de']) {
+    const html = render('fr', h(Drills.ForgeRafaleResult, {
+      rows,
+      items: [],
+      copy: fc,
+      reasonFor: (row) => Lib.rafaleReason(ARTICLES_CARD, row, lang),
+      reasonLang: lang,
+      onNext: () => undefined,
+      nextLabel: 'Continuer',
+    }));
+    const whys = [...html.matchAll(/<p class="forge-rafale__why"( lang="[a-z]+")?>(.*?)<\/p>/g)];
+    assert.equal(whys.length, 2);
+    for (const [, attr, inner] of whys) {
+      assert.equal(attr, ` lang="${lang}"`, 'the whole line is marked with the learner’s language');
+      assert.doesNotMatch(text(inner), /enfreint|Rien à corriger/, 'no French lead-in before the reason');
+      assert.doesNotMatch(inner, /<span lang=/, 'one language, one mark');
+    }
+    const lead = forgeCopy(lang);
+    assert.ok(text(whys[0][2]).startsWith(lead.rafale_why_wrong), `${lang}: lead-in in the learner’s language`);
+    assert.ok(text(whys[1][2]).startsWith(lead.rafale_why_right.replace(/&/g, '&amp;')) || text(whys[1][2]).startsWith(lead.rafale_why_right));
+  }
+  // The French chrome around it stays French (the call made, the right form).
+  const html = render('fr', h(Drills.ForgeRafaleResult, { rows, items: [], copy: fc, reasonLang: 'en', onNext: () => undefined, nextLabel: 'Continuer' }));
+  assert.match(text(html), /la bonne réponse/);
 });

@@ -66,16 +66,18 @@ export function headlineArc(headline: EpisodeHeadline | null | undefined, langua
 }
 
 /**
- * The headline's title: the episode's own title when known; else yesterday's «À
- * suivre…» leads — a generated day has no title until it is written, and the
- * generic «Votre prochain chapitre» says nothing.
+ * The headline's title: the episode's own title when known, else a real title the
+ * caller passes (`fallback`). P8 (real-model check, 17 Nov): before today's page is
+ * written there is no title, and none is invented — yesterday's «À suivre…» is the
+ * hook, printed under «À suivre», never in the title's place (Home had read the hook,
+ * then another title once the page existed). The generic «Votre prochain chapitre»
+ * names nothing and is not a title either.
  */
 export function headlineTitle(headline: EpisodeHeadline | null | undefined, fallback = ''): string {
   const title = String(headline?.title_fr || '').trim();
   if (title) return title;
-  const teaser = bareTeaser(headline);
   const generic = !fallback.trim() || GENERIC_TITLES.has(fallback.trim());
-  return generic && teaser ? teaser : fallback;
+  return generic ? '' : fallback;
 }
 
 /** The teaser without its own closing «À suivre…» (the label already says it). */

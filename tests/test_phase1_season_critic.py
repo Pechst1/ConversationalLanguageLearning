@@ -151,6 +151,8 @@ def test_the_season_critic_reads_the_last_three_days_and_serves_a_second_reader_
         "accepted": False,
         "issues": [CONTRADICTS],
         "class": STORYTELLING,
+        # Round 4: the rubric items the refusal was for, for the night's outcome line.
+        "failed": ["one_plain_question"],
     }
     assert review(page, deadline=0.0, record=lambda entry: None, final=True)["accepted"] is True, (
         "a second storytelling refusal is served"

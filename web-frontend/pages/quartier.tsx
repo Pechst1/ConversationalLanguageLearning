@@ -8,8 +8,9 @@
  * puts before the scene (a rule, a few words) and what follows it are the Feuilleton's own steps,
  * played over the quarter. A day left in the middle of its talk is the Feuilleton's to finish.
  *
- * Behind `quartierVisible` in launch-flags.json in a production build; a development build
- * always has it. The street is WebGL, so it never renders on the server.
+ * Behind `quartierVisible` in launch-flags.json in a production build, launched since 17 Nov
+ * (P12: a choice beside the page on Home, not the default); a development build always has it.
+ * The street is WebGL, so it never renders on the server.
  */
 import dynamic from 'next/dynamic';
 import Head from 'next/head';
@@ -19,16 +20,19 @@ import React from 'react';
 import { useDailyJourney } from '@/components/atelier-v2/journey/useDailyJourney';
 import type { DailyJourneyController } from '@/components/atelier-v2/journey/useDailyJourney';
 import { readAnswerMode } from '@/components/atelier-v2/journey/voice-answer';
+import { getStoryArchive, getTrombinoscope } from '@/components/feuilleton/archive/archive-api';
 import type { DayNote, QuartierDay } from '@/components/quartier/QuartierScreen';
 import { useAppSession } from '@/lib/app-auth';
 import { JOURNEY_RESUME_HREF } from '@/lib/journey-resume';
 import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { levelBand } from '@/lib/language-rule';
 import { quartierNative, readLearnerLanguage, readLearnerLevel, useLearnerLanguage } from '@/lib/learner-language';
-import { JourneyStory, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
+import type { CarnetStory } from '@/lib/quartier/carnet-model';
+import { JourneyStory, episodeLabel, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
 import type { Level, Native } from '@/lib/quartier/stage';
 import { placeCard } from '@/lib/quartier/story';
+import { revueClient } from '@/lib/revue-api';
 import { apiService } from '@/services/api';
 import { remainingSteps } from '@/services/daily-journey';
 import type { JourneySnapshot } from '@/types/daily-journey';
@@ -181,7 +185,7 @@ function noteOf(
     const s = phase.scenario;
     if (!s) return { title: 'Aujourd’hui', text: copy.nothing };
     return {
-      kicker: c.envelope?.headline?.edition_no ? `Épisode ${c.envelope.headline.edition_no}` : undefined,
+      kicker: episodeLabel(c.envelope?.headline?.edition_no) ?? undefined,
       title: s.title_fr,
       // opening the day writes its scene when none was written ahead: that can take a minute
       text: c.busy ? copy.preparing : s.objective_native,
@@ -203,12 +207,12 @@ function noteOf(
         },
       };
     case 'before':
-      return { kicker: today.page.number ? `Épisode ${today.page.number}` : undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
+      return { kicker: episodeLabel(today.page.number) ?? undefined, title: today.page.title_fr || 'Avant la scène', text: copy.before, action: { label: 'Commencer', run: warmUp } };
     case 'handoff':
       if (today.why === 'elsewhere') {
         const name = placeCard(today.place, today.page.location_name)?.[copy.lang] ?? null;
         return {
-          kicker: today.page.number ? `Épisode ${today.page.number}` : undefined,
+          kicker: episodeLabel(today.page.number) ?? undefined,
           title: today.page.title_fr || 'Le Feuilleton',
           text: copy.elsewhere(name),
           action: { label: 'Ouvrir le Feuilleton', run: feuilleton },
@@ -259,6 +263,20 @@ export default function QuartierPage() {
     if (status !== 'loading') session.known(status === 'authenticated');
   }, [status, session]);
   const learnerWorld = React.useCallback(async () => ((await session.signed) ? apiService.getLearnerWorld() : null), [session]);
+  // «Ton carnet» reads the story: the people met (the trombinoscope), the days played (the archive), and whether Le Papier is on
+  const carnetStory = React.useCallback(async (): Promise<CarnetStory | null> => {
+    if (!(await session.signed)) return null;
+    const [cast, archive, news] = await Promise.all([
+      getTrombinoscope(),
+      getStoryArchive(),
+      revueClient()
+        .week()
+        .then((w) => Boolean(w.enabled))
+        .catch(() => false),
+    ]);
+    const days = archive ? archive.seasons.flatMap((s) => s.chapters.flatMap((c) => c.days)).filter((d) => d.act === 1) : null;
+    return { cast, days, news };
+  }, [session]);
 
   // today's story, once its page is known: one per journey. Its scene plays here while the day
   // stands before it, and the people talk through it whatever the day's state
@@ -326,7 +344,7 @@ export default function QuartierPage() {
       <Head>
         <title>Le Quartier</title>
       </Head>
-      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} world={learnerWorld} />
+      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} world={learnerWorld} carnet={carnetStory} />
       {practice && journey ? (
         <div style={{ position: 'fixed', inset: 0, zIndex: 40, overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#f4efe4' }}>
           <JourneySession

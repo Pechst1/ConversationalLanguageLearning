@@ -18,6 +18,7 @@
  *     (`resolution` is null until the exchange actually settles).
  */
 
+import { nativeOrNothing } from '@/lib/line-language';
 import type { ControlLanguage, GrammarFocus, StoryEpisode, StoryPanel } from '@/types/daily-journey';
 import { lineMarkRanges } from '@/components/feuilleton/reader/grammar-marks';
 import { isPlanningNote } from '@/components/feuilleton/reader/planning-note';
@@ -312,7 +313,7 @@ export function buildStoryStages(episode: StoryEpisode | null | undefined): Read
       ordinal: stages.length + 1,
       character: 'toi',
       hookQuestion: String(episode.resolution.text_fr || '').trim(),
-      hookBeat: String(episode.resolution.summary_native || '').trim(),
+      hookBeat: nativeOrNothing(episode.resolution.summary_native),
       tasks: [],
       ...(episode.page?.a_suivre_fr ? { aSuivre: String(episode.page.a_suivre_fr).trim() } : {}),
     });
@@ -1018,6 +1019,20 @@ export function readListenFirst(fallback = false): boolean {
   return fallback;
 }
 
+/**
+ * Pilot P9: the learner switched «Écouter d'abord» off on this device — the stored
+ * value is `'0'`, not merely absent. A dealt listening day then opens on the text,
+ * with the offer above the first panel; a learner who never touched the setting
+ * keeps the dealt day.
+ */
+export function listenFirstSwitchedOff(): boolean {
+  try {
+    return storage()?.getItem(LISTEN_FIRST_KEY) === '0';
+  } catch {
+    return false;
+  }
+}
+
 export function writeListenFirst(enabled: boolean): void {
   try {
     storage()?.setItem(LISTEN_FIRST_KEY, enabled ? '1' : '0');
@@ -1050,6 +1065,7 @@ export function listenFirstPlacement({
   preferred = false,
   dealt = false,
   declined = false,
+  switchedOff = false,
 }: {
   /** The server's own answer about this deployment (`prompt.audio_available`). */
   audioAvailable: boolean;
@@ -1064,10 +1080,15 @@ export function listenFirstPlacement({
    * decision about the placement itself, and it wins over both.
    */
   declined?: boolean;
+  /**
+   * Pilot P9: the device's stored preference is an explicit «off» (`'0'`). A dealt
+   * day does not open on the cycle then; the offer above the first panel still does.
+   */
+  switchedOff?: boolean;
 }): ListenFirstPlacement {
   if (!audioAvailable) return 'none';
   if (declined) return 'before_first_panel';
-  return preferred || dealt ? 'cycle' : 'before_first_panel';
+  return preferred || (dealt && !switchedOff) ? 'cycle' : 'before_first_panel';
 }
 
 /**
@@ -1128,7 +1149,8 @@ export function storyFinaleStage(
   ordinal = 1,
 ): ReaderResolutionStage {
   const lineFr = String(prompt?.character_line_fr || '').trim();
-  const summary = String(prompt?.summary_native || '').trim();
+  // round 3: a line that turns French halfway («… und reste avec toi dans l’attente …») is left out
+  const summary = nativeOrNothing(prompt?.summary_native);
   // Past A2 the chrome is French, so the «translation» of a French last line can be that line:
   // «Deux clés, une seule porte. À suivre…» printed twice (walk, 9 Nov).
   const fold = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -1209,6 +1231,58 @@ export function journeyStoryPage(
     if (page) return page;
   }
   return null;
+}
+
+/** One exchange of the scene's reply, as the respond step's public `thread` carries it. */
+export type ClosingExchange = {
+  learner_fr?: string | null;
+  character_fr?: string | null;
+  character_lines?: Array<{ speaker_id?: string | null; speaker_name?: string | null; text_fr?: string | null }> | null;
+};
+
+/**
+ * R2 · the scene's closing panels while its ending is written.
+ *
+ * Real play (17 Nov): after the last reply the reader jumped to the last panel and
+ * «Wie es weitergeht, wird gerade geschrieben…» held it for 15–30 s. The story
+ * lane starts at the last reply; meanwhile the exchange the learner just had is
+ * the page's closing panels (the finished page prints them too, with their
+ * lines), so the reader opens on them and the finale follows. Each exchange is
+ * one panel on the page's last plate: the learner's line, then the reply's voices.
+ * Nothing when there is no exchange; the page is returned unchanged.
+ */
+export function withClosingExchanges(
+  episode: StoryEpisode,
+  thread: ClosingExchange[] | null | undefined,
+  speaker: { id?: string | null; name?: string | null } | null | undefined,
+): { episode: StoryEpisode; firstClosing: number | null } {
+  const exchanges = (thread || []).filter((exchange) => String(exchange?.learner_fr || '').trim());
+  if (!exchanges.length) return { episode, firstClosing: null };
+  const panels = episode.panels || [];
+  const last = panels[panels.length - 1];
+  const closing: StoryPanel[] = exchanges.map((exchange, i) => {
+    const voices = (exchange.character_lines || []).filter((line) => String(line?.text_fr || '').trim());
+    const replies = voices.length
+      ? voices.map((line) => ({
+          character_id: String(line.speaker_id || speaker?.id || ''),
+          character_name: line.speaker_name || null,
+          text_fr: String(line.text_fr || '').trim(),
+        }))
+      : String(exchange.character_fr || '').trim()
+        ? [{ character_id: String(speaker?.id || ''), character_name: speaker?.name || null, text_fr: String(exchange.character_fr).trim() }]
+        : [];
+    return {
+      id: `closing:${episode.id}:${i}`,
+      index: panels.length + i,
+      narration_fr: '',
+      image_url: last?.image_url ?? null,
+      image_status: last?.image_status ?? 'unavailable',
+      plate_url: last?.plate_url ?? null,
+      alt_native: last?.alt_native ?? null,
+      dialogue: [{ character_id: 'toi', character_name: null, text_fr: String(exchange.learner_fr).trim() }, ...replies],
+    };
+  });
+  return { episode: { ...episode, panels: [...panels, ...closing] }, firstClosing: panels.length };
 }
 
 /** The frame a finale stands in when there is no page before it: no panels, nothing saved. */

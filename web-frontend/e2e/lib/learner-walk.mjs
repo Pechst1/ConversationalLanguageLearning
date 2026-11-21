@@ -7,7 +7,7 @@ import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snap
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
-import { bannersOn, englishWords, serverBanner } from './assertions.mjs';
+import { bannersOn, englishOnFrenchScreen, serverBanner } from './assertions.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -161,12 +161,13 @@ export class LearnerWalk {
       // follows the learner's native language (lib/settings-copy.ts). Every other
       // screen keeps the check.
       if (kind !== 'settings') {
-        const eng = englishWords(s.nonFrText);
-        // The text around the first English word, not the page's opening chrome: the
-        // detail has to name the string to fix.
-        const at = eng.length >= 3 ? s.nonFrText.toLowerCase().search(new RegExp(`\\b(${eng.join('|')})\\b`)) : 0;
-        const around = s.nonFrText.slice(Math.max(0, at - 60), Math.max(0, at - 60) + 240);
-        this.findings.check('no-english-on-french-b1', eng.length < 3, `English chrome on a French screen: ${eng.slice(0, 8).join(', ')} — «${around}»`, w);
+        // Owner, 18–19 Nov 2026: from B1 the chrome is French, but explanations (a rule, a
+        // hint, why an answer was wrong, a correction's tag, a word's gloss) are in the
+        // learner's mother tongue, marked `lang` on the element that holds only them. Text
+        // marked as this walker's own language (`this.lang`) is set aside; unmarked English,
+        // or English marked for another learner, still fails (assertions.englishOnFrenchScreen).
+        const { ok, words, around } = englishOnFrenchScreen(s, this.lang);
+        this.findings.check('no-english-on-french-b1', ok, `English chrome on a French screen: ${words.slice(0, 8).join(', ')} — «${around}»`, w);
       }
       const englishLabels = /present condition|future result|imperative result|background\/habit|bounded event|article changes/i;
       this.findings.check('b1-classification-labels-are-french', !englishLabels.test(s.text), 'Classification labels and corrections must be French, including inside lang="fr".', w);

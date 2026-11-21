@@ -61,8 +61,8 @@ def _home_words(db: Session, user) -> dict:
 @pytest.fixture
 def normal_pace(monkeypatch: pytest.MonkeyPatch):
     def setup(db: Session, user, reserved: set[int]) -> None:
-        user.daily_pace = "normal"  # 20 new words a day
-        user.new_words_per_day = 20
+        user.daily_pace = "normal"  # 15 new words a day (owner decision 1, 17 Nov)
+        user.new_words_per_day = 20  # stored at the old Normal: the pace speaks for it
         db.commit()
         # Today's journey is planned and keeps `reserved` to introduce itself.
         monkeypatch.setattr(vocabulary_pace, "journey_reservation", lambda *_a, **_k: (True, set(reserved)))
@@ -78,29 +78,29 @@ def test_143_the_word_step_promises_the_cards_the_day_deck_deals(
     supply = _supply(db_session, 40, "w143a")
     normal_pace(db_session, user, {supply[0]})
 
-    # #396: the day's 20, the scene's reserved word included: once the scene
+    # #396: the day's 15, the scene's reserved word included: once the scene
     # met it, it is a card of the deck (its first).
     promised = _home_words(db_session, user)
-    assert promised["count"] == 20
+    assert promised["count"] == 15
     _answer(client, headers, [supply[0]])  # the scene meets its word
-    assert _home_words(db_session, user)["count"] == 20, "the scene does not move the day's number"
+    assert _home_words(db_session, user)["count"] == 15, "the scene does not move the day's number"
     deck = _deck(client, headers, DAY)
     cards = _cards(deck)
     assert cards[0] == supply[0], "the scene's word comes first"
     # Before: «Weiter: 20 Wörter» over a deck of 19.
-    assert promised["count"] == len(cards) == 20
+    assert promised["count"] == len(cards) == 15
     assert deck["new_words_left_today"] == 0, "the deck holds the whole dose"
 
     # Halfway through, Home names what the deck still holds.
     _answer(client, headers, cards[:7])
-    assert _home_words(db_session, user)["count"] == len(_cards(_deck(client, headers, DAY))) == 13
+    assert _home_words(db_session, user)["count"] == len(_cards(_deck(client, headers, DAY))) == 8
 
-    # Done: the step says what the day did, as the end screen does, not the pace's 20.
+    # Done: the step says what the day did, as the end screen does, not the pace's number.
     _answer(client, headers, cards[7:])
     assert _cards(_deck(client, headers, DAY)) == []
     done = _home_words(db_session, user)
     assert done["state"] == "done"
-    assert done["count"] == 20
+    assert done["count"] == 15
 
 
 def test_143_the_day_deck_opens_the_lexiques_batch_on_the_whole_dose(
@@ -115,17 +115,17 @@ def test_143_the_day_deck_opens_the_lexiques_batch_on_the_whole_dose(
     assert len(lexique) == 8
     _answer(client, headers, lexique[:3])
     promised = _home_words(db_session, user)
-    assert promised["count"] == 17, "20 for the day, 3 of them already met"
+    assert promised["count"] == 12, "15 for the day, 3 of them already met"
 
     # Before: the day deck served the Lexique's five, «0/5», then grew at its end.
     day = _deck(client, headers, DAY)
     cards = _cards(day)
-    assert len(cards) == promised["count"] == 17
+    assert len(cards) == promised["count"] == 12
     assert cards[:5] == lexique[3:], "the Lexique's cards keep their places"
     assert day["new_words_left_today"] == 0
     # A reload is the same deck, and Home still promises it.
     assert _cards(_deck(client, headers, DAY)) == cards
-    assert _home_words(db_session, user)["count"] == 17
+    assert _home_words(db_session, user)["count"] == 12
 
     # The Lexique's own reload never tops up its session (WP-154).
     assert _ids(_deck(client, headers, SESSION))[:5] == lexique[3:]

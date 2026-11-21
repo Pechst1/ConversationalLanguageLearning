@@ -609,6 +609,8 @@ export default function MissionsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rechecking, setRechecking] = useState<string | null>(null);
   const [retryingReply, setRetryingReply] = useState<string | null>(null);
+  // Pilot P0: a retry that still brought no reply says so under the message, not only in a toast.
+  const [retryMissed, setRetryMissed] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<LoadErrorKind | null>(null);
   const [reply, setReply] = useState('');
@@ -889,13 +891,18 @@ export default function MissionsPage() {
   const retryReply = async (turnId: string) => {
     if (!mission || retryingReply || completed) return;
     setRetryingReply(turnId);
+    setRetryMissed(null);
     try {
       const result = await apiService.retryMissionTurnReply(mission.id, turnId);
       setMission({ ...result.mission, outcome: result.outcome || result.mission.outcome });
       // The retry answers the stored message, so whatever the composer holds is a new draft.
-      if (replyPending(result.outcome)) toast(t.toast_reply_retry_failed);
+      if (replyPending(result.outcome)) {
+        setRetryMissed(turnId);
+        toast(t.toast_reply_retry_failed);
+      }
     } catch (retryError) {
       console.error(retryError);
+      setRetryMissed(turnId);
       toast.error(t.toast_reply_retry_failed);
     } finally {
       setRetryingReply(null);
@@ -1253,8 +1260,12 @@ export default function MissionsPage() {
                           exists, and the reply can be asked for again from here. */}
                       {turnReplyPending(turn) && (
                         <>
+                          {/* Pilot P0: the character's acknowledgement, in her register, when the
+                              server held the reply back (a vetoed draft): never a silent thread. */}
                           <p className="cr-unassessed cr-unanswered" role="status">
-                            {crFill(t.reply_pending_line, { name: messenger.contact_name })}
+                            {turn.held_reply
+                              ? crFill(t.reply_held_line, { name: messenger.contact_name, text: String(turn.held_reply) })
+                              : crFill(t.reply_pending_line, { name: messenger.contact_name })}
                           </p>
                           {!completed && turn.id && (
                             <button
@@ -1265,6 +1276,9 @@ export default function MissionsPage() {
                             >
                               {retryingReply === turn.id ? t.reply_retrying : t.reply_retry}
                             </button>
+                          )}
+                          {retryMissed === turn.id && retryingReply === null && (
+                            <p className="cr-unassessed" role="status">{t.toast_reply_retry_failed}</p>
                           )}
                         </>
                       )}
@@ -1279,7 +1293,7 @@ export default function MissionsPage() {
                     </React.Fragment>
                   );
                 })}
-                {submitting && (
+                {(submitting || retryingReply !== null) && (
                   <div className="cr-typing" role="status" aria-live="polite">
                     <span className="rollers" aria-hidden="true"><i /><i /><i /></span>
                     <span>{crFill(t.typing, { name: messenger.contact_name })}</span>

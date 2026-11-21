@@ -34,11 +34,16 @@ from app.config import settings
 from app.services import address, scene_ledger, scene_record, story_memory
 from app.services.cast_registry import display_names
 from app.services.season.clock import SEASON_KEY, Position, played_log, record_played
+from app.services.season.dates import shift_for
 from app.services.season.director import (
     TOMORROW_KEY,
+    beat_hook,
+    beats_for,
     dropped_beats,
     gap_brief,
     learner_pick,
+    must_not_rows,
+    pattern_hits,
     tomorrow_options,
     used_premises,
 )
@@ -222,17 +227,41 @@ def context_block(today: Today | None) -> dict[str, Any] | None:
 
 
 def page_for(today: Today) -> dict[str, Any] | None:
+    """Today's authored page for this learner. P11: a page authored only for another
+    band is served in the nearest band's variant rather than lost to the director."""
+
     if not today.pos.is_tentpole or today.pos.segment is None:
         return None
-    return resolve_day(
-        today.season,
-        today.pos.segment.id,
-        str(today.pos.tentpole_day),
-        flags=today.flags,
-        band=today.band,
-        language=today.language,
-        neutral=today.neutral,
-    )
+    for band in (today.band, *_nearest_other_bands(today.band)):
+        page = resolve_day(
+            today.season,
+            today.pos.segment.id,
+            str(today.pos.tentpole_day),
+            flags=today.flags,
+            band=band,
+            language=today.language,
+            neutral=today.neutral,
+            shift=shift_for(getattr(today, "state", None), getattr(today, "local_date", None)),
+        )
+        if page is not None:
+            if band != today.band:
+                logger.warning(
+                    "season: %s has no variant for %s; served in %s", today.pos.key, today.band, band
+                )
+            return page
+    return None
+
+
+#: The bands a day's variant may be conditioned on, lowest first (``flags._band_key``
+#: folds them into «a1a2» and «b1»).
+_BAND_LADDER = ("A1", "A2", "B1", "B2", "C1")
+
+
+def _nearest_other_bands(band: str | None) -> list[str]:
+    here = str(band or "")[:2].upper()
+    index = _BAND_LADDER.index(here) if here in _BAND_LADDER else 1
+    others = [b for b in _BAND_LADDER if b != here]
+    return sorted(others, key=lambda b: (abs(_BAND_LADDER.index(b) - index), _BAND_LADDER.index(b)))
 
 
 def projected_turns(page: dict[str, Any]) -> list[dict[str, Any]]:
@@ -398,19 +427,37 @@ def routed_sentence(reply: dict[str, Any], understood: bool, turn: dict[str, Any
     return examples[0] if examples else None
 
 
+#: The most words of an example the hint may give before the learner's first attempt.
+HINT_START_WORDS = 3
+
+
+def hint_start(example: str | None) -> str | None:
+    """The opening of an example reply, never the whole of it: at most
+    :data:`HINT_START_WORDS` words and always fewer than the example has, ending «…».
+    ``None`` for a one-word reply (its start would be the answer)."""
+
+    words = str(example or "").split()
+    if len(words) < 2:
+        return None
+    keep = min(HINT_START_WORDS, max(1, len(words) // 2))
+    return " ".join(words[:keep]).rstrip(",;:") + " …"
+
+
 def hint_for(turn: dict[str, Any] | None, language: str | None) -> str | None:
     """The turn's hint: the *opening* of an example reply to finish, never the whole
     reply — that is the «suggested response», one tap further (EXPERIENCE-REVIEW
     2026-10-04: hint and suggestion were the same sentence, so the hint taught
-    nothing a learner could not copy)."""
+    nothing a learner could not copy).
 
-    example = turn_example(turn)
-    if not example:
+    Round 2 (walk 17 Nov, Le Quartier day 1): an example of three words or fewer was
+    given whole («Zum Beispiel: «Oui, ce soir.»» on the first tap, before any attempt).
+    The hint is asked before the first attempt, so it is a start of at most three words
+    and never a sentence the scene would accept as it is."""
+
+    start = hint_start(turn_example(turn))
+    if not start:
         return None
-    words = example.split()
-    if len(words) >= 4:
-        example = " ".join(words[: max(2, len(words) // 2)]) + " …"
-    return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{example}»"[:400]
+    return f"{_EXAMPLE_LEAD.get(str(language or ''), _EXAMPLE_LEAD['en'])} «{start}»"[:400]
 
 
 def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
@@ -476,7 +523,9 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         "panels": panels,
         "opening_line_fr": opening_fr[:320],
         "suggested_response_fr": str(example)[:400],
-        "hint_native": (hint_for(first, today.language) or f"{_EXAMPLE_LEAD.get(today.language, _EXAMPLE_LEAD['en'])} «{example}»")[:400],
+        # never the whole example as the hint (it is asked before the first attempt): the
+        # situation instead, in the learner's language
+        "hint_native": (hint_for(first, today.language) or str((first or {}).get("task_native") or "") or premise_native)[:400],
         "translation_native": (opening_native or opening_fr)[:400],
         "capability_key": None,
         "lexicon": _lexicon(page, today.language, text),
@@ -630,6 +679,53 @@ def season_teaser(
     }
 
 
+def tomorrow_beat(live: dict | None, *, date_iso: str | None, seed: str) -> dict[str, Any] | None:
+    """P8 (fourth commit): the next day's planned beat, once today is settled, as the
+    brief will carry it (``director.beats_for``): ``{gap, day, beat, line_fr}``, where
+    ``line_fr`` is the hook composed from it (``director.beat_hook``), with ``text_native``
+    when the season's data has the line in the learner's languages. None when the
+    next day is not a planned gap day (a tentpole, a gap without a day plan, the end),
+    or when the line would name something the gap must not.
+
+    The season's day plan is deterministic, so the settle knows tomorrow's beat; a hook
+    composed from it is one tomorrow's page can take up (real play of 17 Nov: hooks
+    taken from today's scene or the season's questions were taken up 2 times in 7)."""
+
+    season_id = season_id_for(live)
+    if not season_id or not isinstance((live or {}).get(SEASON_KEY), dict):
+        return None
+    try:
+        season = load_season(season_id)
+        today = date.fromisoformat(str(date_iso)[:10]) if date_iso else None
+        state = dict((live or {}).get(SEASON_KEY) or {})
+        pos = position_for(season, state, today=today + timedelta(days=1) if today else None)
+        gap = season.gaps.get(pos.segment.id) if pos.is_gap and pos.segment is not None else None
+        if gap is None or not gap.days:
+            return None
+        flags = effective_flags(season, state, seed=seed)
+        beat, _plan = beats_for(gap, pos.day_in_segment, state, flags, length=pos.segment.days)
+        if beat is None:
+            return None
+        # P8 (fifth commit): nobody the learner has not met is named in the hook.
+        from app.services import cast_registry
+
+        met_state = {"living_story": dict(live or {})}
+        hook = beat_hook(gap, beat, met=lambda cast_id: cast_registry.has_met(met_state, cast_id)) or {}
+        line = str(hook.get("text_fr") or "")
+        if not line or pattern_hits(must_not_rows(season, gap.id, flags), [line]):
+            return None
+        return {
+            "gap": gap.id,
+            "day": pos.day_in_segment,
+            "beat": beat,
+            "line_fr": line,
+            **({"text_native": hook["text_native"]} if hook.get("text_native") else {}),
+        }
+    except Exception:  # noqa: BLE001 - tomorrow's hook never costs today's ending
+        logger.exception("season: tomorrow's beat is unavailable; the day's hook is chosen as before")
+        return None
+
+
 def tomorrow_choice(live: dict | None, *, user: Any, seed: str, event_id: str, now: Any = None) -> dict[str, Any] | None:
     """«Demain» (steering read 2026-10-24): what the finished day offers for the
     season's next day, once ``event_id`` (today's exchange) is played: the plan's own
@@ -748,6 +844,15 @@ def is_tentpole(story_context: dict[str, Any] | None) -> bool:
 # ---------------------------------------------------------------------------
 # A tentpole turn
 # ---------------------------------------------------------------------------
+
+
+def heard_as_meant(choice: ReplyChoice) -> bool:
+    """Whether the route is what the learner said (a route expressed), not the turn's
+    fallback taken for a reply that said none of them (``clear`` false). Round 2: the
+    classifier's unclear reading kept its default confidence (0.5) and counted as met,
+    so Le Quartier's end card said «Tu as dit que…» of a fallback route."""
+
+    return bool(choice.clear) and choice.confidence >= MATCH_THRESHOLD
 
 
 def card_choice(turn: dict[str, Any], text: str) -> ReplyChoice | None:
@@ -1117,6 +1222,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         beats,
         next_turn_id=None if closing else str((turns[next_index] if next_index < len(turns) and next_index != index else turn).get("id")),
         closing=closing,
+        chosen=carded is not None,
     )
     from app.services.season.turns import reaction_lines
 
@@ -1157,7 +1263,7 @@ def evaluate_tentpole_turn(db, *, user, scenario, task, answer, turn_index: int,
         )
     # The story answers every reply; the verdict only says whether the learner's words
     # were understood as one of the scene's replies (never «right» or «wrong» plot).
-    understood = choice.confidence >= MATCH_THRESHOLD
+    understood = heard_as_meant(choice)
     # The page answers what the learner meant; the form is corrected in the margin
     # (never punished in the plot — the bible's rule).
     from app.services.story_lanes import margin_correction, split_margin

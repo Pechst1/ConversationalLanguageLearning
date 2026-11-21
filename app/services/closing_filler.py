@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.services.story_memory import address_placeholder
+
 _TO_BE_CONTINUED = re.compile(r"\bà\s+suivre\b", re.IGNORECASE)
 _EXIT_STUB = re.compile(
     r"^(?:\S+\s+){1,5}?(?:a répondu,?\s+puis\s+)?(?:a|doit)\s+(?:dû\s+)?partir"
@@ -52,13 +54,15 @@ def scene_fact(*candidates: Any, fallback: Any = "") -> str:
     """The first candidate that states something that happened, else ``fallback``.
 
     Candidates are tried in order («the callback, else the resolution»); a closing
-    caption or an exit stub is skipped, never returned. ``fallback`` is what the
+    caption or an exit stub is skipped, never returned; so is a line that keeps the
+    prompts' role word («Le learner garde la carte»), and «la carte du learner» is
+    filed as «ta carte» (#917). ``fallback`` is what the
     scene itself established (its title), and is returned as it is: it is the
     caller's own line, not a hook.
     """
 
     for candidate in candidates:
-        line = " ".join(str(candidate or "").split())
+        line = address_placeholder(" ".join(str(candidate or "").split())) or ""
         if line and not is_closing_filler(line):
             return line
     return " ".join(str(fallback or "").split())
