@@ -3484,10 +3484,14 @@ def _record_correction_erratum(
     # unit's — so its lapse is booked once, and its repair credits it.
     span = correction.saved_span_fr or correction.span_fr
     corrected = correction.saved_corrected_fr or correction.corrected_fr
-    concept_id = concept_id_hint or service.infer_concept_id_for_correction(
+    # #973: the unit the step observed is lent, not imposed: «sa amie → son» in a
+    # passé composé step is the possessives' slip, an accent on «café» no rule's.
+    concept_id = service.infer_concept_id_for_correction(
         learner_text=span,
         corrected_text=corrected,
         note=correction.note_native,
+        lent_concept_id=concept_id_hint,
+        context=correction.context_fr,
     )
     return service.record_erratum(
         user=user,
