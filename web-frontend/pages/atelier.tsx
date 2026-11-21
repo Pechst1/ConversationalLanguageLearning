@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { createAudioMediaRecorder, recordedAudioBlob } from '@/lib/audio-recording';
 import { oncePerLoad } from '@/lib/once-per-load';
 import { correctRunFrom, seanceAssessment, secondCheckChange } from '@/lib/seance-feedback';
-import { withinWordRange } from '@/lib/word-range';
+import { heldByCeiling } from '@/lib/word-range';
 import { dedupeNotes, forgeCorrectionNotes } from '@/lib/correction-notes';
 import { classifyRepair } from '@/lib/forge-followup';
 import { classificationCopy, classificationGoal, isJudgementLabels, judgementLabel, judgementQuestion } from '@/lib/classification-copy';
@@ -75,6 +75,7 @@ import {
   EpBar,
   EpFoot,
   EpFix,
+  EpBasicFixes,
   EpIns,
   EpLabelFix,
   EpLineFix,
@@ -202,7 +203,7 @@ import { bestComboLine, fillMomentum, momentumCopy } from '@/lib/momentum-copy';
 import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
-import { epreuveCopy, fill, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
+import { epreuveCopy, fill, wordCeilingText, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
 import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
@@ -221,6 +222,7 @@ import { MONTAGE_COPY, markMontageSeen, montageFor, montageSeen } from '@/lib/ru
 import { whyWithoutEcho } from '@/lib/rule-diff';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { explanationLanguage, journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
+import { chromeDate } from '@/lib/chrome-locale';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/media-url';
 // WP-119 phase 1 — La Revue on La Une, as data in Home's slots (lib/revue-une.ts).
@@ -568,7 +570,7 @@ function drillAnswerIsReady(
     // server refuses the same lines); a spoken transcript's length is the recogniser's.
     if (round === 'speak') return true;
     const item = payload.output_ladder?.[round]?.items?.[0] || {};
-    return withinWordRange(String(currentAnswers.text || ''), item.max_words);
+    return !heldByCeiling(round, String(currentAnswers.text || ''), item.max_words);
   }
   return false;
 }
@@ -3218,7 +3220,7 @@ function TodayView({
     <>
     <HomeScreen
       hero={homeHero}
-      dateLabel={formatAtelierEditionDate(new Date(), homeDay ? chromeLanguage : 'fr')}
+      dateLabel={chromeDate(new Date(), homeDay ? chromeLanguage : 'fr', 'heading') ?? ''}
       editionLabel={editionLabel}
       special={specialEdition}
       streak={homeChip.streak}
@@ -3490,26 +3492,6 @@ function parcoursTopicShort(value: string) {
   if (lower.includes('si ') || lower.includes('condition')) return 'si + présent';
   if (lower.includes('négation') || lower.includes('negation')) return 'la négation';
   return normalized.length > 26 ? `${normalized.slice(0, 23).trim()}…` : normalized;
-}
-
-// WP-82: the date line is chrome — it reads in Home's chrome language.
-const DATE_LOCALES: Record<ControlLanguage, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR' };
-
-function formatAtelierEditionDate(date = new Date(), language: ControlLanguage = 'fr') {
-  const formatted = new Intl.DateTimeFormat(DATE_LOCALES[language] || 'fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    // «Mercredi 23 sept.» — the short month keeps the headline on one line.
-    month: 'short',
-  }).format(date);
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-}
-
-function formatAtelierDatestamp(date = new Date()) {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear()).slice(-2);
-  return `Classée · ${day} · ${month} · ${year}`;
 }
 
 function atelierEditionStreak(today: AtelierToday | null, activeSession: AtelierSessionStart | null) {
@@ -4386,8 +4368,8 @@ export function ExerciseFeedbackMoment({
   }
   const mood = coachMood(correction, { correct: feedback.correct });
   if (feedback.unscored) {
-    // #333: the rules' real fixes stay listed; nothing here is a verdict.
-    const unreadFixes: Array<{ span: string; replacement: string; start: number }> = correction?.check?.edits || [];
+    // #333: the rules' real fixes stay listed; nothing here is a verdict. #855: whole when no
+    // chance can follow (solution_gate.no_chance_follows); a withheld one is not drawn.
     const unreadState = checkState(correction?.check) === 'basic' ? 'basic' : 'not_checked';
     // #724: «Check again» only where asking again can reach a reader; with none, the line
     // says so plainly instead of «not checked yet» over a button that can never work.
@@ -4401,11 +4383,7 @@ export function ExerciseFeedbackMoment({
         >
           {line === 'basic' ? t.check_basic : line === 'unavailable' ? t.check_unavailable : t.unscored}
         </EpRelecture>
-        {unreadFixes.map((edit) => (
-          <p className="av2-fr" lang="fr" key={`${edit.start}-${edit.span}`}>
-            <s>{edit.span}</s> → <strong>{edit.replacement}</strong>
-          </p>
-        ))}
+        <EpBasicFixes edits={correction?.check?.edits} />
         <EpFoot tone="neutral">
           <EpBar tone="ghost" onClick={onNext}>{t.skip_unscored}</EpBar>
         </EpFoot>
@@ -4559,6 +4537,10 @@ export function ExerciseFeedbackMoment({
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
+        {/* #954: a hit whose accent was forgiven names it, in one line (the rule check). */}
+        {typeof correction?.slip_note_native === 'string' && correction.slip_note_native.trim() && (
+          <p className="ep-why" lang={noteLang}>{correction.slip_note_native}</p>
+        )}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -5119,14 +5101,20 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   const cleanRewrite = correctionTargetText(correction?.corrected_answer);
   const rewriteDiffers = !!cleanRewrite && normalizeClient(cleanRewrite) !== normalizeClient(learner);
   // Owner 2026-11-13: no model answer stands in for a solution that is withheld.
-  const shownTarget = solutionWithheld(correction)
-    ? ''
-    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || cleanRewrite || fallbackTarget);
   // WP-103 T9/T10: one explanation per distinct issue, never the same one three times.
   const whyLines = forgeCorrectionNotes(correction);
   const assessment = seanceAssessment(correction);
   const correct = assessment === 'correct';
-  const taskOnly = !rewriteDiffers && (errata.length === 0 || errata.every((item) => item.task_error_type === 'task_compliance'));
+  // #954: on a miss the learner's own line, sent back unchanged, is not a correction of it.
+  const shownTarget = solutionWithheld(correction)
+    ? ''
+    : rewriteDiffers ? cleanRewrite : (errata[0]?.corrected_target || (correct ? cleanRewrite : '') || fallbackTarget);
+  // #954 (child of #333): a task note is what the correction says: a task erratum, or the
+  // rule the task asked for missing from the line. A correction that says nothing (no
+  // erratum, no rewrite, nothing missing) is no reason that «the task is not met».
+  const taskErrata = errata.filter((item) => item.task_error_type === 'task_compliance');
+  const ruleMissing = Array.isArray(correction?.missing_targets) && correction.missing_targets.length > 0;
+  const taskOnly = !rewriteDiffers && taskErrata.length === errata.length && (taskErrata.length > 0 || ruleMissing);
   // One clean before/after for the whole line, with each error explained in the
   // note — instead of one messy before/after per erratum.
   // Owner 2026-11-13: the card counts the corrections it shows. A task note is said in
@@ -5139,7 +5127,7 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
       : ((lineErrata.length === 1 ? lineErrata[0]?.display_label : '') || t.corrected_line),
     learner_text: learner,
     corrected_target: taskOnly ? '' : (rewriteDiffers ? shownTarget : (errata[0]?.corrected_target || '')),
-    why_wrong: whyLines.join('\n') || t.task_default_why,
+    why_wrong: whyLines.join('\n') || (taskOnly ? t.task_default_why : ''),
     task_error_type: taskOnly ? 'task_compliance' : undefined,
   } as AtelierErratum];
   if (!correct && !taskOnly) {
@@ -5424,6 +5412,12 @@ export function OutputLadderPanel({
       />
       <div className="word-count" data-state={wordRangeState(wordCount(answer), item.min_words, item.max_words)}>
         {wordRangeText(t, wordCount(answer), item.min_words, item.max_words)}
+        {(() => {
+          // #853: while the ceiling holds Check, the counter says why (never on `produce`
+          // or a spoken line, where no ceiling holds: lib/word-range.ts CEILING_ROUNDS).
+          const over = wordCeilingText(t, round, answer, item.max_words);
+          return over ? <span className="word-count__over" role="status"> · {over}</span> : null;
+        })()}
       </div>
       {submitted && (() => {
         const modelText = String(seanceAssessment(correction) === 'correct' && productionPhase(correction) !== 'checking' ? correction?.corrected_answer || item.example_answer || '' : '').trim();
@@ -5581,7 +5575,8 @@ function RecapModal({
               ? t.recap_early
               : t.recap_done}
         />
-        <EpRecapHead date={formatAtelierDatestamp().replace('Classée · ', '')} />
+        {/* #694: the séance's day in the chrome language («Wednesday 11 Nov»), not a bare «11 · 11 · 26». */}
+        <EpRecapHead date={chromeDate(new Date(), language, 'heading')} />
         <div className="ep-recap-body">
           {forgeRows.length ? (
             // One Garamond line (the headline above); each rule: its level,

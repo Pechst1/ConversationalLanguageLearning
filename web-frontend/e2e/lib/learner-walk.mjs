@@ -4,10 +4,12 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { FORGE_FOLLOW, FORGE_REPAIR, FORGE_SHEET, FORGE_SPOT, LEXIQUE_DECK, snapshot, sleep, TYPEABLE_FIELD, WORD_BANK_TILE } from './driver.mjs';
+import { forgeVisitEnd } from '../../lib/forge-walk.mjs';
 import { missLayoutChecks, readingIsSteady } from './miss-layout.mjs';
 import { reversed, trackKey, trackVerdicts } from './verdict-timeline.mjs';
 import { HAND_ON } from './day-plan.mjs';
 import { bannersOn, englishOnFrenchScreen, serverBanner } from './assertions.mjs';
+import { newTestOutTally, readTestOut } from './test-out-tally.mjs';
 
 /**
  * A word a character says, in either reader: the list's caption cards, or the
@@ -72,6 +74,8 @@ export class LearnerWalk {
     this.timelines = new Map();
     this.played = new Set();
     this.handOns = 0;
+    /** #954: the verdicts a rule check's items showed, for its result to agree with. */
+    this.testOutTally = newTestOutTally();
   }
 
   where(extra = {}) {
@@ -198,7 +202,12 @@ export class LearnerWalk {
   trackVerdicts(s, kind) {
     // One verdict per question: a conversation is one question for its whole length;
     // any other item is identified by the text it showed before it was answered.
-    return trackVerdicts(this, s, kind);
+    const timeline = trackVerdicts(this, s, kind);
+    // #954: a rule check's result counts the verdicts its items showed: an item shown «Noch
+    // nicht» is not one of «3 von 3 richtig».
+    const tally = readTestOut(this.testOutTally, s, trackKey(this, s, kind));
+    if (tally) this.findings.check('rule-check-tally-matches-its-items', tally.ok, tally.detail, this.where({ kind }));
+    return timeline;
   }
 
   finishTimelines() {
@@ -693,7 +702,20 @@ export class LearnerWalk {
         await this.shoot('stuck');
         break;
       }
-      if (entry && sameFor > 40) break; // the loop ended by itself (no recap to reach)
+      if (entry) {
+        // The loop ended by itself (no recap to reach) — but not on an exercise it could
+        // not get past. A La Forge visit used to stop here silently in front of a «Build»
+        // word bank, and the next day's journey met the same item and failed there.
+        // lib/forge-walk.mjs decides which end it is (and is unit-tested).
+        const end = forgeVisitEnd(s, sameFor);
+        if (end) {
+          if (end.stalled) {
+            this.findings.check('a-way-forward', false, end.detail, this.where({ kind, entry }));
+            await this.shoot('stuck');
+          }
+          break;
+        }
+      }
       // The 30 s cap must not undercut the server wait above.
       if (sameFor > (s.pending ? 180 : 120)) {
         this.findings.check('a-way-forward', false, `no change for ${(sameFor * 0.25).toFixed(0)}s on «${s.text.slice(0, 140)}»${this.refusalNote()}`, this.where({ kind }));
