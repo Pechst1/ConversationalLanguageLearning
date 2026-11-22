@@ -60,7 +60,7 @@ from app.schemas.revue import (
     RvFilWords,
     RvKept,
 )
-from app.services.revue import comptoir, comptoir_loop, pourquoi, voice
+from app.services.revue import comptoir, comptoir_loop, pourquoi, regle, voice
 from app.services.revue.dossier import (
     ComptoirText,
     EditorialDossier,
@@ -528,7 +528,7 @@ def _tell_view(wire: FilWire, band: str, seed: str, language: str, acts: Acts) -
         draft_fr=proof["draft"] if proof else None,
         proof=proof["proof"] if proof else None,  # type: ignore[arg-type]
         marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0), kind=str(m.get("kind")),  # type: ignore[arg-type]
-                              why=pourquoi.hint_of(m))
+                              why=pourquoi.hint_of(m), **regle.view_fields(m))
                for m in (proof["marks"] if proof else []) if isinstance(m, dict) and m.get("kind") in comptoir_loop.MARK_KINDS],
         tries=proof["tries"] if proof else 0,
         max_tries=FIX_TRIES,
@@ -798,12 +798,11 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, wire: FilWire, *, band
         return out
     checked = check_edit(raw, learner_fr)
     out["refused"] = checked.get("_problems") or None
-    if checked.get("edited_fr"):
-        marks = comptoir_loop.proof_marks(learner_fr, checked["edited_fr"], checked.get("marks") or [])
-        if language and marks:  # «Le pourquoi»: the counter's checked whys; no regulars' takes here
-            marks = pourquoi.explain_marks(marks, raw.get("marks"), learner_fr=learner_fr, target_fr=checked["edited_fr"],
-                                           dossier=loaded.dossier, takes=None, band=band, language=language)
-        out.update(target=checked["edited_fr"], marks=marks, proof="marked" if marks else "clean", source="model")
+    if checked.get("edited_fr"):  # «Le pourquoi»: the counter's checked whys; no regulars' takes here
+        target, marks = regle.marked(encounter, loaded, learner_fr=learner_fr, edited=checked["edited_fr"],
+                                     hints=checked.get("marks") or [], raw_marks=raw.get("marks"), band=band,
+                                     language=language)
+        out.update(target=target, marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 
 
