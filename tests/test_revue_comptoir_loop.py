@@ -625,3 +625,28 @@ def test_an_elision_written_in_full_is_spelling_every_time_it_stands() -> None:
         marks = comptoir_loop.proof_marks(learner, target, hints)
         assert [(m["span_fr"], m["kind"]) for m in marks] == [("que il", "orthographe"), ("que il", "orthographe")]
     assert comptoir_loop.proof_marks("beaucoup de élèves", "beaucoup d'élèves")[0]["kind"] == "orthographe"
+
+
+def test_a2_close_keeps_a_word_bank_word_without_a_claim(db: Session) -> None:
+    """Integration 2026-11-22: a reason that uses a word of the takes' word bank and none of the
+    plan's words closed with a 500 (the kept word had no claim). It closes; the word is the
+    learner's own, kept with no claim reference."""
+
+    revue = Revue(db, FakeRevueProvider())
+    row = revue.start(make_user(db, level="A2.1", native="de"), week=WEEK)
+    act(revue, row, act="vote", value="contre")
+    for guest in (ROMY, MARGAUX, GUS):
+        act(revue, row, act="react", guest_id=guest, value="agree")
+    act(revue, row, act="intox_who", guest_id=GUS)
+    act(revue, row, act="intox_fix", value="six jours sur sept")
+    plan_words = [str(v.get("fr") or "") for v in (row.plan or {}).get("vocabulary") or []]
+    assert not any("chariot" in w for w in plan_words), plan_words
+    view = act(revue, row, act="opinion", value="contre", text="il y a trop de chariots").session.comptoir
+    if view.opinion.proof == "marked":
+        act(revue, row, act="opinion_fix", value="romy")
+    act(revue, row, act="comeback", index=0)
+    _, closing = revue.close(row)
+    db.refresh(row)
+    assert row.status == "closed"
+    bank = [w for w in closing.kept.words if "chariot" in w.fr]
+    assert bank and bank[0].used and bank[0].claim_id is None

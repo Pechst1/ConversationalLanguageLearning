@@ -13151,7 +13151,7 @@ export interface components {
         /** RvClosedWord */
         RvClosedWord: {
             /** Claim Id */
-            claim_id: string;
+            claim_id?: string | null;
             /** Fr */
             fr: string;
             /** Gloss */

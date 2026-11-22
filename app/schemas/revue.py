@@ -454,7 +454,9 @@ class RvPlanView(RevueModel):
 class RvClosedWord(RevueModel):
     fr: str
     gloss: str
-    claim_id: str
+    #: The claim the word comes from; ``None`` for a word the learner brought from the takes'
+    #: word bank (or a picture word) that no claim carries.
+    claim_id: str | None = None
     used: bool
     #: The rubric's outcome for this word across the session's evidence (a word used
     #: correctly once stays ``correct``), filled at close so the mark survives a reload;

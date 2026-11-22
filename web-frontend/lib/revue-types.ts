@@ -287,7 +287,7 @@ export type RvDossierView = {
   sources: RvSource[];
 };
 /** `outcome`: the rubric's best outcome for the word over the session, stored at close (WIRE §3.8); null when never graded. */
-export type RvKeptWord = { fr: string; gloss: string; claimId: string; used: boolean; outcome: RvOutcome | null };
+export type RvKeptWord = { fr: string; gloss: string; claimId: string | null; used: boolean; outcome: RvOutcome | null };
 export type RvClosing = {
   romyLineFr: string;
   dispatch: RvDispatch;
@@ -880,7 +880,7 @@ export function parseClosing(raw: Json): RvClosing {
       words: list(kept.words, (word) => ({
         fr: str(word.fr),
         gloss: str(word.gloss),
-        claimId: str(word.claim_id),
+        claimId: strOrNull(word.claim_id),
         used: Boolean(word.used),
         outcome: word.outcome === 'correct' || word.outcome === 'incorrect' || word.outcome === 'unscored' ? word.outcome : null,
       })),
