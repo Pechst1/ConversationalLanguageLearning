@@ -1008,6 +1008,22 @@ class Settings(BaseSettings):
             "Relevé. Pure reads, no model call. Off: both routes are a 404."
         ),
     )
+    REVUE_PLANNED_STEP_ENABLED: bool = Field(
+        False,
+        description=(
+            "Le Papier as an ordinary step of its day: on a Papier day the plan holds one optional "
+            "`desk` step `papier` after the ending, priced in the day's minutes, and the player opens "
+            "the Papier there (finished or skipped, it advances the day like any step). Off: the "
+            "Papier is mounted after the day's ending with no minutes of its own."
+        ),
+    )
+    REVUE_QUARTIER_AFFICHE_ENABLED: bool = Field(
+        False,
+        description=(
+            "Le Quartier: today's Papier on the quai's Morris column (masthead, date, headline; «lu» "
+            "once filed), and the poster opens the Papier. Off: the column keeps its posters."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,

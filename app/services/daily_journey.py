@@ -2275,8 +2275,17 @@ class DailyJourneyService:
         """Today's desk offer (``journey_day_shapes.choose_desk``), or ``None``.
 
         Flags off, nothing due this week or nothing on offer: no desk. A failure
-        costs the desk, never the day."""
+        costs the desk, never the day.
 
+        ``REVUE_PLANNED_STEP_ENABLED``: on the Papier day the desk is the Papier
+        itself (``journey_planner.papier_offer``), the day's last step."""
+
+        if str(shape) == str(DayShape.REVUE):
+            if not getattr(settings, "REVUE_PLANNED_STEP_ENABLED", False):
+                return None
+            from app.services.journey_planner import papier_offer
+
+            return papier_offer()
         if not (
             getattr(settings, "REVUE_ENABLED", False)
             or getattr(settings, "REVUE_CORRECTEUR_ENABLED", False)

@@ -74,6 +74,7 @@ import {
 import { StoryEpisodeStep } from './StoryEpisodeStep';
 import { ReadStepView } from './ReadStep';
 import { DeskStepView } from './DeskStep';
+import { isPapierStep, showsPapierAfterEnding } from './desk-step-model';
 import { drillSpeaker, journeySpeaker } from './journey-faces';
 import { useJourneyFeel } from './useJourneyFeel';
 import { continuesConversation } from './respond-thread';
@@ -386,11 +387,22 @@ export function JourneySession({
      Leaving it (× or «Classer la Revue») shows the recap; a day ended early
      goes straight to its recap. Never on a special edition. */
   const [papierDone, setPapierDone] = React.useState(false);
-  const showPapier =
-    !papierDone &&
-    phase.kind === 'finished' &&
-    journey?.status !== 'ended_early' &&
-    isRevueDay(journey?.day_shape ?? null, Boolean(epreuveOf(journey)));
+  // REVUE_PLANNED_STEP_ENABLED: a plan that holds the Papier as a step plays it there
+  // (below), never again after the ending.
+  const showPapier = showsPapierAfterEnding({
+    revueDay: isRevueDay(journey?.day_shape ?? null, Boolean(epreuveOf(journey))),
+    finished: phase.kind === 'finished',
+    endedEarly: journey?.status === 'ended_early',
+    left: papierDone,
+    steps: journey?.steps,
+  });
+  const papierStep = phase.kind === 'session' && isPapierStep(step);
+  // The Papier reads its week once per mount and may finish long after it: it
+  // continues the day with the controller as it is then, not as it was at mount.
+  const continueRef = React.useRef(actions.continueJourney);
+  continueRef.current = actions.continueJourney;
+  const busyRef = React.useRef(busy);
+  busyRef.current = busy;
 
   // WP-103 T3: the caption names the drill on a drill («Rappel · Genre et
   // nombre»); the place and the day's objective belong to the scene and the reply.
@@ -536,7 +548,7 @@ export function JourneySession({
               <>
               {/* GENTLE-ONBOARDING: the first time a kind of step appears,
                   one sticker above it says what it is. Never over the cast. */}
-              {!showCastIntro && (
+              {!showCastIntro && !papierStep && (
                 <FirstStepSticker key={stickerFor(step) ?? step.kind} stepKey={stickerFor(step)} language={chromeLanguage} />
               )}
               {step.kind === 'scene' && !showCastIntro && (
@@ -582,7 +594,18 @@ export function JourneySession({
                   speaker={speaker}
                 />
               )}
-              {step.kind === 'desk' && (
+              {papierStep && (
+                // REVUE_PLANNED_STEP_ENABLED: the Papier day's Papier, at its step. Its ×,
+                // «Classer la Revue», nothing to do or a failure all continue the day.
+                <RvJourneyPapier
+                  key={step.id}
+                  language={chromeLanguage}
+                  onDone={() => {
+                    if (!busyRef.current) void continueRef.current();
+                  }}
+                />
+              )}
+              {step.kind === 'desk' && !papierStep && (
                 // «Le bureau» (WP-121/122): one Revue desk after the ending —
                 // La Relecture, La Radio or Le Correcteur. Advanced, never answered.
                 <DeskStepView

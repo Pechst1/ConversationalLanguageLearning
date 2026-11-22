@@ -859,10 +859,13 @@ class DeskPrompt(JourneyModel):
     * ``radio`` — the Radio bulletin of ``dossier_id`` (``GET /revue/radio/{id}``),
       listen first, then the dictée, then «C'est entendu»;
     * ``correcteur`` — ``CorrecteurDesk`` on a new draft of ``dossier_id``
-      (``POST /revue/correcteur/{id}``).
+      (``POST /revue/correcteur/{id}``);
+    * ``papier`` (``REVUE_PLANNED_STEP_ENABLED``) — the Papier itself, on the Papier
+      day only, after its ending: the player opens the week's Papier there
+      (``RvJourneyPapier``); ``seconds`` is what the plan priced it at.
     """
 
-    desk: Literal["relecture", "radio", "correcteur"]
+    desk: Literal["relecture", "radio", "correcteur", "papier"]
     title_fr: str
     dossier_id: str | None = None
     relecture: RelectureOffer | None = None

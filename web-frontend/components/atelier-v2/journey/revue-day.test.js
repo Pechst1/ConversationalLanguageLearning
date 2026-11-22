@@ -137,3 +137,65 @@ test('the Revue hero opens the day until it is done', () => {
   assert.match(page, /revueHeroOpensDay\(revueDayDone, Boolean\(onOpenDay\)\)/);
   assert.match(page, /onOpenDay=\{\(\) => \{/);
 });
+
+// --- REVUE_PLANNED_STEP_ENABLED: the Papier as the day's last step ---------------
+
+const deskModel = require('./desk-step-model.ts');
+
+const PAPIER_STEP = {
+  id: 'papier-1',
+  ordinal: 5,
+  kind: 'desk',
+  status: 'active',
+  estimated_seconds: 360,
+  assistance_used: [],
+  act: 1,
+  prompt: { desk: 'papier', title_fr: 'Le Papier', dossier_id: null, relecture: null, seconds: 360 },
+};
+
+test('the step model knows the Papier step, and the after-ending mount stands down for it', () => {
+  assert.equal(deskModel.isPapierStep(PAPIER_STEP), true);
+  assert.equal(deskModel.isPapierStep({ ...PAPIER_STEP, prompt: { ...PAPIER_STEP.prompt, desk: 'radio' } }), false);
+  assert.equal(deskModel.isPapierStep({ kind: 'recall', prompt: { desk: 'papier' } }), false);
+  assert.equal(deskModel.isPapierStep(null), false);
+  assert.equal(deskModel.planHoldsPapier([{ kind: 'scene' }, PAPIER_STEP]), true);
+  assert.equal(deskModel.planHoldsPapier([{ kind: 'scene' }]), false);
+  assert.equal(deskModel.planHoldsPapier(undefined), false);
+  const base = { revueDay: true, finished: true, endedEarly: false, left: false, steps: [{ kind: 'resolution' }] };
+  assert.equal(deskModel.showsPapierAfterEnding(base), true, 'switch off: the old mount, exactly');
+  assert.equal(deskModel.showsPapierAfterEnding({ ...base, steps: [{ kind: 'resolution' }, PAPIER_STEP] }), false);
+  assert.equal(deskModel.showsPapierAfterEnding({ ...base, endedEarly: true }), false);
+  assert.equal(deskModel.showsPapierAfterEnding({ ...base, left: true }), false);
+  assert.equal(deskModel.showsPapierAfterEnding({ ...base, revueDay: false }), false);
+  assert.equal(deskModel.showsPapierAfterEnding({ ...base, finished: false }), false);
+  assert.deepEqual(deskModel.deskStepView(PAPIER_STEP), { desk: 'papier', titleFr: 'Le Papier' });
+  for (const language of ['fr', 'en', 'de']) {
+    assert.ok(deskModel.deskCopy(language).lead.papier.length > 10, language);
+    assert.equal(deskModel.deskKicker(deskModel.deskStepView(PAPIER_STEP), language), 'Le Papier');
+  }
+});
+
+test('a finished Revue day that held the Papier as a step shows its recap, not the Papier again', () => {
+  const steps = [...FIXTURE.steps, { ...PAPIER_STEP, status: 'completed' }];
+  const html = renderToStaticMarkup(h(JourneySession, { controller: finished({ day_shape: 'revue', steps }) }));
+  assert.match(html, RECAP);
+  assert.doesNotMatch(html, /data-revue-journey/);
+});
+
+test('at the Papier step the player mounts the Papier through the step machinery', () => {
+  const journey = { ...FIXTURE, status: 'active', day_shape: 'revue', current_step_id: PAPIER_STEP.id, steps: [...FIXTURE.steps, PAPIER_STEP] };
+  const controller = {
+    ...finished(),
+    phase: { kind: 'session', journey },
+    journey,
+    step: PAPIER_STEP,
+    progress: { done: journey.steps.length - 1, total: journey.steps.length },
+  };
+  const html = renderToStaticMarkup(h(JourneySession, { controller }));
+  assert.match(html, PAPIER);
+  assert.doesNotMatch(html, /data-desk=/, 'not the desk card');
+  assert.doesNotMatch(html, RECAP);
+  const source = fs.readFileSync(path.join(__dirname, 'JourneySession.tsx'), 'utf8');
+  // Finishing, leaving or nothing to do: the day continues like after any step.
+  assert.match(source, /<RvJourneyPapier\s+key=\{step\.id\}[\s\S]*?void continueRef\.current\(\)/);
+});

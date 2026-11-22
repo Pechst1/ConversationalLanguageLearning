@@ -8420,7 +8420,7 @@ export interface components {
              * Desk
              * @enum {string}
              */
-            desk: "relecture" | "radio" | "correcteur";
+            desk: "relecture" | "radio" | "correcteur" | "papier";
             /** Dossier Id */
             dossier_id: string | null;
             relecture: components["schemas"]["RelectureOffer"] | null;
