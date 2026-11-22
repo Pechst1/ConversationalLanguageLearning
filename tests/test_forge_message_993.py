@@ -40,7 +40,7 @@ def _with(db_session, round_name: str, prompt: str, instruction: str | None = No
 
 
 @pytest.mark.parametrize("round_name", ["sentence", "speak", "conversation", "produce"])
-def test_a_task_that_answers_a_message_it_does_not_show_is_refused(db_session, round_name: str) -> None:
+def test_unshown_message_refused(db_session, round_name: str) -> None:
     concept, payload = _with(db_session, round_name, WALK_PROMPT, WALK_INSTRUCTION)
     errors = AtelierExerciseGenerator._payload_validation_errors(payload, concept=concept)
     assert any("message" in error for error in errors), (
@@ -52,7 +52,7 @@ def test_a_task_that_answers_a_message_it_does_not_show_is_refused(db_session, r
 
 
 @pytest.mark.parametrize("round_name", ["sentence", "conversation"])
-def test_the_instruction_alone_can_promise_the_message(db_session, round_name: str) -> None:
+def test_instruction_promise(db_session, round_name: str) -> None:
     """«answering the text» in the instruction, over a prompt that quotes nothing."""
 
     concept, payload = _with(db_session, round_name, "Your friend wants to know what you eat in the morning.", WALK_INSTRUCTION)
@@ -61,7 +61,7 @@ def test_the_instruction_alone_can_promise_the_message(db_session, round_name: s
 
 
 @pytest.mark.parametrize("round_name", ["sentence", "speak", "conversation", "produce"])
-def test_a_task_that_quotes_the_message_is_kept(db_session, round_name: str) -> None:
+def test_quoted_message_kept(db_session, round_name: str) -> None:
     concept, payload = _with(db_session, round_name, QUOTED_PROMPT, WALK_INSTRUCTION)
     assert AtelierExerciseGenerator._payload_validation_errors(payload, concept=concept) == []
     assert validate_atelier_generation_payload(payload) == []
@@ -74,14 +74,15 @@ def test_a_task_that_quotes_the_message_is_kept(db_session, round_name: str) -> 
         "A friend asks what you will do if it rains tomorrow. Say one natural si + present answer.",
         "À la boulangerie, la vendeuse te dit : « Vous désirez ? » Réponds-lui.",
     ],
+    ids=["write-a-message", "told-not-quoted", "french-quoted"],
 )
-def test_a_task_that_promises_no_message_is_not_touched(prompt: str) -> None:
+def test_no_promise_kept(prompt: str) -> None:
     from app.services.forge_item_validator import message_problems
 
     assert message_problems(prompt, "Write one sentence.") == []
 
 
-def test_a_stored_set_never_serves_the_item_without_its_message() -> None:
+def test_stored_item_skipped() -> None:
     """A set stored before the guard still holds the walk's item: La Forge poses the next one."""
 
     payload = {
@@ -102,7 +103,7 @@ def test_a_stored_set_never_serves_the_item_without_its_message() -> None:
     )
 
 
-def test_no_authored_task_promises_a_message_it_does_not_show() -> None:
+def test_authored_tasks_clean() -> None:
     """The item builders' own words (the fallback tasks, the curated scenes, the bank's cues)
     never promise a French message without quoting it."""
 

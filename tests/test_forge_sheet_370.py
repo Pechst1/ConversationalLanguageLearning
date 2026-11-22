@@ -222,9 +222,9 @@ SPOT_927 = {
         ("correct", "cherché", "Vous avez cherché les clés hier."),
         ("incorrect", "Tu as cherchée les clés hier.", "Vous avez cherché les clés hier."),
     ],
-    ids=["right-variant", "right-variant-typography", "right-key", "right-part", "miss-shows-key"],
+    ids=["variant", "variant-typo", "key", "part", "miss"],
 )
-def test_a_right_transform_is_listed_in_the_learners_words(verdict, answer, line):
+def test_right_rewrite_line(verdict, answer, line):
     """#927: «Tu as cherché les clés hier.» was right; the sheet listed «Vous avez cherché
     les clés hier.», a sentence the learner never wrote. A right answer is the accepted line
     it was read as (the learner's sentence in its authored spelling); a miss shows the key."""
