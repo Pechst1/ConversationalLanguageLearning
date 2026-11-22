@@ -220,3 +220,59 @@ test('every string in fr, en and de', () => {
     for (const key of keys) assert.ok(VOIX_COPIES[language][key].trim(), `${language}.${key}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Integration 2026-11-22 (c8-03, c1-03, m22-03)
+// ---------------------------------------------------------------------------
+
+function memoryStorage() {
+  const data = new Map();
+  return { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k) };
+}
+
+test('a line once heard or opened stays revealed after a reload: kept per session', () => {
+  const storage = memoryStorage();
+  const key = model.heardKey('augustin_de_roncourt', 'Tu rêves !');
+  assert.deepEqual([...model.readRevealed(storage, 's1')], []);
+  model.writeRevealed(storage, 's1', new Set([key]));
+  assert.deepEqual([...model.readRevealed(storage, 's1')], [key]);
+  assert.deepEqual([...model.readRevealed(storage, 's2')], [], 'per session');
+  const broken = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  assert.deepEqual([...model.readRevealed(broken, 's1')], [], 'blocked storage reads as nothing');
+  model.writeRevealed(broken, 's1', new Set([key]));
+  storage.setItem('vx-revealed:s3', '{not json');
+  assert.deepEqual([...model.readRevealed(storage, 's3')], []);
+});
+
+test('while a line waits to be heard, the takes say «listen first», not «react to each»', () => {
+  const key = model.heardKey('romy_tremblay', TAKE);
+  const state = { manifest: MANIFEST, pending: [key], revealed: new Set(), failed: false };
+  assert.equal(model.anyVeiled(state, [['romy_tremblay', TAKE]]), true);
+  assert.equal(model.anyVeiled({ ...state, revealed: new Set([key]) }, [['romy_tremblay', TAKE]]), false);
+  assert.equal(model.anyVeiled(null, [['romy_tremblay', TAKE]]), false);
+  for (const language of ['fr', 'en', 'de']) assert.ok(VOIX_COPIES[language].listen_hint.trim(), language);
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const takes = fs.readFileSync(path.join(__dirname, '../comptoir/RvComptoirTakes.tsx'), 'utf8');
+  assert.match(takes, /listening \? voixHint : ccopy\.react_hint/);
+  const opinion = fs.readFileSync(path.join(__dirname, '../comptoir/RvComptoirOpinion.tsx'), 'utf8');
+  assert.match(opinion, /!replyVeiled && !opinion\.comeback && opinion\.comebacks\.length > 0/, 'no reply chips under a veiled reply');
+});
+
+test('Romy’s own lines are read at once on every desk: heard first is the regulars’ opinions only', () => {
+  assert.deepEqual(model.HEARD_FIRST_KINDS, ['take', 'reply']);
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const rubrique = fs.readFileSync(path.join(__dirname, '../rubriques/RvRubrique.tsx'), 'utf8');
+  assert.doesNotMatch(rubrique, /pending=\{/, '«Le titre» has no line heard first');
+});
+
+test('the dictée never leaves the lead covered once it cannot be offered', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, 'VxDictee.tsx'), 'utf8');
+  assert.match(src, /const covering = open && !resolved && Boolean\(dictee\) && !scope\?\.failed;/);
+  const css = fs.readFileSync(path.join(__dirname, '../../../styles/revue-voix.css'), 'utf8');
+  assert.match(css, /\.rv-body\[data-vx-dictee\] \.ct-lead \.rv-line__tools, \.av2 \.rv-body\[data-vx-dictee\] \.ct-lead \.rv-translation \{ display: none; \}/,
+    'the covered lead keeps no gap where its tools were');
+});

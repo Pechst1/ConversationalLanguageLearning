@@ -59,7 +59,7 @@
 .av2 .rv-body[data-vx-dictee] .ct-lead .rv-lead__fr > * { visibility: hidden; }
 .av2 .rv-body[data-vx-dictee] .ct-lead .rv-lead__fr::after { content: ''; position: absolute; inset: 0;
   background: repeating-linear-gradient(to bottom, transparent 0 0.5em, var(--pp-hair) 0.5em calc(0.5em + 8px), transparent calc(0.5em + 8px) 1.38em); }
-.av2 .rv-body[data-vx-dictee] .ct-lead .rv-line__tools, .av2 .rv-body[data-vx-dictee] .ct-lead .rv-translation { visibility: hidden; }
+.av2 .rv-body[data-vx-dictee] .ct-lead .rv-line__tools, .av2 .rv-body[data-vx-dictee] .ct-lead .rv-translation { display: none; }
 
 @media (prefers-reduced-motion: no-preference) {
   .av2 .vx-lead__rule { transition: opacity 0.2s ease-out; }

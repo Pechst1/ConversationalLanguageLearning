@@ -32,16 +32,21 @@ export function VxDictee() {
   const rootRef = useRef<HTMLElement | null>(null);
 
   const resolved = Boolean(result?.resolved);
-  // While the learner writes, the lead above is covered: the sentence comes from the ear.
+  const dictee = scope?.manifest.dictee ?? null;
+  // While the learner writes, the lead above is covered: the sentence comes from the ear. Once
+  // the dictée cannot be offered (a clip failed: it renders nothing), the lead is uncovered at
+  // once — no half state. The body is remembered, so it is uncovered even when this unmounts.
+  const covering = open && !resolved && Boolean(dictee) && !scope?.failed;
+  const bodyRef = useRef<Element | null>(null);
   useEffect(() => {
-    const body = rootRef.current?.closest('.rv-body');
+    const body = rootRef.current?.closest('.rv-body') ?? bodyRef.current;
     if (!body) return undefined;
-    if (open && !resolved) body.setAttribute('data-vx-dictee', '');
+    bodyRef.current = body;
+    if (covering) body.setAttribute('data-vx-dictee', '');
     else body.removeAttribute('data-vx-dictee');
     return () => body.removeAttribute('data-vx-dictee');
-  }, [open, resolved]);
+  }, [covering]);
 
-  const dictee = scope?.manifest.dictee ?? null;
   const speak = useCallback(() => {
     if (!scope || !dictee) return;
     if (scope.voice.speakingKey === KEY) scope.voice.stop();

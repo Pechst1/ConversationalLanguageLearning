@@ -33,6 +33,7 @@ import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, wordDiff } from './co
 import { ComptoirBubble, MineLine, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
 import { RvProofMarks } from './RvProofMarks';
 import { RvProofNotes } from './RvProofNotes';
+import { useVoixScope, useVxListening } from '../voix/VoixContext';
 
 const SIDES: RvStance[] = ['pour', 'contre', 'nuance'];
 
@@ -46,6 +47,11 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const mic = useVoiceAnswer();
   const micState = mic.state;
+  // The regular's reply, while it waits to be heard, hides the answers to it (integration 2026-11-22).
+  const replyVeiled = useVxListening(
+    opinion?.reply?.line.fr && !opinion.comeback ? [[opinion.reply.by, opinion.reply.line.fr] as const] : [],
+  );
+  const listenHint = useVoixScope()?.copy.listen_hint ?? null;
 
   useEffect(() => {
     if (micState.kind === 'transcript') {
@@ -251,7 +257,8 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
             onWord={wordFor(opinion.reply.by, opinion.reply.nameFr)}
           />
         )}
-        {!opinion.comeback && opinion.comebacks.length > 0 && (
+        {replyVeiled && listenHint && <p className="ct-hint" data-vx-listening="">{listenHint}</p>}
+        {!replyVeiled && !opinion.comeback && opinion.comebacks.length > 0 && (
           <>
             <p className="ct-label">{ccopy.your_reply}</p>
             <div className="ct-comebacks" role="group" aria-label={ccopy.your_reply}>
@@ -346,6 +353,8 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
         )}
       </>
     );
+  } else if (!opinion.comeback && opinion.comebacks.length === 0 && replyVeiled && listenHint) {
+    foot = <p className="ct-foot__hint">{listenHint}</p>;
   } else if (!opinion.comeback && opinion.comebacks.length === 0) {
     // From B1: one free line, no model call.
     foot = (

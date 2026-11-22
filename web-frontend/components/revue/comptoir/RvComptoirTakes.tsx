@@ -15,6 +15,7 @@ import type { FaceMood } from '@/lib/onboarding-portraits';
 import { fill } from '../revue-copy';
 import { COUNTER_PLATE, REACTIONS_FR, revealedTakes, stepDone } from './comptoir-model';
 import { ComptoirBubble, ComptoirPicture, type ComptoirStepProps } from './RvComptoirParts';
+import { useVoixScope, useVxListening } from '../voix/VoixContext';
 
 /** The face answers the learner's reaction: pleased when agreed with, surprised when not. */
 function moodOf(reaction: 'agree' | 'disagree' | null): FaceMood {
@@ -26,6 +27,9 @@ export function RvComptoirTakes(props: ComptoirStepProps) {
   const shown = view.cast.slice(0, revealedTakes(view.cast));
   const done = stepDone(view, 'takes');
   const hint = fill(view.hasIntox ? ccopy.takes_hint_intox : ccopy.takes_hint, { n: String(view.cast.length) });
+  // A take still veiled (heard before it is read) hides its reactions: the step says «listen first».
+  const listening = useVxListening(shown.filter((member) => !member.reaction).map((member) => [member.id, member.take.fr] as const));
+  const voixHint = useVoixScope()?.copy.listen_hint ?? ccopy.react_hint;
   return (
     <>
       <div className="rv-body ct-body" data-step="takes">
@@ -68,7 +72,7 @@ export function RvComptoirTakes(props: ComptoirStepProps) {
             </li>
           ))}
         </ol>
-        {!done && <p className="ct-hint">{ccopy.react_hint}</p>}
+        {!done && <p className="ct-hint" data-vx-listening={listening ? '' : undefined}>{listening ? voixHint : ccopy.react_hint}</p>}
         {notice}
       </div>
       {!readOnly && (

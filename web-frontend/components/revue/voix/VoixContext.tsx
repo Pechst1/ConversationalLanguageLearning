@@ -22,7 +22,7 @@ import type { VoixClient, VxManifest } from '@/lib/revue-voix';
 import type { RvLanguage } from '@/lib/revue-types';
 
 import { voixCopy, type VoixCopy } from './voix-copy';
-import { findLine, heardKey, isVeiled, mayAutoplay, type VeilState } from './voix-model';
+import { anyVeiled, findLine, heardKey, isVeiled, mayAutoplay, readRevealed, writeRevealed, type VeilState } from './voix-model';
 
 const ClientContext = createContext<VoixClient | null>(null);
 
@@ -131,6 +131,14 @@ export type VoixScopeValue = {
 
 const ScopeContext = createContext<VoixScopeValue | null>(null);
 
+function browserStorage(): Storage | null {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useVoixScope(): VoixScopeValue | null {
   return useContext(ScopeContext);
 }
@@ -153,9 +161,21 @@ export function VoixScope({
 }) {
   const client = useVoixClient();
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
-  const reveal = useCallback((key: string) => {
-    setRevealed((current) => (current.has(key) ? current : new Set(Array.from(current).concat(key))));
-  }, []);
+  // A line heard or opened before a reload stays revealed (kept per session on this device).
+  useEffect(() => {
+    setRevealed(readRevealed(browserStorage(), session.id));
+  }, [session.id]);
+  const reveal = useCallback(
+    (key: string) => {
+      setRevealed((current) => {
+        if (current.has(key)) return current;
+        const next = new Set(Array.from(current).concat(key));
+        writeRevealed(browserStorage(), session.id, next);
+        return next;
+      });
+    },
+    [session.id],
+  );
 
   // A line played to its end (or stopped) has been heard: its words stay.
   const last = useRef<string | null>(null);
@@ -233,4 +253,13 @@ export function useVxReplay(speakerId: string, textFr: string): VxLineHandle | n
   const scope = useVoixScope();
   if (!scope || !findLine(scope.manifest, textFr)) return null;
   return handleFor(scope, speakerId, textFr);
+}
+
+/**
+ * Is any of these regulars' lines (`[speakerId, textFr]`) still waiting to be heard? The step
+ * then says «listen first» rather than asking for the reaction its veil still hides.
+ */
+export function useVxListening(lines: readonly (readonly [string, string])[]): boolean {
+  const scope = useVoixScope();
+  return anyVeiled(scope?.state, lines);
 }

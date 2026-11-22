@@ -36,6 +36,8 @@ export type VoixCopy = {
   dictee_shown: string;
   dictee_close: string;
   dictee_failed: string;
+  /** Under the takes while a regular's line waits to be heard (the reactions come with its words). */
+  listen_hint: string;
 };
 
 const fr: VoixCopy = {
@@ -61,6 +63,7 @@ const fr: VoixCopy = {
   dictee_shown: 'La phrase du chapeau :',
   dictee_close: 'Fermer la dictée',
   dictee_failed: 'La copie n’est pas partie. Réessaie.',
+  listen_hint: 'Écoute d’abord, ou touche « Lire ». Puis réagis.',
 };
 
 const en: VoixCopy = {
@@ -86,6 +89,7 @@ const en: VoixCopy = {
   dictee_shown: 'The sentence from the lead:',
   dictee_close: 'Close the dictation',
   dictee_failed: 'It did not go through. Try again.',
+  listen_hint: 'Listen first, or tap «Read». Then react.',
 };
 
 const de: VoixCopy = {
@@ -111,6 +115,7 @@ const de: VoixCopy = {
   dictee_shown: 'Der Satz aus dem Vorspann:',
   dictee_close: 'Diktat schließen',
   dictee_failed: 'Das hat nicht geklappt. Versuch es noch einmal.',
+  listen_hint: 'Hör zuerst zu oder tippe auf „Lesen“. Dann reagierst du.',
 };
 
 const TABLES: Record<RvLanguage, VoixCopy> = { fr, en, de };

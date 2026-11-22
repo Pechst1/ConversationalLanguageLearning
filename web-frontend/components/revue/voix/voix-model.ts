@@ -54,10 +54,18 @@ export type VeilState = {
   failed: boolean;
 };
 
+/**
+ * The lines heard before they are read: the regulars' opinions (their takes, the reply) — the
+ * counter's listening task. Romy's own lines (her intro, her asks, her marks) are what the
+ * learner acts on: on every desk («Au comptoir», «Le titre») they are read at once (integration
+ * 2026-11-22: one rule for both desks).
+ */
+export const HEARD_FIRST_KINDS: readonly VxLine['kind'][] = ['take', 'reply'];
+
 /** Is this regular's line shown as a veil (heard before it is read)? */
 export function isVeiled(state: VeilState, speakerId: string, textFr: string): boolean {
   if (!state.manifest || state.manifest.audio !== 'ready' || state.failed) return false;
-  const line = findLine(state.manifest, textFr, ['take', 'reply']);
+  const line = findLine(state.manifest, textFr, HEARD_FIRST_KINDS);
   if (!line) return false;
   const key = heardKey(speakerId, textFr);
   return state.pending.includes(key) && !state.revealed.has(key);
@@ -77,4 +85,36 @@ export function veilLines(textFr: string, perLine = 34): number[] {
 /** Speak a line unasked? Only after a gesture on this page, with the setting on. */
 export function mayAutoplay({ voicesAloud, gesture }: { voicesAloud: boolean; gesture: boolean }): boolean {
   return voicesAloud && gesture;
+}
+
+/** Is any of these lines (`[speakerId, textFr]`) still waiting to be heard? */
+export function anyVeiled(state: VeilState | null | undefined, lines: readonly (readonly [string, string])[]): boolean {
+  return Boolean(state) && lines.some(([speakerId, textFr]) => isVeiled(state as VeilState, speakerId, textFr));
+}
+
+type StorageLike = { getItem: (key: string) => string | null; setItem: (key: string, value: string) => void };
+
+const revealedKey = (sessionId: string) => `vx-revealed:${sessionId}`;
+
+/**
+ * The lines this viewer heard or opened in a session (integration 2026-11-22): a reload must
+ * not veil again a line already heard while its answer is on screen. Per session, on this
+ * device; a blocked or broken storage reads as nothing.
+ */
+export function readRevealed(storage: StorageLike | null | undefined, sessionId: string): Set<string> {
+  try {
+    const raw = storage?.getItem(revealedKey(sessionId));
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeRevealed(storage: StorageLike | null | undefined, sessionId: string, keys: ReadonlySet<string>): void {
+  try {
+    storage?.setItem(revealedKey(sessionId), JSON.stringify(Array.from(keys).slice(-40)));
+  } catch {
+    // A private window: the line is revealed for this visit only.
+  }
 }
