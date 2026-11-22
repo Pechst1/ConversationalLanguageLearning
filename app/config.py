@@ -1008,6 +1008,17 @@ class Settings(BaseSettings):
             "Relevé. Pure reads, no model call. Off: both routes are a 404."
         ),
     )
+    REVUE_VOIX_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · la voix» (2026-11-22): the paper is heard. The lead read by the newsroom's voice, "
+            "each regular's line at the counter heard before it is read (in their own voice), and an "
+            "optional one-sentence dictée from the lead. Clips are made lazily through "
+            "/revue/sessions/{id}/voix/line and cached per line, voice and band pace in line_audio_clips "
+            "(a second learner gets a copy, no call); synthesis also needs ATELIER_EPISODE_AUDIO_ENABLED, "
+            "else the device voice reads and the text shows at once. Off: every /voix route is a 404."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,
