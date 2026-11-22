@@ -22,6 +22,8 @@ Payload conventions the replay reads (other keys are kept and ignored):
 - ``comptoir`` («Au comptoir», 2026-10-19): ``act`` (``vote`` | ``react`` | ``intox_who`` |
   ``intox_fix`` | ``opinion`` | ``comeback``) and that act's fields; replayed by
   ``comptoir_loop.Acts``
+- ``fil`` («Le fil», 2026-11-20): ``act`` (``open`` | ``order`` | ``words`` | ``tell`` |
+  ``tell_fix``) and that act's fields; replayed by ``fil_loop.Acts``
 
 No DB code here. See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 """
@@ -50,6 +52,7 @@ EventKind = Literal[
     "support_changed",
     "closed",
     "comptoir",
+    "fil",
 ]
 
 

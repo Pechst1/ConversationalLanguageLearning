@@ -56,16 +56,19 @@ export function RvComptoirHead({
   onExit,
   copy,
   ccopy,
+  labels = STEP_LABELS_FR,
 }: {
-  steps: RvComptoirStep[];
-  shown: RvComptoirStep;
+  /** Another assignment's steps («Le fil») with its own `labels`. */
+  steps: readonly string[];
+  shown: string;
   closed: boolean;
   back: boolean;
   onExit: () => void;
   copy: RevueCopy;
   ccopy: ComptoirCopy;
+  labels?: Record<string, string>;
 }) {
-  const dots = stepDots(steps, shown, closed);
+  const dots = stepDots(steps as RvComptoirStep[], shown as RvComptoirStep, closed);
   const at = Math.max(0, steps.indexOf(shown));
   return (
     <div className="rv-head ct-head">
@@ -79,7 +82,7 @@ export function RvComptoirHead({
         aria-valuemin={1}
         aria-valuemax={steps.length}
         aria-valuenow={at + 1}
-        aria-valuetext={fill(ccopy.step_value, { n: String(at + 1), total: String(steps.length), name: STEP_LABELS_FR[shown] })}
+        aria-valuetext={fill(ccopy.step_value, { n: String(at + 1), total: String(steps.length), name: labels[shown] ?? '' })}
         data-steps={steps.length}
       >
         {dots.map((dot) => (
