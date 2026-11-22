@@ -3836,4 +3836,7 @@ def test_built_sentence_miss_does_not_quote_both_lines_again(db_session):
     # A pick still names the two words: the card has no line to read them from.
     service.explanation_language = "en"
     picked = service._recognize_erratum(concept, "fill", {**item, "choices": ["sommes", "avons"]}, "sommes", "avons")
-    assert picked["why_wrong"].startswith("You chose “sommes”; this item needs “avons”.")
+    # #992: «sommes» for «avons» is now named as another verb (#828: the slip names the
+    # right form, so the line before it says only what was chosen).
+    assert picked["why_wrong"].startswith("You chose “sommes”."), picked["why_wrong"]
+    assert "«sommes» comes from «être»" in picked["why_wrong"] and "«avons»" in picked["why_wrong"], picked["why_wrong"]

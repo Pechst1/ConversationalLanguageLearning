@@ -696,20 +696,63 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
     "forge.slip.question_word.asks.amount": {"en": "how much, how many", "de": "wie viel", "fr": "la quantité"},
     "forge.slip.question_word.asks.reason": {"en": "why", "de": "warum", "fr": "la raison"},
     "forge.slip.question_word.asks.person": {"en": "who", "de": "wer", "fr": "la personne"},
+    # #992: every slip note says first what is wrong with the form written, in a sentence
+    # of its own that does not name the right form; the right form comes in the next one.
+    # While the solution waits (``solution_gate.scrub_hint``) only the first is served,
+    # and it still gives the reason (««veut» goes with il/elle/on, not with «tu».»),
+    # never the rule card's gloss alone.
     "forge.slip.person_subject.why": {
-        "en": "With «{subject}», «{lemma}» is «{target}», not «{learner}».",
-        "de": "Mit «{subject}» heißt «{lemma}» «{target}», nicht «{learner}».",
-        "fr": "Avec « {subject} », « {lemma} » se conjugue « {target} », pas « {learner} ».",
+        "en": "«{learner}» goes with {persons}, not with «{subject}». With «{subject}», «{lemma}» is «{target}».",
+        "de": "«{learner}» gehört zu {persons}, nicht zu «{subject}». Mit «{subject}» heißt «{lemma}» «{target}».",
+        "fr": "« {learner} » va avec {persons}, pas avec « {subject} ». Avec « {subject} », « {lemma} » se conjugue « {target} ».",
     },
     "forge.slip.person.why": {
-        "en": "The form of «{lemma}» needed here is «{target}», not «{learner}».",
-        "de": "Hier braucht es die Form «{target}» von «{lemma}», nicht «{learner}».",
-        "fr": "Ici, la forme de « {lemma} » est « {target} », pas « {learner} ».",
+        "en": "«{learner}» goes with {persons}, not with the subject here. The form of «{lemma}» needed here is «{target}».",
+        "de": "«{learner}» gehört zu {persons}, nicht zum Subjekt hier. Hier lautet die Form von «{lemma}» «{target}».",
+        "fr": "« {learner} » va avec {persons}, pas avec le sujet d’ici. Ici, la forme de « {lemma} » est « {target} ».",
     },
     "forge.slip.person.repair": {
         "en": "Look at who does it, then pick the form of «{lemma}» for that person.",
-        "de": "Schau, wer es tut, und nimm die Form von «{lemma}» für diese Person.",
+        "de": "Schau, wer handelt, und nimm die Form von «{lemma}» für diese Person.",
         "fr": "Regarde qui fait l’action, puis prends la forme de « {lemma} » pour cette personne.",
+    },
+    # #992: another tense of the same verb («voudrai», future, for «voudrais»).
+    "forge.slip.tense.why": {
+        "en": "«{learner}» is «{lemma}» {learner_tense}. This line needs it {target_tense}: «{target}».",
+        "de": "«{learner}» ist «{lemma}» {learner_tense}. Dieser Satz verlangt «{lemma}» {target_tense}: «{target}».",
+        "fr": "« {learner} » est « {lemma} » {learner_tense}. Cette phrase le demande {target_tense} : « {target} ».",
+    },
+    "forge.slip.tense.repair": {
+        "en": "Keep «{lemma}» and change its ending: {target_tense} it is «{target}».",
+        "de": "Behalte «{lemma}» und ändere die Endung: {target_tense} lautet die Form «{target}».",
+        "fr": "Garde « {lemma} » et change la terminaison : {target_tense}, c’est « {target} ».",
+    },
+    "forge.slip.tense.name.present": {"en": "in the present", "de": "im Präsens", "fr": "au présent"},
+    "forge.slip.tense.name.imparfait": {"en": "in the imparfait", "de": "im Imparfait", "fr": "à l’imparfait"},
+    "forge.slip.tense.name.futur_simple": {"en": "in the future", "de": "im Futur", "fr": "au futur"},
+    "forge.slip.tense.name.conditionnel_present": {"en": "in the conditional", "de": "im Konditional", "fr": "au conditionnel"},
+    "forge.slip.tense.name.subjonctif_present": {"en": "in the subjunctive", "de": "im Subjonctif", "fr": "au subjonctif"},
+    # #992: no form of the verb the line needs («somme», «et» for «es»).
+    "forge.slip.not_a_form_subject.why": {
+        "en": "«{learner}» is not a form of «{lemma}». With «{subject}», «{lemma}» is «{target}».",
+        "de": "«{learner}» ist keine Form von «{lemma}». Mit «{subject}» heißt «{lemma}» «{target}».",
+        "fr": "« {learner} » n’est pas une forme de « {lemma} ». Avec « {subject} », « {lemma} » se conjugue « {target} ».",
+    },
+    "forge.slip.not_a_form.why": {
+        "en": "«{learner}» is not a form of «{lemma}». The form needed here is «{target}».",
+        "de": "«{learner}» ist keine Form von «{lemma}». Hier lautet die Form «{target}».",
+        "fr": "« {learner} » n’est pas une forme de « {lemma} ». Ici, la forme est « {target} ».",
+    },
+    # #992: a form of another verb («On est froid»: froid takes avoir).
+    "forge.slip.other_verb.why": {
+        "en": "«{learner}» comes from «{learner_lemma}». This line needs «{lemma}»: «{target}».",
+        "de": "«{learner}» kommt von «{learner_lemma}». Dieser Satz braucht «{lemma}»: «{target}».",
+        "fr": "« {learner} » vient de « {learner_lemma} ». Cette phrase demande « {lemma} » : « {target} ».",
+    },
+    "forge.slip.verb.repair": {
+        "en": "Find the verb the line needs, then its form for the subject: «{target}».",
+        "de": "Such das Verb, das der Satz braucht, dann seine Form für das Subjekt: «{target}».",
+        "fr": "Trouve le verbe dont la phrase a besoin, puis sa forme pour le sujet : « {target} ».",
     },
     "forge.slip.elision.why": {
         "en": "Before a vowel or a silent h, «{learner}» drops its vowel and takes an apostrophe: «{target}». That is the spelling, not another verb.",
@@ -721,10 +764,11 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Schreib «{target}» mit Apostroph und ohne Leerzeichen an das nächste Wort.",
         "fr": "Colle « {target} » au mot suivant, avec l’apostrophe et sans espace.",
     },
+    # #992: «A word is missing» stands alone while the solution waits (the word is scrubbed).
     "forge.diff.missing": {
-        "en": "«{target}» is missing.",
-        "de": "«{target}» fehlt.",
-        "fr": "Il manque « {target} ».",
+        "en": "A word is missing: «{target}».",
+        "de": "Ein Wort fehlt: «{target}».",
+        "fr": "Il manque un mot : « {target} ».",
     },
     "forge.diff.extra": {
         "en": "«{learner}» does not belong in this line.",
