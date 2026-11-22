@@ -307,19 +307,37 @@ def _build(raw: Any, wrong: str, dossier: EditorialDossier, check: _Checker) -> 
     for index, fact in enumerate(facts):
         if fact is not None and not any(grounded(fact.fr, c.fr) for c in dossier.claims):
             refusals.append(f"titre:build:fact:{index}:ungrounded")
-    if len(subjects) < 2 or len(facts) < 2:
-        refusals.append("titre:build:count")
-    if refusals:
-        return None, refusals, []
+            facts[index] = None
+
     # Every subject + fact is a headline the beginner may print: one claim must say both (first
     # real run: «Les prix alimentaires» + «progressent de 9,9 %» — 9,9 % is the fresh produce's rise).
+    def true_pair(subject: ComptoirText, fact: ComptoirText) -> bool:
+        return any(grounded(subject.fr, c.fr) and grounded(fact.fr, c.fr) and numbers(fact.fr) <= numbers(c.fr)
+                   for c in dossier.claims)
+
     for i, subject in enumerate(subjects):
         for j, fact in enumerate(facts):
-            if not any(grounded(subject.fr, c.fr) and grounded(fact.fr, c.fr) and numbers(fact.fr) <= numbers(c.fr)
-                       for c in dossier.claims):
+            if subject is not None and fact is not None and not true_pair(subject, fact):
                 refusals.append(f"titre:build:pair:{i}:{j}:not_one_claim")
-    if refusals:
-        return None, refusals, []
+    # Tirage 2026-11-22: a refused tile is left out (never offered) while two subjects and two
+    # facts remain whose every pairing is true; the tile in the most false pairings goes first.
+    keep_s = [s for s in subjects if s is not None]
+    keep_f = [f for f in facts if f is not None]
+    while True:
+        bad = [(s, f) for s in keep_s for f in keep_f if not true_pair(s, f)]
+        if not bad:
+            break
+        counts: dict[int, int] = {}
+        for s, f in bad:
+            counts[id(s)] = counts.get(id(s), 0) + 1
+            counts[id(f)] = counts.get(id(f), 0) + 1
+        worst = max(counts, key=lambda key: counts[key])
+        keep_s = [s for s in keep_s if id(s) != worst]
+        keep_f = [f for f in keep_f if id(f) != worst]
+    if len(keep_s) < 2 or len(keep_f) < 2:
+        return None, refusals or ["titre:build:count"], []
+    problems += [code.replace("titre:build:", "titre:build:dropped:", 1) for code in refusals]
+    subjects, facts, refusals = keep_s, keep_f, []
     frame_row = raw.get("frame")
     if isinstance(frame_row, dict):
         frame_row = {**frame_row, "fr": headline_text(frame_row.get("fr") or "").rstrip(" …")}

@@ -266,15 +266,18 @@ def test_headlines_are_ours_and_keep_their_limits() -> None:
 
 
 def test_the_tiles_are_true_and_never_say_too_much() -> None:
-    raw = gold_titre()
-    raw["build"]["facts"][0]["fr"] = "rouvre comme tous les marchés de Paris"
-    assert titre.repair_titre(raw, beauvau())[1] == ["titre:build:fact:0:says_too_much"]
-    raw = gold_titre()
-    raw["build"]["subjects"][0]["fr"] = "Mon cher, le marché"
-    assert titre.repair_titre(raw, beauvau())[1] == ["titre:build:subject:0:vocative"]
-    raw = gold_titre()
-    raw["build"]["facts"][1]["fr"] = "accueille des touristes"
-    assert titre.repair_titre(raw, beauvau())[1] == ["titre:build:fact:1:ungrounded"]
+    # A refused tile is left out, never offered, while two subjects and two facts stay (tirage 2026-11-22).
+    for part, index, text, code in (
+        ("facts", 0, "rouvre comme tous les marchés de Paris", "fact:0:says_too_much"),
+        ("subjects", 0, "Mon cher, le marché", "subject:0:vocative"),
+        ("facts", 1, "accueille des touristes", "fact:1:ungrounded"),
+    ):
+        raw = gold_titre()
+        raw["build"][part][index]["fr"] = text
+        desk, problems = titre.repair_titre(raw, beauvau())
+        kept = [t.fr for t in getattr(desk.build, part)] if desk is not None else []
+        assert f"titre:build:dropped:{code}" in problems or problems == [f"titre:build:{code}"]
+        assert text not in kept
     raw = gold_titre()
     raw["build"]["frame"]["fr"] = "Tous les marchés de Paris"
     desk, problems = titre.repair_titre(raw, beauvau())
