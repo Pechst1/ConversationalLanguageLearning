@@ -55,12 +55,12 @@ function proofWire(trail: Trail, ctx: RubriqueContext): Json {
   const out: Json = {
     draft_fr: proof ? proof.draft : null,
     proof: proof ? proof.proof : null,
-    marks: proof ? marksWire(proof.marks, ctx.language, Boolean(ctx.pourquoi)) : [],
+    marks: proof ? marksWire(proof.marks, ctx.language, Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [],
     tries: proof ? proof.tries : 0,
     max_tries: FIX_TRIES,
     printed_fr: proof ? proof.printed : null,
   };
-  const notes = proof ? notesWire(roundsOf(trail), proof.proof, ctx.language, ctx.lead.fr, Boolean(ctx.pourquoi)) : [];
+  const notes = proof ? notesWire(roundsOf(trail), proof.proof, ctx.language, ctx.lead.fr, Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [];
   if (notes.length) out.notes = notes;
   return out;
 }

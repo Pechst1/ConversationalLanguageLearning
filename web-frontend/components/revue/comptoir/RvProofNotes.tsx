@@ -10,6 +10,7 @@ import React from 'react';
 
 import type { RvComptoirMarkKind, RvComptoirNote, RvLanguage } from '@/lib/revue-types';
 
+import { RvRuleName, RvRuleStamp } from './RvProofMarks';
 import { settledNotes, type PourquoiCopy } from './pourquoi';
 
 export type RvProofNotesProps = {
@@ -31,7 +32,9 @@ export function RvProofNotes({ notes, kindLabels, copy, whyLanguage }: RvProofNo
             <li key={index} className="ct-note" data-kind={note.kind}>
               <span className="ct-why">
                 <b lang="fr">{note.spanFr}</b> · {kindLabels[note.kind]}
+                <RvRuleStamp mark={note} copy={copy} />
               </span>
+              <RvRuleName mark={note} lang={whyLanguage} />
               {note.why && (
                 <span className="ct-note__why" lang={whyLanguage}>
                   {note.why}

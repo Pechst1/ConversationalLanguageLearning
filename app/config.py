@@ -963,6 +963,16 @@ class Settings(BaseSettings):
             "its payload and the screens are exactly as before."
         ),
     )
+    REVUE_TUTOR_MARKS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · La règle» (2026-11-22): every mark Romy shows passes the scene tutor's "
+            "verification too (a mark it does not stand by is dropped, and the model-free edit stands "
+            "in when none is left), and is tied to the app's grammar concept with its name; a mark "
+            "under the day's or a recent rule says so and explains itself with the rule card's line. "
+            "Off: the marks are the Papier's own, as before."
+        ),
+    )
     REVUE_COMPTOIR_MODEL: str = Field(
         "claude-haiku-5-5",
         description=(

@@ -54,7 +54,7 @@ from app.schemas.revue import (
     RvTitreView,
     RvTitreWord,
 )
-from app.services.revue import comptoir, comptoir_loop, fil_loop, pourquoi, voice
+from app.services.revue import comptoir, comptoir_loop, fil_loop, pourquoi, regle, voice
 from app.services.revue.dossier import EditorialDossier, TitreDesk, comptoir_band
 from app.services.revue.encounter import (
     Loaded,
@@ -364,7 +364,7 @@ def titre_view(loaded: Loaded) -> RvTitreView:
             draft_fr=proof["draft"] if proof else None,
             proof=proof["proof"] if proof else None,  # type: ignore[arg-type]
             marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0), kind=str(m.get("kind")),  # type: ignore[arg-type]
-                                  why=pourquoi.hint_of(m))
+                                  why=pourquoi.hint_of(m), **regle.view_fields(m))
                    for m in (proof["marks"] if proof else []) if isinstance(m, dict) and m.get("kind") in comptoir_loop.MARK_KINDS],
             tries=proof["tries"] if proof else 0,
             max_tries=FIX_TRIES,
@@ -607,10 +607,9 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, desk: TitreDesk, *, ba
     out["refused"] = checked.get("_problems") or None
     if edited:
         edited = voice.french_typography(edited)
-        marks = comptoir_loop.proof_marks(learner_fr, edited, checked.get("marks") or [])
-        if language and marks:  # «Le pourquoi»: the counter's checked whys
-            marks = pourquoi.explain_marks(marks, raw.get("marks"), learner_fr=learner_fr, target_fr=edited,
-                                           dossier=loaded.dossier, takes=None, band=band, language=language)
+        edited, marks = regle.marked(encounter, loaded, learner_fr=learner_fr, edited=edited,
+                                     hints=checked.get("marks") or [], raw_marks=raw.get("marks"), band=band,
+                                     language=language, shape=lambda text: voice.french_typography(headline_text(text)))
         out.update(target=edited, marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 

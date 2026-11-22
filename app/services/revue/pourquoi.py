@@ -453,11 +453,13 @@ def notes_of(rounds: list[tuple[str, list[dict[str, Any]]]], proof: str) -> list
 
     if not enabled():
         return []
+    from app.services.revue.regle import view_fields
+
     return [
         {"span_fr": str(m.get("span_fr")), "kind": str(m.get("kind")), "why": m.get("why_full") or None,
-         "example_fr": m.get("example_fr") or None, "rule_id": m.get("rule_id") or None}
+         "example_fr": m.get("example_fr") or None, "rule_id": m.get("rule_id") or None, **view_fields(m)}
         for m in settled(rounds, proof)
-        if m.get("why_full") or m.get("example_fr") or m.get("rule_id")
+        if m.get("why_full") or m.get("example_fr") or m.get("rule_id") or view_fields(m)
     ]
 
 

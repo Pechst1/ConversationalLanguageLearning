@@ -62,7 +62,8 @@
  * with its wire (`lib/revue-mock-fil.ts`), a session started on it plays the five screens
  * (`POST …/fil`) and its close prints «La page». With `comptoir` too, Céline stays a counter.
  * «Le pourquoi» (`pourquoi: true`; `&pourquoi=1`): Romy's marks at the counter and in «Raconter»
- * carry their rule, the settled sentence its notes. «Papier · photos» (`photos: true`;
+ * carry their rule, the settled sentence its notes. «La règle» (`regle: true`; `&regle=1`): each
+ * mark names its grammar concept, the day's rule stamped. «Papier · photos» (`photos: true`;
  * `&photos=1`): every story's stage carries a `pictures` list of three — its picture, a second
  * illustration and a photo with its credit and links — neutral placeholders drawn here as data
  * URIs (no network).
@@ -742,6 +743,8 @@ export type MockOptions = {
   micro?: boolean;
   /** «Le pourquoi»: Romy's marks carry their rule, the settled sentence its notes (default false). */
   pourquoi?: boolean;
+  /** «La règle»: each mark names its grammar concept, the day's rule stamped (default false). */
+  regle?: boolean;
   /** «Papier · photos»: every stage carries a `pictures` list of three, placeholders (default false). */
   photos?: boolean;
   /**
@@ -1060,6 +1063,7 @@ export function createMockRevueTransport(given: MockOptions = {}): RevueTranspor
       fail: (status, detail) => httpError(status, detail),
       words: vocabularyOf(d).map((v) => v.fr),
       pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
     };
   };
 
@@ -1082,6 +1086,7 @@ export function createMockRevueTransport(given: MockOptions = {}): RevueTranspor
       claimsFr: d.claims.map((c) => c.fr),
       fail: (status, detail) => httpError(status, detail),
       pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
     };
   };
 
@@ -1099,6 +1104,7 @@ export function createMockRevueTransport(given: MockOptions = {}): RevueTranspor
       sources: d.sources.map((src) => sourceOf(d, src.id)),
       fail: (status, detail) => httpError(status, detail),
       pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
     };
   };
 

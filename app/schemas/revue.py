@@ -544,6 +544,18 @@ class RvComptoirKit(RevueModel):
     opponents: dict[ComptoirStance, str]
 
 
+#: «La règle»: the concept fields a mark and a note carry, omitted when absent.
+RULE_FIELDS = ("concept_id", "concept_name", "is_day_rule", "is_recent_rule")
+
+
+def _omit_none(data: Any, keys: tuple[str, ...]) -> Any:
+    if isinstance(data, dict):
+        for key in keys:
+            if data.get(key) is None:
+                data.pop(key, None)
+    return data
+
+
 class RvComptoirMark(RevueModel):
     """One of Romy's proof marks: the learner's words to look at again (``span_fr``, at
     ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words."""
@@ -554,14 +566,18 @@ class RvComptoirMark(RevueModel):
     #: «Le pourquoi» (``REVUE_POURQUOI_ENABLED``): the rule in the learner's mother tongue,
     #: without the corrected form (no solution before a retry). Omitted when absent.
     why: str | None = None
+    #: «La règle» (``REVUE_TUTOR_MARKS_ENABLED``): the grammar concept the slip falls under
+    #: (``GrammarConcept.external_id``), its name in the learner's correction language, and
+    #: whether it is the day's rule or a recent one. Omitted when absent.
+    concept_id: str | None = None
+    concept_name: str | None = None
+    is_day_rule: bool | None = None
+    is_recent_rule: bool | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_why(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
         # Additive means byte-identical with the switch off.
-        data = handler(self)
-        if isinstance(data, dict) and data.get("why") is None:
-            data.pop("why", None)
-        return data
+        return _omit_none(handler(self), ("why", *RULE_FIELDS))
 
 
 class RvComptoirNote(RevueModel):
@@ -575,6 +591,15 @@ class RvComptoirNote(RevueModel):
     why: str | None = None
     example_fr: str | None = None
     rule_id: str | None = None
+    #: «La règle»: as on :class:`RvComptoirMark`. Omitted when absent.
+    concept_id: str | None = None
+    concept_name: str | None = None
+    is_day_rule: bool | None = None
+    is_recent_rule: bool | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_rule(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        return _omit_none(handler(self), RULE_FIELDS)
 
 
 class RvComptoirReply(RevueModel):

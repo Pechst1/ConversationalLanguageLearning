@@ -13211,6 +13211,14 @@ export interface components {
          *     ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words.
          */
         RvComptoirMark: {
+            /** Concept Id */
+            concept_id?: string | null;
+            /** Concept Name */
+            concept_name?: string | null;
+            /** Is Day Rule */
+            is_day_rule?: boolean | null;
+            /** Is Recent Rule */
+            is_recent_rule?: boolean | null;
             /**
              * Kind
              * @enum {string}
@@ -13234,8 +13242,16 @@ export interface components {
          *     and the grammar rule La Forge brings back (``rule_id``, the Correcteur's rule names).
          */
         RvComptoirNote: {
+            /** Concept Id */
+            concept_id?: string | null;
+            /** Concept Name */
+            concept_name?: string | null;
             /** Example Fr */
             example_fr?: string | null;
+            /** Is Day Rule */
+            is_day_rule?: boolean | null;
+            /** Is Recent Rule */
+            is_recent_rule?: boolean | null;
             /**
              * Kind
              * @enum {string}

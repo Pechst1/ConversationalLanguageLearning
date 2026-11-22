@@ -24,12 +24,13 @@ from typing import Any
 from loguru import logger
 
 from app.schemas.revue import RvComptoirMark, RvComptoirNote, RvRubriqueError
-from app.services.revue import comptoir, comptoir_loop, fil_loop, pourquoi, voice
+from app.services.revue import comptoir, comptoir_loop, fil_loop, pourquoi, regle, voice
 from app.services.revue.encounter import meter
 
 FIX_TRIES = comptoir_loop.FIX_TRIES
-EDIT_PROMPT_VERSION = "rubrique-edit-v1"
-EDIT_PROMPT_VERSION_POURQUOI = "rubrique-edit-v2"
+#: v3 / v4 (2026-11-22): a correct spoken or «est-ce que» question stands below B2 (v1 / v2 rewrote it to inversion).
+EDIT_PROMPT_VERSION = "rubrique-edit-v3"
+EDIT_PROMPT_VERSION_POURQUOI = "rubrique-edit-v4"
 
 _WHAT: dict[str, str] = {
     "photo": "a caption for a picture of a news story (what the picture shows, then the news)",
@@ -42,8 +43,12 @@ answer with ONE JSON object:
 {"edited_fr": str, "marks": [{"span_fr": str, "kind": str}]}
 RULES
 - edited_fr: learner_fr with its mistakes corrected and nothing else: grammar, agreement, conjugation, gender,
-  spelling, accents, word order, a missing word; for a question, also its form (inversion or «est-ce que» after a
-  question word in writing; INPUT.slips names what the app already saw). Keep the learner's words and meaning and
+  spelling, accents, word order, a missing word; for a question, also its form when it is wrong: a question word
+  first and then its subject takes «est-ce que» or an inversion («Quand la course commence ?» → «Quand est-ce que la
+  course commence ?»; INPUT.slips names what the app already saw). A correct question stays as written: an
+  inversion always, and when INPUT.band is A1, A2 or B1 also a «est-ce que» question and a spoken one with the
+  question word at the end or no question word («Tu viens quand ?», «Et la course, elle dure combien de temps ?»,
+  «Seize chevaux, vraiment ?»); never move it to another form. Keep the learner's words and meaning and
   as many sentences or questions as they wrote. Never fix style, never swap a correct word for a nicer one, never
   add a fact, a number, a name or an idea. If learner_fr is already correct, copy it unchanged. If it is not
   French, put the learner's idea into simple French.
@@ -109,10 +114,10 @@ def proofread(encounter: Any, loaded: Any, *, kind: str, band: str, learner_fr: 
     out["refused"] = checked.get("_problems") or None
     if edited:
         edited = voice.french_typography(edited)
-        marks = comptoir_loop.proof_marks(learner_fr, edited, checked.get("marks") or [])
-        if language and marks:
-            marks = pourquoi.explain_marks(marks, raw.get("marks"), learner_fr=learner_fr, target_fr=edited,
-                                           dossier=loaded.dossier, takes=None, band=band, language=language)
+        edited, marks = regle.marked(encounter, loaded, learner_fr=learner_fr, edited=edited,
+                                     hints=checked.get("marks") or [], raw_marks=raw.get("marks"), band=band,
+                                     language=language,
+                                     shape=lambda text: voice.french_typography(shape(text) if shape else text))
         out.update(target=edited, marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 
@@ -205,7 +210,7 @@ def settle(encounter: Any, loaded: Any, trail: Trail, proof: str) -> None:
 
 def marks_view(proof: dict[str, Any] | None) -> list[RvComptoirMark]:
     return [RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0), kind=str(m.get("kind")),  # type: ignore[arg-type]
-                           why=pourquoi.hint_of(m))
+                           why=pourquoi.hint_of(m), **regle.view_fields(m))
             for m in (proof["marks"] if proof else []) if isinstance(m, dict) and m.get("kind") in comptoir_loop.MARK_KINDS]
 
 

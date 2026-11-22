@@ -9,7 +9,7 @@
  * before (the switch off is today's screen).
  */
 
-import type { RvComptoirMark, RvComptoirMarkKind, RvComptoirNote, RvLanguage } from '@/lib/revue-types';
+import type { RvComptoirMark, RvComptoirMarkKind, RvComptoirNote, RvLanguage, RvMarkRule } from '@/lib/revue-types';
 
 export type PourquoiCopy = {
   /** The tappable mark's name for a screen reader: «Pourquoi « {span} » ?». */
@@ -20,6 +20,9 @@ export type PourquoiCopy = {
   in_article: string;
   /** Once, under the notes, when a slip has a rule. */
   forge_line: string;
+  /** «La règle» (2026-11-22): the stamp on a mark under the day's rule, and under a recent one. */
+  day_rule: string;
+  recent_rule: string;
 };
 
 export const POURQUOI_COPY: Record<'fr' | 'en' | 'de', PourquoiCopy> = {
@@ -28,18 +31,24 @@ export const POURQUOI_COPY: Record<'fr' | 'en' | 'de', PourquoiCopy> = {
     notes_label: 'Le pourquoi',
     in_article: 'Dans l’article :',
     forge_line: 'Cette règle revient dans La Forge.',
+    day_rule: 'règle du jour',
+    recent_rule: 'règle de la semaine',
   },
   en: {
     why_open: 'Why “{span}”?',
     notes_label: 'Why',
     in_article: 'In the article:',
     forge_line: 'This rule comes back in La Forge.',
+    day_rule: 'today’s rule',
+    recent_rule: 'this week’s rule',
   },
   de: {
     why_open: 'Warum „{span}“?',
     notes_label: 'Warum',
     in_article: 'Im Artikel:',
     forge_line: 'Diese Regel kommt in La Forge wieder.',
+    day_rule: 'Regel des Tages',
+    recent_rule: 'Regel der Woche',
   },
 };
 
@@ -95,6 +104,17 @@ export function whySegments(text: string, marks: RvComptoirMark[]): WhySegment[]
 
 /** The settled notes worth a line, and whether La Forge's line shows (a slip with a rule). */
 export function settledNotes(notes: RvComptoirNote[] | undefined): { rows: RvComptoirNote[]; forge: boolean } {
-  const rows = (notes ?? []).filter((note) => note.spanFr && (note.why || note.exampleFr));
+  const rows = (notes ?? []).filter((note) => note.spanFr && (note.why || note.exampleFr || note.conceptName));
   return { rows, forge: (notes ?? []).some((note) => Boolean(note.ruleId)) };
+}
+
+/**
+ * «La règle» (2026-11-22): the stamp a mark or a note carries — the day's rule before a recent
+ * one — or null (no stamp: a slip under no rule of the day, or the switch off).
+ */
+export function ruleStamp(mark: RvMarkRule, copy: Pick<PourquoiCopy, 'day_rule' | 'recent_rule'>): { kind: 'day' | 'recent'; label: string } | null {
+  if (!mark.conceptId) return null;
+  if (mark.isDayRule) return { kind: 'day', label: copy.day_rule };
+  if (mark.isRecentRule) return { kind: 'recent', label: copy.recent_rule };
+  return null;
 }

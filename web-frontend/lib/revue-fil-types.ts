@@ -6,7 +6,7 @@
  * defaulted: a view the client cannot read is drawn as nothing, never as a wrong answer.
  */
 
-import { parseComptoirNotes, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
+import { parseComptoirNotes, parseMarkRule, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
 
 type Json = Record<string, any>;
 
@@ -192,6 +192,7 @@ export function parseFilView(raw: Json, parseSource: (row: Json) => RvSource): R
             start: num(row.start),
             kind: oneOf(row.kind, MARK_KINDS, 'mot') as RvComptoirMarkKind,
             ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
+            ...parseMarkRule(row),
           })).filter((mark) => mark.spanFr),
           tries: num(tell.tries),
           maxTries: num(tell.max_tries) || 2,

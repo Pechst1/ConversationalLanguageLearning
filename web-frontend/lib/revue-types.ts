@@ -1218,7 +1218,13 @@ export const RV_COMPTOIR_PROOFS = ['clean', 'marked', 'fixed', 'corrected', 'as_
  * `why` («Le pourquoi», `REVUE_POURQUOI_ENABLED`): the rule in the learner's mother tongue,
  * never the corrected form; absent when the server sent none (switch off, or a refused why).
  */
-export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind; why?: string };
+/**
+ * «La règle» (`REVUE_TUTOR_MARKS_ENABLED`): the grammar concept a slip falls under (the app's
+ * id and its name, as the scene and the grammar pages name it) and whether it is the day's rule
+ * or a recent one. Absent when the server sent none.
+ */
+export type RvMarkRule = { conceptId?: string; conceptName?: string; isDayRule?: boolean; isRecentRule?: boolean };
+export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind; why?: string } & RvMarkRule;
 /**
  * «Le pourquoi», once the opinion is settled: a mark with its full rule (`why`, the mother
  * tongue), the same pattern in today's story (`exampleFr`) and the rule La Forge brings back.
@@ -1229,7 +1235,7 @@ export type RvComptoirNote = {
   why: string | null;
   exampleFr: string | null;
   ruleId: string | null;
-};
+} & RvMarkRule;
 export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
 export type RvComptoirOpinion = {
   stance: RvStance;
@@ -1381,6 +1387,7 @@ export function parseComptoirView(raw: Json): RvComptoirView {
             start: typeof row.start === 'number' ? row.start : 0,
             kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
             ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
+            ...parseMarkRule(row),
           })).filter((mark) => mark.spanFr),
           tries: num(opinion.tries),
           maxTries: num(opinion.max_tries) || 2,
@@ -1404,7 +1411,21 @@ export function parseComptoirNotes(raw: unknown): RvComptoirNote[] {
     why: strOrNull(row.why) || null,
     exampleFr: strOrNull(row.example_fr) || null,
     ruleId: strOrNull(row.rule_id) || null,
-  })).filter((note) => note.spanFr && (note.why || note.exampleFr || note.ruleId));
+    ...parseMarkRule(row),
+  })).filter((note) => note.spanFr && (note.why || note.exampleFr || note.ruleId || note.conceptId));
+}
+
+/** «La règle»: the concept fields of a mark or a note, only those the server sent. */
+export function parseMarkRule(row: Json): RvMarkRule {
+  const conceptId = str(row.concept_id).trim();
+  if (!conceptId) return {};
+  const conceptName = str(row.concept_name).trim();
+  return {
+    conceptId,
+    ...(conceptName ? { conceptName } : {}),
+    ...(row.is_day_rule === true ? { isDayRule: true } : {}),
+    ...(row.is_recent_rule === true ? { isRecentRule: true } : {}),
+  };
 }
 
 export function parseComptoirPage(raw: Json): RvComptoirPage {
