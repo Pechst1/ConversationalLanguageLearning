@@ -20,6 +20,7 @@ from app.db.models.grammar import GrammarConcept
 from app.db.models.session import ConversationMessage, LearningSession
 from app.db.models.user import User
 from app.db.models.vocabulary import VocabularyWord
+from app.services import slip_concept
 from app.services.answer_acceptance import is_real_correction
 from app.services.chrome_language import user_mother_tongue
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
@@ -182,6 +183,17 @@ def _severity_to_int(value: Any) -> int:
     if text in {"low", "minor"}:
         return 2
     return 2
+
+
+def _lent_form(concept: GrammarConcept) -> slip_concept.LentForm:
+    """#973: the lent rule's own form, from its catalogue entry (detectors and traps)."""
+
+    from app.services.grammar_units import contrast_pairs, regex_patterns, unit_detectors
+
+    return slip_concept.LentForm(
+        patterns=tuple(regex_patterns(unit_detectors(concept))),
+        traps=tuple((pair["wrong"], pair["right"]) for pair in contrast_pairs(concept)),
+    )
 
 
 class ErrorMemoryService:
@@ -406,14 +418,25 @@ class ErrorMemoryService:
             # another («Vous êtes … ?» → «Êtes-vous … ?»), is never saved as an error.
             return None
 
-        concept_id = concept_id or erratum.get("concept_id")
-        if not erratum.get("item_id"):
+        named = erratum.get("concept_id")
+        if erratum.get("item_id"):
+            # A keyed item (``item_id``) belongs to the unit it was drilled under.
+            concept_id = concept_id or named
+        elif named or self._error_category_for_erratum(erratum) == "vocabulary":
             # #119: a free-text correction that elides an article is the article rule's,
-            # whichever rule the entrance guessed. A keyed item (``item_id``) belongs to
-            # the unit it was drilled under.
+            # whichever rule the entrance or the corrector named.
             concept_id = self.elision_concept_id(
                 erratum.get("learner_text"), erratum.get("corrected_target"), context=erratum.get("context_fr")
-            ) or concept_id
+            ) or concept_id or named
+        else:
+            # #973: ``concept_id`` is the rule the surface lends (the letter's, the
+            # step's, the séance's). The change decides whether the slip is that rule's.
+            concept_id = self.concept_for_slip(
+                erratum.get("learner_text"),
+                erratum.get("corrected_target"),
+                lent_concept_id=concept_id,
+                context=erratum.get("context_fr"),
+            )
         task_type = str(erratum.get("task_error_type") or "grammar_target")
         display_label = str(
             erratum.get("display_label")
@@ -994,21 +1017,84 @@ class ErrorMemoryService:
         )
         return concept.id if concept is not None else None
 
+    def concept_for_slip(
+        self,
+        learner_text: object,
+        corrected_text: object,
+        *,
+        lent_concept_id: int | None = None,
+        context: object = None,
+        note: str | None = None,
+        infer: bool = False,
+    ) -> int | None:
+        """#973: the rule a slip is filed under, decided from what the correction changed.
+
+        The one place that decides it; every record path asks it (``record_erratum``
+        for a rule a surface lends, the scene's inference, the Courrier's normaliser).
+
+        - an elided article is «Le, la, l', les» (#119);
+        - a swap among determiners is the unit of the determiner the correction wrote:
+          «sa → son» the possessives, «le → la» the definite article (#974);
+        - a participle or an auxiliary is the passé composé of its auxiliary;
+        - an accent, an apostrophe, a space or a capital is no rule (#697), unless the
+          lent rule's own detector or ✗/✓ traps recognise the changed word as its form
+          («le bar où» for the relative où, «nous commençons» for the -er verbs that
+          change spelling, «qu'il fût» for the imperfect subjunctive);
+        - anything else keeps ``lent_concept_id``; with ``infer`` and nothing lent, the
+          note's family words decide (WP-L1).
+        """
+
+        elision = self.elision_concept_id(learner_text, corrected_text, context=context)
+        if elision is not None:
+            return elision
+        lent_unit = None
+        lent_form = None
+        if lent_concept_id:
+            lent = self.db.get(GrammarConcept, lent_concept_id)
+            lent_unit = str(lent.external_id) if lent is not None and lent.external_id else None
+            if lent_unit is not None:
+                lent_form = _lent_form(lent)
+        unit = slip_concept.unit_for_change(
+            learner_text, corrected_text, lent_unit=lent_unit, lent_form=lent_form, context=context
+        )
+        if unit == slip_concept.NO_RULE:
+            return None
+        if unit is not None:
+            if unit == lent_unit:
+                return lent_concept_id
+            concept = self.db.query(GrammarConcept).filter(GrammarConcept.external_id == unit).first()
+            if concept is not None:
+                return concept.id
+        if lent_concept_id:
+            return lent_concept_id
+        if infer:
+            return self._infer_from_family_words(learner_text, corrected_text, note)
+        return None
+
     def infer_concept_id_for_correction(
-        self, *, learner_text: str | None, corrected_text: str | None, note: str | None = None
+        self,
+        *,
+        learner_text: str | None,
+        corrected_text: str | None,
+        note: str | None = None,
+        lent_concept_id: int | None = None,
+        context: str | None = None,
     ) -> int | None:
         """The grammar concept a free-text correction is about, or ``None``.
 
         WP-L1: journey corrections carry no error code, only the learner's span,
-        the corrected span and a short note. They go through the same inference
-        as ``record_detected_error``; the note supplies the family words, and a
-        change that only touches determiners names that family itself (the
-        note may be in German, or say nothing about grammar at all).
+        the corrected span and a short note. The change decides first
+        (:meth:`concept_for_slip`); the rule the step lends, then the note's family
+        words, decide only what the change does not.
         """
 
-        elision = self.elision_concept_id(learner_text, corrected_text)
-        if elision is not None:
-            return elision
+        return self.concept_for_slip(
+            learner_text, corrected_text, lent_concept_id=lent_concept_id, context=context, note=note, infer=True
+        )
+
+    def _infer_from_family_words(self, learner_text: object, corrected_text: object, note: str | None) -> int | None:
+        """The note's family words (and a determiner-only change, as «determiner») name a family."""
+
         marker = str(note or "")
         before = _normalize_review_answer(learner_text).split()
         after = _normalize_review_answer(corrected_text).split()
