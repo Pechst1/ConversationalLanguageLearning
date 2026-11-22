@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
 from app.services.revue.fil import new_names
 from app.services.revue.intox import grounded
 
-TITRE_PROMPT_VERSION = "titre-desk-v3"
+TITRE_PROMPT_VERSION = "titre-desk-v4"
 
 HEADLINE_MAX_WORDS: dict[str, int] = {"a1": 7, "a2": 9, "b1": 12}
 WHY_MAX_WORDS = 20
@@ -115,8 +115,11 @@ TITRE_RULES = """RULES
     «probablement»: in French they mean "probably", not a certainty. A changed verb («sont installés» for «doivent
     être installés») is not a stretch. wrong_fr is ONLY the words that say too much, never a word the
     honest headline says too: for a bigger number the number alone («200», not «200 nouveaux voiles»). wrong_fr: the words that say too much, exactly
-    as they stand in its a1, a2 AND b1 (6 words at most); they must appear in NO claim. claim_id: the claim that
-    shows it says too much.
+    as they stand in its a1, a2 AND b1 (6 words at most); they must appear in NO claim. Each band's exaggerated
+    headline is THAT band's honest headline with only wrong_fr put in (replacing words or added): every other word
+    stays exactly as in the honest one (agreement aside, «rouvre» → «rouvrent»), so the learner can strike
+    wrong_fr and nothing else. Never «C'est sûr, Daryz gagne la course» for the honest «Daryz essaie de gagner la
+    course»: «gagne» says too much as well. claim_id: the claim that shows it says too much.
   - off: sounds true and is true, but is about a detail of the story and misses the news. claim_id: the claim the
     detail comes from.
   - why (exaggerated and off only): what the headline claims that the article does not say, 20 words at most.
@@ -137,9 +140,9 @@ marché.», c4 «Une fois les travaux finis, le marché Beauvau rouvre le 14 nov
 {"fit": "titles",
  "headlines": [
   {"role": "honest", "claim_id": "c4",
-   "a1": {"fr": "Le marché Beauvau rouvre le 14 novembre", "en": "The Beauvau market reopens on 14 November", "de": "Der Markt Beauvau öffnet am 14. November wieder"},
-   "a2": {"fr": "Le marché Beauvau rouvre ses portes le 14 novembre", "en": "The Beauvau market opens its doors again on 14 November", "de": "Der Markt Beauvau öffnet am 14. November wieder seine Türen"},
-   "b1": {"fr": "Toit neuf et travaux finis : le marché Beauvau rouvre le 14 novembre", "en": "New roof, works finished: the Beauvau market reopens on 14 November", "de": "Neues Dach, Arbeiten fertig: Der Markt Beauvau öffnet am 14. November wieder"}},
+   "a1": {"fr": "Le marché Beauvau rouvre", "en": "The Beauvau market reopens", "de": "Der Markt Beauvau öffnet wieder"},
+   "a2": {"fr": "Après les travaux, le marché Beauvau rouvre", "en": "After the works, the Beauvau market reopens", "de": "Nach den Arbeiten öffnet der Markt Beauvau wieder"},
+   "b1": {"fr": "Travaux finis : le marché Beauvau rouvre le 14 novembre", "en": "Works finished: the Beauvau market reopens on 14 November", "de": "Arbeiten fertig: Der Markt Beauvau öffnet am 14. November wieder"}},
   {"role": "exaggerated", "claim_id": "c4",
    "a1": {"fr": "Tous les marchés de Paris rouvrent", "en": "All the markets in Paris reopen", "de": "Alle Märkte von Paris öffnen wieder"},
    "a2": {"fr": "Après les travaux, tous les marchés de Paris rouvrent", "en": "After the works, all the markets in Paris reopen", "de": "Nach den Arbeiten öffnen alle Märkte von Paris wieder"},
@@ -207,6 +210,63 @@ def too_wide(wrong: str, honest: TitreHeadline) -> bool:
     words = re.findall(r"[a-z]{4,}", ci(wrong))
     return any(all(re.search(rf"(?<![a-z]){w}(?![a-z])", ci(honest.for_band(b).fr)) for b in HEADLINE_MAX_WORDS)
                for w in words)
+
+
+#: Words that do not, alone, change what a headline says (articles, prepositions, pronouns,
+#: elided forms): :func:`changed_outside_wrong` lets them differ.
+FUNCTION_WORDS = frozenset(
+    "le la les l' un une des de du d' au aux a en dans sur et ou mais pour par avec que qu' qui ce c' cet cette ces "
+    "se s' son sa ses leur leurs il elle ils elles on y ne n' j' m' t' lui".split())
+_TOKEN = re.compile(r"\w+'|\w+(?:-\w+)*")
+#: Agreement endings: «rouvre» and «rouvrent», «marché» and «marchés» are the same word here.
+_ENDINGS = ("ent", "es", "s", "x", "e")
+
+
+def headline_tokens(fr: str) -> list[str]:
+    """``fr``'s words, case- and accent-folded, an elided form its own word («c'», «est»)."""
+
+    return _TOKEN.findall(ci(fr).replace("’", "'"))
+
+
+def _stem(token: str) -> str:
+    for ending in _ENDINGS:
+        if token.endswith(ending) and len(token) - len(ending) >= 3:
+            return token[: -len(ending)]
+    return token
+
+
+def changed_outside_wrong(honest: str, exaggerated: str, wrong: str) -> bool:
+    """The exaggerated headline changes, adds or drops a content word outside ``wrong`` compared
+    with the honest headline of the same band (agreement endings, function words and punctuation
+    aside). Real run (2026-11-22, the Arc story): honest «Daryz essaie de gagner la course une
+    deuxième fois», exaggerated «C'est sûr, Daryz gagne la course une deuxième fois», wrong_fr
+    «c'est sûr»: «gagne» says too much as well, and the trap told the learner who tapped it that
+    the article says it. Words of the honest headline may only give way to ``wrong``'s."""
+
+    from difflib import SequenceMatcher
+
+    said, stretched, needle = headline_tokens(honest), headline_tokens(exaggerated), headline_tokens(wrong)
+    span: set[int] = set()
+    for start in range(len(stretched) - len(needle) + 1):
+        if needle and stretched[start:start + len(needle)] == needle:
+            span = set(range(start, start + len(needle)))
+            break
+    if not span:
+        return False  # ``wrong_not_in_headline`` names it
+
+    def content(tokens: list[str], indices: range) -> bool:
+        return any(tokens[i] not in FUNCTION_WORDS for i in indices)
+
+    matcher = SequenceMatcher(None, [_stem(t) for t in said], [_stem(t) for t in stretched], autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        outside = [j for j in range(j1, j2) if j not in span]
+        if any(stretched[j] not in FUNCTION_WORDS for j in outside):
+            return True  # a word added or changed outside wrong_fr
+        if content(said, range(i1, i2)) and not span & set(range(j1, j2)):
+            return True  # a word of the honest headline dropped, and not for wrong_fr's
+    return False
 
 
 def headline_text(fr: str) -> str:
@@ -389,6 +449,12 @@ def repair_titre(raw: Any, dossier: EditorialDossier) -> tuple[TitreDesk | None,
     for band in HEADLINE_MAX_WORDS:
         if len({ci(h.for_band(band).fr) for h in headlines}) < 3:
             return None, ["titre:headlines:duplicate", *problems]
+    honest = next(h for h in headlines if h.role == "honest")
+    exaggerated = next(h for h in headlines if h.role == "exaggerated")
+    changed = [f"titre:exaggerated:{band}:changed_outside_wrong" for band in HEADLINE_MAX_WORDS
+               if changed_outside_wrong(honest.for_band(band).fr, exaggerated.for_band(band).fr, wrong)]
+    if changed:
+        return None, [*changed, *problems]
     if too_wide(wrong, next(h for h in headlines if h.role == "honest")):
         return None, ["titre:wrong_too_wide", *problems]
     phrase: dict[str, ComptoirText] = {}
@@ -456,8 +522,10 @@ __all__ = [
     "TITRE_DESK_INSTRUCTIONS",
     "TITRE_PROMPT_VERSION",
     "audit",
+    "changed_outside_wrong",
     "ensure_titre",
     "headline_text",
+    "headline_tokens",
     "repair_titre",
     "stretch_problem",
     "titre_of",
