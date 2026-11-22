@@ -841,12 +841,18 @@ def _proof_key(text: str) -> list[str]:
     return [_token_key(m.group(0), i) for i, m in enumerate(_TOKEN.finditer(text or ""))]
 
 
+#: A word that elides before a vowel, written in full: «que il», «de élèves», «le arbre», «si il».
+_ELIDED = re.compile(r"\b(qu|d|l|j|m|t|s|n|c|lorsqu|puisqu|jusqu)[ea]? (?=[aeiouyh])")
+
+
 def _mark_kind(wrong: list[str], right: list[str]) -> str:
     """The kind of slip, guessed from the words that differ (the model's hint wins)."""
 
     w, r = comptoir.ci(" ".join(wrong)), comptoir.ci(" ".join(right))
     if re.sub(r"[\s'-]", "", w) == re.sub(r"[\s'-]", "", r):
         return "orthographe"  # accents, capitals, elision
+    if _ELIDED.sub(r"\1'", w) == r:
+        return "orthographe"  # «que il» → «qu'il», «de élèves» → «d'élèves» (tirage 2026-11-22: was «mot»)
     if sorted(map(str.lower, wrong)) == sorted(map(str.lower, right)):
         return "ordre"
     if frozenset((w, r)) in _GENDER_PAIRS:
@@ -912,9 +918,12 @@ def _proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | 
     hinted: list[tuple[int, int, str]] = []
     for hint in hints or []:
         span = str(hint.get("span_fr") or "").lower()
-        at = lowered.find(span) if span else -1
-        if at >= 0 and hint.get("kind") in MARK_KINDS:
+        if not span or hint.get("kind") not in MARK_KINDS:
+            continue
+        at = lowered.find(span)
+        while at >= 0:  # every place the words stand: «que il» twice is the same slip twice
             hinted.append((at, at + len(span), str(hint["kind"])))
+            at = lowered.find(span, at + 1)
     marks: list[dict[str, Any]] = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, keys_a, keys_b, autojunk=False).get_opcodes():
         if op == "equal":

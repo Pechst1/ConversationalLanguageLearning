@@ -613,3 +613,15 @@ def test_marks_on_several_questions_stay_inside_their_own_question() -> None:
     # One sentence, or a different count of sentences: the whole text is diffed as before.
     assert comptoir_loop.proof_marks("Je suis pour, parce que c'est bon.", "Je suis pour, parce que c'est bien.") == [
         {"span_fr": "bon", "start": 30, "kind": "mot"}]
+
+
+def test_an_elision_written_in_full_is_spelling_every_time_it_stands() -> None:
+    """A real A2 opinion (2026-11-22): «parce que il … a dit que il» — the first «que il» was
+    marked Rechtschreibung (the model's hint), the second Wortwahl (guessed)."""
+
+    learner = "À mon avis, il faut garder le roman, parce que il n'y a pas de preuve et l'auteur a dit que il a écrit le livre seul."
+    target = "À mon avis, il faut garder le roman, parce qu'il n'y a pas de preuve et l'auteur a dit qu'il a écrit le livre seul."
+    for hints in ([], [{"span_fr": "que il", "kind": "orthographe"}]):
+        marks = comptoir_loop.proof_marks(learner, target, hints)
+        assert [(m["span_fr"], m["kind"]) for m in marks] == [("que il", "orthographe"), ("que il", "orthographe")]
+    assert comptoir_loop.proof_marks("beaucoup de élèves", "beaucoup d'élèves")[0]["kind"] == "orthographe"
