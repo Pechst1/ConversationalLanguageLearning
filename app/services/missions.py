@@ -8509,10 +8509,36 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)
         ]
+        payload["used_target_word_ids"] = used_target_word_ids(mission)
         if scene_record.enabled():
             payload["prompt_payload"] = _prompt_payload_for_thread(mission, payload["prompt_payload"])
     payload["prompt_payload"] = _without_a_twist_against_the_letter(payload["prompt_payload"])
     return payload
+
+
+def used_target_word_ids(mission: RealWorldMission) -> list[int]:
+    """#928: the target words the learner's writing on this letter used, as the corrector recorded them.
+
+    Every learner message is checked against the ribbon's words when it is stored
+    (`_apply_vocabulary_feedback`, through `word_match.target_occurs_in`: any accent,
+    any real inflection, never a longer word), and the check leaves a ``produced_correct``
+    event per word used. That record is the one answer; the Courrier's ribbon and its
+    «2/3» read it here instead of testing the raw text against the lemma on the page.
+    """
+
+    corrections = [
+        *[attempt.correction_payload or {} for attempt in mission.attempts or []],
+        *[turn.correction_payload or {} for turn in mission.turns or [] if turn.role == "user"],
+    ]
+    return _dedupe_ints(
+        [
+            event.get("word_id")
+            for correction in corrections
+            if isinstance(correction, dict)
+            for event in correction.get("vocabulary_events") or []
+            if isinstance(event, dict) and event.get("event_type") == "produced_correct"
+        ]
+    )
 
 
 def _without_a_twist_against_the_letter(prompt_payload: dict[str, Any]) -> dict[str, Any]:
