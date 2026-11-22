@@ -377,6 +377,70 @@ def _period_week(period: str) -> str:
         return str(period or "")
 
 
+def _revue_met(row: RevueSession, dossier: Any, plan: Any) -> dict[str, str]:
+    """Where a word was met in a Papier: the session, the dossier, the place and the week."""
+
+    place = next((p for p in dossier.places if p.id == plan.stage.place_id), dossier.places[0])
+    geo = getattr(place, "geo", None)
+    return {
+        "source": "revue",
+        "session_id": str(row.id),
+        "dossier_id": str(row.dossier_id),
+        "place_id": str(place.id),
+        "place_label_fr": str(getattr(geo, "label_fr", None) or place.name_fr),
+        "place_name_fr": str(place.name_fr),
+        "week": _period_week(row.week),
+    }
+
+
+def keep_tapped_word(
+    db: Session, *, user: Any, row: RevueSession, term: str, sentence: str, surface: str | None = None
+) -> dict[str, Any] | None:
+    """Integration 2026-11-22: a word the learner keeps by hand inside a Papier (the word
+    sheet's «Garder», on the lead or a line) is a Papier word: ``kept_from_revue``, tied to
+    this session and its place, like the words its close keeps — not a story word with
+    another session's reference. The meaning kept is the one the sheet read (the catalogue's,
+    in the learner's language), else the Papier's own gloss for its word. ``None`` when there
+    is neither (the caller refuses, as a story keep does). Flushes, never commits."""
+
+    from app.services.chrome_language import user_mother_tongue
+    from app.services.glosses import resolve_gloss
+    from app.services.kept_words import catalogue_row_for, keep_revue_word
+    from app.services.revue.encounter import load
+    from app.services.revue.session import vocabulary_form
+
+    loaded = load(row)
+    native = user_mother_tongue(user)
+    language = (getattr(user, "target_language", None) or "fr").strip() or "fr"
+    gloss = ""
+    word = catalogue_row_for(db, term=term, language=language, native=native)
+    if word is not None:
+        resolved, resolved_language = resolve_gloss(word, native)
+        gloss = resolved if resolved and resolved_language == native else ""
+    if not gloss:
+        key = (vocabulary_form(term) or term).strip().casefold()
+        for item in loaded.plan.vocabulary:
+            if (vocabulary_form(item.fr) or item.fr).strip().casefold() == key and item.gloss.get(native):
+                term, gloss = item.fr, item.gloss[native]
+                break
+    if not gloss:
+        return None
+    result = keep_revue_word(
+        db, user=user, term=term, gloss=gloss, sentence=sentence, met=_revue_met(row, loaded.dossier, loaded.plan)
+    )
+    if result is None:
+        return None
+    return {
+        "word_id": result.word_id,
+        "word": result.word,
+        "surface": surface or term,
+        "gloss": gloss,
+        "gloss_language": native,
+        "example_fr": sentence,
+        "already_kept": result.already,
+    }
+
+
 def keep_papier_words(db: Session, row: RevueSession, *, dossier: Any, plan: Any, state: Any, kept: Any) -> int:
     """A.0: ``RvKept.words[]`` → the learner's SRS (``kept_words.keep_revue_word``).
 
@@ -394,8 +458,7 @@ def keep_papier_words(db: Session, row: RevueSession, *, dossier: Any, plan: Any
         user = db.get(User, row.user_id)
         if user is None or not getattr(kept, "words", None):
             return 0
-        place = next((p for p in dossier.places if p.id == plan.stage.place_id), dossier.places[0])
-        geo = getattr(place, "geo", None)
+        met_base = _revue_met(row, dossier, plan)
         claims = dossier.claims_by_id()
         correct: set[str] = set()
         for event in state.events:
@@ -404,15 +467,6 @@ def keep_papier_words(db: Session, row: RevueSession, *, dossier: Any, plan: Any
             for outcome in event.payload.get("word_outcomes") or []:
                 if isinstance(outcome, dict) and outcome.get("outcome") == "correct" and outcome.get("fr"):
                     correct.add(str(outcome["fr"]))
-        met_base = {
-            "source": "revue",
-            "session_id": str(row.id),
-            "dossier_id": str(row.dossier_id),
-            "place_id": str(place.id),
-            "place_label_fr": str(getattr(geo, "label_fr", None) or place.name_fr),
-            "place_name_fr": str(place.name_fr),
-            "week": _period_week(row.week),
-        }
         count = 0
         with db.begin_nested():
             for word in kept.words:

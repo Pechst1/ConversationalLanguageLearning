@@ -162,9 +162,11 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
         speakerId: speakerId ?? ROMY,
         knownGloss: known,
         knownGlossLanguage: known ? glossLanguage : null,
+        // «Garder» here keeps a Papier word, tied to this session (integration 2026-11-22).
+        revueSessionId: session.id,
       });
     },
-    [glossLanguage, glosses],
+    [glossLanguage, glosses, session.id],
   );
 
   const reread = useCallback(async () => {

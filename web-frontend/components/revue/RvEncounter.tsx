@@ -194,9 +194,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         speakerId: 'romy_tremblay',
         knownGloss: known,
         knownGlossLanguage: known ? glossLanguage : null,
+        // «Garder» here keeps a Papier word, tied to this session (integration 2026-11-22).
+        revueSessionId: session.id,
       });
     },
-    [glossLanguage, glosses],
+    [glossLanguage, glosses, session.id],
   );
 
   const noteEvidence = useCallback((evidence: RvEvidence | null | undefined, mineId: string | null) => {

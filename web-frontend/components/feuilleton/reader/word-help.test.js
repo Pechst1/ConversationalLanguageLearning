@@ -168,3 +168,14 @@ test('the sheet: a known meaning paints at once with «Garder»; the footnote an
   assert.match(reader, /<p class="fr-quote-k">Im Bild<\/p>/);
   assert.match(reader, /Wird gesucht…/);
 });
+
+// Integration 2026-11-22: a word kept by hand inside a Papier was stored as a story word with
+// another session's reference. Every Papier player hands the sheet its session; the sheet sends it.
+test('«Garder» inside a Papier sends the Papier session', () => {
+  const fs = require('node:fs');
+  const read = (rel) => fs.readFileSync(path.join(__dirname, rel), 'utf8');
+  assert.match(read('WordHelpSheet.tsx'), /revue_session_id: request\.revueSessionId/);
+  for (const player of ['../../revue/comptoir/RvComptoir.tsx', '../../revue/RvEncounter.tsx', '../../revue/fil/RvFil.tsx', '../../revue/rubriques/RvRubrique.tsx']) {
+    assert.match(read(player), /revueSessionId: session\.id,/, player);
+  }
+});

@@ -289,3 +289,40 @@ def test_with_the_echo_on_and_no_papier_the_context_is_unchanged(db, monkeypatch
     context = _scene_context()
     living_story._add_papier_echo(db, user, context)
     assert context == _scene_context()
+
+
+# ---------------------------------------------------------------------------
+# Integration 2026-11-22: a word kept by hand inside the Papier is a Papier word
+# ---------------------------------------------------------------------------
+
+
+def test_a_word_kept_by_hand_in_the_papier_is_kept_from_the_revue_with_the_sessions_reference(db):
+    from sqlalchemy import select as sa_select
+
+    from app.db.models.progress import UserVocabularyProgress
+    from app.db.models.session import WordInteraction
+    from app.services.revue import carte
+
+    revue = RevueEncounter(db, FakeRevueProvider())
+    revue.pictogram_provider = FakePictogramProvider()
+    user = make_user(db, level="A2.1")
+    user.native_language = "de"
+    db.commit()
+    row = revue.start(user, week=WEEK)
+    item = (row.plan.get("vocabulary") or [])[0]
+    term = f"{item['fr']}"
+    lead = enc.load(row).dossier.lead_for("A2").fr
+    kept = carte.keep_tapped_word(db, user=user, row=row, term=term, sentence=lead, surface=term)
+    db.commit()
+    assert kept is not None and kept["already_kept"] is False
+    progress = db.scalars(sa_select(UserVocabularyProgress).where(
+        UserVocabularyProgress.user_id == user.id, UserVocabularyProgress.word_id == kept["word_id"])).one()
+    assert progress.provenance == "kept_from_revue"
+    assert progress.provenance_ref == str(row.id)
+    places = (progress.context or {}).get("places") or []
+    assert places and places[0]["session_id"] == str(row.id) and places[0]["dossier_id"] == row.dossier_id
+    interaction = db.scalars(sa_select(WordInteraction).where(
+        WordInteraction.user_id == user.id, WordInteraction.word_id == kept["word_id"])).one()
+    assert interaction.interaction_type == "kept_from_revue"
+    again = carte.keep_tapped_word(db, user=user, row=row, term=term, sentence=lead, surface=term)
+    assert again["already_kept"] is True
