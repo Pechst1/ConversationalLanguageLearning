@@ -108,7 +108,7 @@ from app.services.forge import (  # WP-S3 La Forge
 from app.services.forge_coaches import story_state_of
 from app.services.forge_item_validator import speaker_problems  # #267/#780: agrees with its badge
 from app.services.forge_metrics import record_forge_abandoned, sweep_stale_forge_seances  # WP-S8
-from app.services.forge_picker import forge_plan  # WP-S4 one picker
+from app.services.forge_picker import DAY_ORIGINS, forge_plan  # WP-S4 one picker
 from app.services.glosses import DEFAULT_GLOSS_LANGUAGE, normalize_language
 from app.services.intake_throttle import intake_notice  # WP-L6 auto-throttle
 from app.services.item_bank import public_payload  # WP-103 goals, no frames
@@ -1470,6 +1470,16 @@ def start_session(
     scheduler.ensure_catalog()
     preferred_id = payload.preferred_concept_id if payload else None
     explicit_ids = list(payload.concept_ids or []) if payload else []
+    if payload is not None and payload.origin in DAY_ORIGINS and not explicit_ids:
+        # #947: «Forge today's rule» works on the rule the day's plan teaches. Its
+        # link may have been read before the day was planned (Home before Start),
+        # when the concept it carries was only the Forge picker's guess.
+        from app.services.daily_journey import todays_planned_rule_id
+
+        day_rule = todays_planned_rule_id(db, current_user)
+        if day_rule is not None and day_rule != preferred_id:
+            payload = payload.model_copy(update={"preferred_concept_id": day_rule})
+            preferred_id = day_rule
 
     active = (
         db.query(AtelierSession)
