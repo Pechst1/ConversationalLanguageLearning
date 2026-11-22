@@ -65,13 +65,15 @@ def _served_objective(objective: str) -> str:
     return draft.objective_native
 
 
-def test_a_report_of_what_the_speaker_asks_is_not_readdressed_to_the_speaker():
+def test_report_kept():
+    """The model's report of Gus' own question is served as written, never re-addressed."""
+
     served = _served_objective(WRITTEN)
     assert "speak to Gus" not in served, f"the speaker is named as his own addressee: {served!r}"
     assert served == WRITTEN
 
 
-def test_a_report_of_the_speaker_is_no_addressee_mismatch():
+def test_no_mismatch():
     # «Gus asks if he should speak to Bastien»: Bastien is the one Gus might speak to,
     # not the one the learner is told to answer.
     assert engine.objective_addressee_mismatch(WRITTEN, GUS, CAST) is None
@@ -80,13 +82,17 @@ def test_a_report_of_the_speaker_is_no_addressee_mismatch():
     assert other["id"] == "bastien_roux" and word == "Bastien"
 
 
-def test_the_served_gloss_from_the_walk_is_caught_and_repaired():
+def test_walk_gloss():
+    """The exact line the walk served is caught and served without the self-address."""
+
     served = _served_objective(SERVED)
     assert "speak to Gus" not in served, f"the speaker is named as his own addressee: {served!r}"
     assert served == "Gus asks if he should speak or stay silent."
 
 
-def test_the_re_address_never_makes_the_speaker_its_own_addressee():
+def test_readdress():
+    """The re-address of a real mismatch never makes the speaker its own addressee."""
+
     # A real mismatch (the learner is told to ask Bastien while Gus answers) whose
     # re-address would also turn Gus' own act into «talk to Gus».
     served = _served_objective("Ask Bastien if Gus should talk to Bastien.")
@@ -106,6 +112,9 @@ def test_the_re_address_never_makes_the_speaker_its_own_addressee():
         ("Romy asks if she should speak to Gus.", "Romy asks if she should speak to Gus."),
         (WRITTEN, WRITTEN),
     ],
+    ids=["walk", "talk", "ask", "learner-asks", "learner-tells", "other-subject", "report"],
 )
-def test_a_gloss_never_names_the_speaker_as_its_own_addressee(objective, served):
+def test_never_self(objective, served):
+    """A gloss never names the speaker as its own addressee."""
+
     assert _served_objective(objective) == served
