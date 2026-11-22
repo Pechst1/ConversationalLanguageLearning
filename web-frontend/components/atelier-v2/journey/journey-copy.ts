@@ -244,6 +244,9 @@ export type JourneyCopyKey =
   | 'drill_recall'
   | 'drill_warmup'
   | 'drill_retry'
+  // #975: a drill that is not on the day's rule says it is a review.
+  | 'drill_review_mistake'
+  | 'drill_review_rule'
   // P5 (owner, 2026-11-13): a miss asked again later says where and why, not what.
   | 'drill_miss_where'
   | 'drill_miss_choice'
@@ -483,6 +486,8 @@ const EN: CopyTable = {
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
+  drill_review_mistake: 'From your mistakes',
+  drill_review_rule: 'A rule to review',
   drill_miss_where: 'What is off',
   drill_miss_choice: 'Not this answer',
   drill_solution_later: 'This one comes back at the end of the set. Find it yourself first; the solution comes after.',
@@ -710,6 +715,8 @@ const DE: CopyTable = {
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
+  drill_review_mistake: 'Aus deinen Fehlern',
+  drill_review_rule: 'Eine Regel zum Wiederholen',
   drill_miss_where: 'Was nicht stimmt',
   drill_miss_choice: 'Nicht diese Antwort',
   drill_solution_later: 'Diese Aufgabe kommt am Ende der Reihe noch einmal. Finde es zuerst selbst; die Lösung kommt danach.',
@@ -937,6 +944,8 @@ const FR: CopyTable = {
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',
+  drill_review_mistake: 'Tes erreurs',
+  drill_review_rule: 'Une règle à revoir',
   drill_miss_where: 'Ce qui ne va pas',
   drill_miss_choice: 'Pas cette réponse',
   drill_solution_later: 'Cette question revient à la fin de la série. Cherche d’abord toi-même ; la solution vient après.',

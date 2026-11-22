@@ -849,6 +849,12 @@ class RecallTask:
     #: character's line, and always for «Qui a dit ça ?», whose face would be its
     #: answer. Public as ``RecallPrompt.speaker`` (``journey_planner.recall_speaker``).
     speaker_id: str | None = None
+    #: #975 (owner decision of 7 Nov, «Nur als Extra»): why a Rappel drill is in the
+    #: day when its target is not the day's rule. ``"mistake"``: the learner's own due
+    #: slip; ``"review"``: the one due rule. The device labels it a review («From your
+    #: mistakes», «A rule to review»), never «today's rule». ``None`` for every drill
+    #: on the day's rule and every word drill. Public as ``RecallPrompt.role``.
+    role: Literal["mistake", "review"] | None = None
 
 
 #: WP-103 T3 (the owner's test: «Build the sentence. Some chips are not needed.» —

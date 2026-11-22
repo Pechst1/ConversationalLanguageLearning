@@ -31,6 +31,8 @@ export type FirstStepKey =
   | 'rule'
   | 'recall'
   | 'practice'
+  | 'mistakes'
+  | 'review'
   | 'respond'
   | 'resolution'
   | 'read'
@@ -44,6 +46,8 @@ export const FIRST_STEP_SHAPE: Record<FirstStepKey, ShapeKind> = {
   read: 'story',
   recall: 'reward',
   practice: 'action',
+  mistakes: 'reward',
+  review: 'reward',
   desk: 'reward',
   forge: 'reward',
   words: 'reward',
@@ -100,6 +104,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       practice: {
         title: 'Die Regel im Einsatz',
         body: 'Kurze Übungen zur Regel von heute. Bei Fehlern siehst du die Lösung.',
+      },
+      mistakes: {
+        title: 'Aus deinen Fehlern',
+        body: 'Etwas, das du früher geschrieben hast, jetzt richtig. Bei Fehlern siehst du die Lösung.',
+      },
+      review: {
+        title: 'Eine Regel zum Wiederholen',
+        body: 'Eine Regel, die du schon kennst. Bei Fehlern siehst du die Lösung.',
       },
       respond: {
         title: 'Deine Antwort',
@@ -168,6 +180,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         title: 'The rule in use',
         body: 'Quick drills on today’s rule. A miss shows the answer.',
       },
+      mistakes: {
+        title: 'From your mistakes',
+        body: 'Something you wrote before, put right. A miss shows the answer.',
+      },
+      review: {
+        title: 'A rule to review',
+        body: 'A rule you have met before. A miss shows the answer.',
+      },
       respond: {
         title: 'Your reply',
         body: 'Answer in French, typed or spoken. The story reacts.',
@@ -234,6 +254,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       practice: {
         title: 'La règle en action',
         body: 'De courts exercices sur la règle du jour. Une erreur montre la réponse.',
+      },
+      mistakes: {
+        title: 'Tes erreurs',
+        body: 'Une phrase écrite avant, à remettre juste. Une erreur montre la réponse.',
+      },
+      review: {
+        title: 'Une règle à revoir',
+        body: 'Une règle déjà vue. Une erreur montre la réponse.',
       },
       respond: {
         title: 'Ta réponse',
@@ -367,6 +395,10 @@ export function rememberWalkthrough(store: KeyValueStore | null): void {
  * The sticker for a drill is the one of the day step it belongs to (#469): `recall` is the words
  * only when its target is a word. The type holds one entry per step of the day, so a step added
  * to `lib/day-order.ts` has to say here what its drill is called.
+ *
+ * #975 (owner decision of 7 Nov, «Nur als Extra»): a drill the planner marks as a review
+ * (`prompt.role`: the learner's own slip, or the one due rule) is never «today's rule»;
+ * it says where it comes from instead.
  */
 const DRILL_STICKER: Record<DayWorkKind, FirstStepKey> = {
   scene: 'scene',
@@ -375,6 +407,12 @@ const DRILL_STICKER: Record<DayWorkKind, FirstStepKey> = {
 };
 
 type StickerStep = Parameters<typeof dayStepOf>[0];
+
+/** #975: why a drill not on the day's rule is in the day (`prompt.role`), or `null`. */
+export function reviewRoleOf(step: StickerStep): 'mistake' | 'review' | null {
+  const role = (step?.prompt as { role?: unknown } | null | undefined)?.role;
+  return role === 'mistake' || role === 'review' ? role : null;
+}
 
 /** The sticker a step shows, or `null` for a kind with nothing to explain. */
 export function stickerFor(step: StickerStep | string): FirstStepKey | null {
@@ -389,6 +427,9 @@ export function stickerFor(step: StickerStep | string): FirstStepKey | null {
     case 'forge':
       return given.kind;
     case 'recall': {
+      const role = reviewRoleOf(given);
+      if (role === 'mistake') return 'mistakes';
+      if (role === 'review') return 'review';
       const stage = dayStepOf(given);
       return stage ? DRILL_STICKER[stage] : null;
     }

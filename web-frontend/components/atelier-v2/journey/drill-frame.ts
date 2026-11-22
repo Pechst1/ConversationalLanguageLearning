@@ -205,7 +205,7 @@ function join(parts: Array<string | null | undefined>): string {
 }
 
 type DrillNames = Pick<JourneyCopy, 'drill_recall' | 'drill_rule' | 'drill_forge'> &
-  Partial<Pick<JourneyCopy, 'drill_warmup' | 'drill_retry'>>;
+  Partial<Pick<JourneyCopy, 'drill_warmup' | 'drill_retry' | 'drill_review_mistake' | 'drill_review_rule'>>;
 
 /** The steps that are the day's story: once one has come, a recall reviews it. */
 const STORY_KINDS: readonly unknown[] = ['scene', 'read', 'respond', 'resolution'];
@@ -269,7 +269,11 @@ export function drillHeaderLabel(
     const target = step.prompt.target;
     // Owner 2026-10-17: a drill missed earlier in the set, asked once more.
     const retry = (step.prompt as { retry?: boolean | null }).retry === true;
-    const name = (retry && copy.drill_retry) || (beforeStory && copy.drill_warmup) || copy.drill_recall;
+    // #975: a drill not on the day's rule (an own slip, the one due rule) says it is a review.
+    const role = (step.prompt as { role?: unknown }).role;
+    const review =
+      (role === 'mistake' && copy.drill_review_mistake) || (role === 'review' && copy.drill_review_rule) || null;
+    const name = (retry && copy.drill_retry) || review || (beforeStory && copy.drill_warmup) || copy.drill_recall;
     if (target?.kind !== 'grammar') return join([name]);
     const topic = pick(target.label_native, target.label_fr);
     return join([name, revealsAnswer(topic, step.prompt) ? null : topic]);
