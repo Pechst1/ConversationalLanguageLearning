@@ -31,6 +31,35 @@ export const ROUTE_STAGE_OF: Readonly<Record<DayWorkKind, RouteStage>> = {
 };
 
 /**
+ * What a drill is for in the day (#469, #975), as the planner dealt it
+ * (`RecallPrompt.role`, `journey_planner.recall_role`): the rule the day
+ * teaches, another rule back for review, the learner's own slip, or a word.
+ */
+export type DrillRole = 'day_rule' | 'review' | 'mistake' | 'words';
+
+const SENT_ROLES: readonly unknown[] = ['day_rule', 'review', 'mistake'];
+
+/**
+ * The role of a `recall` step, `null` for any other step. The planner's word
+ * first: only it knows which rule is today's. A step planned before the role
+ * was sent falls back on its target: an error is the learner's own slip, a
+ * grammar unit the day's rule (as it was named then), anything else a word.
+ */
+export function drillRoleOf(step: { kind?: unknown; prompt?: unknown } | null | undefined): DrillRole | null {
+  if (step?.kind !== 'recall') return null;
+  const prompt = step.prompt as { role?: unknown; target?: { kind?: unknown } | null } | null | undefined;
+  if (SENT_ROLES.includes(prompt?.role)) return prompt?.role as DrillRole;
+  switch (prompt?.target?.kind) {
+    case 'error':
+      return 'mistake';
+    case 'grammar':
+      return 'day_rule';
+    default:
+      return 'words';
+  }
+}
+
+/**
  * Which step of the day a step of the journey player belongs to (#469).
  *
  * The player deals its own kinds (`rule`, `recall`, `respond` …); the day is
@@ -41,6 +70,10 @@ export const ROUTE_STAGE_OF: Readonly<Record<DayWorkKind, RouteStage>> = {
  * card itself is grammar. Before this, `recall` said «Die Wörter» on the first
  * grammar drill and the header said «Szene» over the rule card, because both
  * were written for the day as it was before #463 reordered it.
+ *
+ * #975: a drill on another rule, or on the learner's own slip, is the review
+ * around the scene and belongs to none of the day's steps (`null`): it is
+ * neither today's rule nor the words (`drillRoleOf`).
  *
  * `null` for something that is not a step of the player.
  */
@@ -55,10 +88,10 @@ export function dayStepOf(step: { kind?: unknown; prompt?: unknown } | null | un
     case 'rule':
     case 'forge':
       return 'grammar';
-    case 'recall':
-      return (step.prompt as { target?: { kind?: unknown } | null } | null | undefined)?.target?.kind === 'grammar'
-        ? 'grammar'
-        : 'words';
+    case 'recall': {
+      const role = drillRoleOf(step);
+      return role === 'day_rule' ? 'grammar' : role === 'words' ? 'words' : null;
+    }
     default:
       return null;
   }

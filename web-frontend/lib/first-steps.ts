@@ -18,7 +18,15 @@
  * harmless, and nothing here can block a step when storage is unreachable.
  */
 
-import { ROUTE_STAGE_OF, WORK_STEPS, dayStepOf, type DayWorkKind, type RouteStage } from '@/lib/day-order';
+import {
+  ROUTE_STAGE_OF,
+  WORK_STEPS,
+  dayStepOf,
+  drillRoleOf,
+  type DayWorkKind,
+  type DrillRole,
+  type RouteStage,
+} from '@/lib/day-order';
 import type { ControlLanguage } from '@/types/daily-journey';
 import type { ShapeKind } from '@/components/atelier-v2/ui/Shapes';
 
@@ -31,6 +39,8 @@ export type FirstStepKey =
   | 'rule'
   | 'recall'
   | 'practice'
+  | 'review'
+  | 'mistakes'
   | 'respond'
   | 'resolution'
   | 'read'
@@ -44,6 +54,8 @@ export const FIRST_STEP_SHAPE: Record<FirstStepKey, ShapeKind> = {
   read: 'story',
   recall: 'reward',
   practice: 'action',
+  review: 'action',
+  mistakes: 'action',
   desk: 'reward',
   forge: 'reward',
   words: 'reward',
@@ -100,6 +112,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       practice: {
         title: 'Die Regel im Einsatz',
         body: 'Kurze Übungen zur Regel von heute. Bei Fehlern siehst du die Lösung.',
+      },
+      review: {
+        title: 'Eine Regel zur Wiederholung',
+        body: 'Eine Regel, die schon vorkam, kurz noch einmal. Bei Fehlern siehst du die Lösung.',
+      },
+      mistakes: {
+        title: 'Aus deinen Fehlern',
+        body: 'Was du selbst geschrieben hast, noch einmal richtig. Bei Fehlern siehst du die Lösung.',
       },
       respond: {
         title: 'Deine Antwort',
@@ -168,6 +188,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
         title: 'The rule in use',
         body: 'Quick drills on today’s rule. A miss shows the answer.',
       },
+      review: {
+        title: 'A rule to review',
+        body: 'A rule that came up before, back for a quick check. A miss shows the answer.',
+      },
+      mistakes: {
+        title: 'From your mistakes',
+        body: 'Something you wrote yourself, set right. A miss shows the answer.',
+      },
       respond: {
         title: 'Your reply',
         body: 'Answer in French, typed or spoken. The story reacts.',
@@ -234,6 +262,14 @@ const COPY: Record<ControlLanguage, FirstStepsCopy> = {
       practice: {
         title: 'La règle en action',
         body: 'De courts exercices sur la règle du jour. Une erreur montre la réponse.',
+      },
+      review: {
+        title: 'Une règle à revoir',
+        body: 'Une règle déjà croisée, revue en vitesse. Une erreur montre la réponse.',
+      },
+      mistakes: {
+        title: 'Tes erreurs',
+        body: 'Ce que tu as écrit toi-même, remis d’aplomb. Une erreur montre la réponse.',
       },
       respond: {
         title: 'Ta réponse',
@@ -374,6 +410,16 @@ const DRILL_STICKER: Record<DayWorkKind, FirstStepKey> = {
   words: 'recall',
 };
 
+/**
+ * #975: a drill that is none of the day's steps is the review around the scene, named by
+ * its role (`drillRoleOf`): a rule that is not today's is never «today's rule», and the
+ * learner's own slip is never «the words» (#469).
+ */
+const REVIEW_STICKER: Record<Exclude<DrillRole, 'day_rule' | 'words'>, FirstStepKey> = {
+  review: 'review',
+  mistake: 'mistakes',
+};
+
 type StickerStep = Parameters<typeof dayStepOf>[0];
 
 /** The sticker a step shows, or `null` for a kind with nothing to explain. */
@@ -390,7 +436,9 @@ export function stickerFor(step: StickerStep | string): FirstStepKey | null {
       return given.kind;
     case 'recall': {
       const stage = dayStepOf(given);
-      return stage ? DRILL_STICKER[stage] : null;
+      if (stage) return DRILL_STICKER[stage];
+      const role = drillRoleOf(given);
+      return role === 'review' || role === 'mistake' ? REVIEW_STICKER[role] : null;
     }
     default:
       return null;

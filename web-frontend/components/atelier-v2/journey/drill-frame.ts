@@ -19,6 +19,7 @@
  * renders exactly as it did.
  */
 
+import { drillRoleOf } from '@/lib/day-order';
 import type { ControlLanguage, PublicStep } from '@/types/daily-journey';
 
 import type { JourneyCopy } from './journey-copy';
@@ -205,7 +206,19 @@ function join(parts: Array<string | null | undefined>): string {
 }
 
 type DrillNames = Pick<JourneyCopy, 'drill_recall' | 'drill_rule' | 'drill_forge'> &
-  Partial<Pick<JourneyCopy, 'drill_warmup' | 'drill_retry'>>;
+  Partial<Pick<JourneyCopy, 'drill_warmup' | 'drill_retry' | 'drill_review' | 'drill_mistakes'>>;
+
+/**
+ * #975: a drill on a rule that is not today's, or on the learner's own slip, is
+ * named for that (the planner's `prompt.role`), never as today's rule or a plain
+ * «Recall»; `null` for a drill on today's rule and a word drill.
+ */
+function reviewName(step: { kind?: unknown; prompt?: unknown }, copy: DrillNames): string | null {
+  const role = drillRoleOf(step);
+  if (role === 'review') return clean(copy.drill_review) || null;
+  if (role === 'mistake') return clean(copy.drill_mistakes) || null;
+  return null;
+}
 
 /** The steps that are the day's story: once one has come, a recall reviews it. */
 const STORY_KINDS: readonly unknown[] = ['scene', 'read', 'respond', 'resolution'];
@@ -269,7 +282,8 @@ export function drillHeaderLabel(
     const target = step.prompt.target;
     // Owner 2026-10-17: a drill missed earlier in the set, asked once more.
     const retry = (step.prompt as { retry?: boolean | null }).retry === true;
-    const name = (retry && copy.drill_retry) || (beforeStory && copy.drill_warmup) || copy.drill_recall;
+    const name =
+      (retry && copy.drill_retry) || reviewName(step, copy) || (beforeStory && copy.drill_warmup) || copy.drill_recall;
     if (target?.kind !== 'grammar') return join([name]);
     const topic = pick(target.label_native, target.label_fr);
     return join([name, revealsAnswer(topic, step.prompt) ? null : topic]);
@@ -300,6 +314,11 @@ export function stepBlockName(
   if (step.kind === 'rule') return clean(copy.drill_rule) || null;
   if (step.kind === 'forge') return clean(copy.drill_forge) || null;
   if (step.kind === 'recall') {
+    // #469: a drill on today's rule is the rule's block, with its card; #975: a
+    // review is named as one.
+    if (drillRoleOf(step) === 'day_rule') return clean(copy.drill_rule) || null;
+    const review = reviewName(step, copy);
+    if (review) return review;
     const warmup = isBeforeStory(steps, (step as { id?: unknown }).id) && clean(copy.drill_warmup);
     return warmup || clean(copy.drill_recall) || null;
   }

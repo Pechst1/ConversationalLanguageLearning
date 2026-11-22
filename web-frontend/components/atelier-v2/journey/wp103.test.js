@@ -356,7 +356,9 @@ test('WP-137 C-1 · no drill eyebrow names the answer or any option', () => {
     const copy = { de: DE, en: EN, fr: FR }[language];
     for (const step of items) {
       const label = frame.drillHeaderLabel(step, language, copy);
-      assert.equal(label, copy.drill_recall, `only the category: ${label}`);
+      // #975: the learner's own slip is named as one («From your mistakes»).
+      const category = step.prompt.target.kind === 'error' ? copy.drill_mistakes : copy.drill_recall;
+      assert.equal(label, category, `only the category: ${label}`);
       const answers = [step.prompt.target.label_fr, step.prompt.target.label_native, ...step.prompt.options.map((o) => o.text_fr)];
       for (const answer of answers.filter(Boolean)) {
         assert.ok(!label.toLowerCase().includes(answer.toLowerCase()), `${label} names ${answer}`);
