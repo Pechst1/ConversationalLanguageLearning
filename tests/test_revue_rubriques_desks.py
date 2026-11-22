@@ -388,3 +388,28 @@ def test_a_distractor_is_the_same_kind_of_value_as_the_truth() -> None:
     false["distractor_fr"] = other
     express, problems = intox.repair_intox(raw, beauvau())
     assert express is None and any(p.endswith(":distractor") for p in problems)
+
+
+def test_the_words_that_say_too_much_are_never_words_the_honest_headline_says() -> None:
+    """First real run (2026-11-22): wrong_fr «200 nouveaux voiles» made the trap strike «nouveaux»
+    and «voiles», true words of the honest «Paris annonce 100 nouveaux voiles…»."""
+
+    raw = gold_titre()
+    honest = next(h for h in raw["headlines"] if h["role"] == "honest")
+    shared = next(w for w in honest["a1"]["fr"].split() if len(w) >= 4 and all(w in honest[b]["fr"] for b in ("a2", "b1")))
+    exaggerated = next(h for h in raw["headlines"] if h["role"] == "exaggerated")
+    wide = f"{raw['wrong_fr']} {shared}"
+    if all(wide in exaggerated[b]["fr"] for b in ("a1", "a2", "b1")):
+        raw["wrong_fr"] = wide
+        made, problems = titre.repair_titre(raw, beauvau())
+        assert made is None and "titre:wrong_too_wide" in problems
+    assert titre.too_wide("200 nouveaux voiles", _honest("Paris annonce 100 nouveaux voiles pour l’été 2027"))
+    assert not titre.too_wide("200", _honest("Paris annonce 100 nouveaux voiles pour l’été 2027"))
+    assert not titre.too_wide("tous les automobilistes", _honest("Un chèque de 100 euros aux grands rouleurs"))
+
+
+def _honest(fr: str):
+    from app.services.revue.dossier import ComptoirText
+
+    line = ComptoirText(fr=fr, en=fr, de=fr)
+    return titre.TitreHeadline(role="honest", claim_id="c1", a1=line, a2=line, b1=line)

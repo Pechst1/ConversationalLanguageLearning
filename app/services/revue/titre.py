@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
 from app.services.revue.fil import new_names
 from app.services.revue.intox import grounded
 
-TITRE_PROMPT_VERSION = "titre-desk-v2"
+TITRE_PROMPT_VERSION = "titre-desk-v3"
 
 HEADLINE_MAX_WORDS: dict[str, int] = {"a1": 7, "a2": 9, "b1": 12}
 WHY_MAX_WORDS = 20
@@ -113,7 +113,8 @@ TITRE_RULES = """RULES
     in digits («30 chevaux» for sixteen), or a certainty the story lacks with one of «c'est officiel», «c'est
     sûr», «c'est certain», «c'est prouvé», «définitivement», «sans aucun doute», «confirmé». Never «sûrement» or
     «probablement»: in French they mean "probably", not a certainty. A changed verb («sont installés» for «doivent
-    être installés») is not a stretch. wrong_fr: the words that say too much, exactly
+    être installés») is not a stretch. wrong_fr is ONLY the words that say too much, never a word the
+    honest headline says too: for a bigger number the number alone («200», not «200 nouveaux voiles»). wrong_fr: the words that say too much, exactly
     as they stand in its a1, a2 AND b1 (6 words at most); they must appear in NO claim. claim_id: the claim that
     shows it says too much.
   - off: sounds true and is true, but is about a detail of the story and misses the news. claim_id: the claim the
@@ -196,6 +197,16 @@ def stretch_problem(stretch: str, wrong: str) -> str | None:
     if stretch == "certainty":
         return None if _has_word(wrong, CERTAINTY_WORDS) else "stretch_kind"
     return None if not numeric(wrong) else "stretch_kind"
+
+
+def too_wide(wrong: str, honest: TitreHeadline) -> bool:
+    """``wrong_fr`` carries a word the honest headline says too, at every band: the trap would
+    strike true words (first real run: «200 nouveaux voiles» struck «nouveaux» and «voiles»,
+    which the honest «100 nouveaux voiles» says; only «200» says too much)."""
+
+    words = re.findall(r"[a-z]{4,}", ci(wrong))
+    return any(all(re.search(rf"(?<![a-z]){w}(?![a-z])", ci(honest.for_band(b).fr)) for b in HEADLINE_MAX_WORDS)
+               for w in words)
 
 
 def headline_text(fr: str) -> str:
@@ -351,6 +362,8 @@ def repair_titre(raw: Any, dossier: EditorialDossier) -> tuple[TitreDesk | None,
     for band in HEADLINE_MAX_WORDS:
         if len({ci(h.for_band(band).fr) for h in headlines}) < 3:
             return None, ["titre:headlines:duplicate", *problems]
+    if too_wide(wrong, next(h for h in headlines if h.role == "honest")):
+        return None, ["titre:wrong_too_wide", *problems]
     phrase: dict[str, ComptoirText] = {}
     raw_phrase = raw.get("phrase") if isinstance(raw.get("phrase"), dict) else {}
     for band in ("a1", "a2", "b1", "b2"):
