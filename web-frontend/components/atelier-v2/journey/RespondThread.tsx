@@ -10,7 +10,8 @@
  *
  * Under the character's name, one small red triangle per planned exchange —
  * the respond part of the mark — filled as each exchange passes. A sequence,
- * never a ring.
+ * never a ring. An exchange the scene plays past them fills every token and is
+ * counted by its real number (#948).
  *
  * WP-91 «Les voix»: every character face in the column is the play button for
  * its own line (the step's server clip when `journeyId`/`stepId` are given,
@@ -31,7 +32,7 @@ import { useAutoSpeak, type LineVoice, type VoiceLine } from './useLineVoice';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { replyFinishedTyping } from './voice-autoplay';
 import {
-  exchangeLabel,
+  exchangeCount,
   markSpan,
   moreNoteKey,
   printedFix,
@@ -56,7 +57,8 @@ export function ExchangeTokens({ progress, copy }: { progress: ExchangeProgress;
           <ShapeToken kind="action" size="sm" />
         </span>
       ))}
-      <span className="av2-sr">{exchangeLabel(copy.exchange_of, progress)}</span>
+      {/* #948: past the plan the count names the real exchange, never «3 of 3» again. */}
+      <span className="av2-sr">{exchangeCount(copy, progress)}</span>
     </p>
   );
 }

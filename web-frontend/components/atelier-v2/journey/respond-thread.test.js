@@ -330,9 +330,10 @@ test('one token per planned exchange, filled as each passes', () => {
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 1, max_turns: 3 }), false), { total: 3, played: 1, position: 2 });
   assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 2, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
   // #467: a turn past the plan (the answer to an open question) never grows the
-  // total: it is the last exchange again, the last token still active.
-  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 3, played: 2, position: 3 });
-  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 4, max_turns: 3 }), true), { total: 3, played: 3, position: 3 });
+  // total. #948: nor is it the last exchange again: every planned token is
+  // filled and the position is the real one.
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 3, max_turns: 3 }), false), { total: 3, played: 3, position: 4 });
+  assert.deepEqual(model.exchangeProgress(prompt({ turn_index: 4, max_turns: 3 }), true), { total: 3, played: 3, position: 5 });
   // The total is the same in every turn's payload of one scene.
   const totals = [0, 1, 2, 3, 4].map((turn_index) => model.exchangeProgress(prompt({ turn_index, max_turns: 3 }), false).total);
   assert.deepEqual(totals, [3, 3, 3, 3, 3]);
@@ -341,6 +342,39 @@ test('one token per planned exchange, filled as each passes', () => {
   assert.equal(model.exchangeLabel(FR.exchange_of, two), 'Échange 2 sur 3');
   assert.equal(model.exchangeLabel(EN.exchange_of, two), 'Exchange 2 of 3');
   assert.equal(model.exchangeLabel(DE.exchange_of, two), 'Austausch 2 von 3');
+});
+
+// #948 (root cause #145): the scene may play past the exchanges it promised
+// (an open question's answer, a deflection asked again). The counter is the
+// real position then, never the last promised exchange again.
+test('#948: five replies in a scene planned for three never read «Exchange 3 of 3» twice', () => {
+  const counter = (html) => {
+    const found = html.match(/<p class="av2-thread__tokens">.*?<span class="av2-sr">([^<]*)<\/span>/);
+    return found ? found[1] : null;
+  };
+  const replies = [0, 1, 2, 3, 4].map((turn_index) => {
+    const s = step({ turn_index, max_turns: 3 });
+    const last = turn_index === 4;
+    const next = last ? null : { step_id: s.id, prompt: prompt({ turn_index: turn_index + 1, max_turns: 3 }) };
+    const open = counter(renderToStaticMarkup(h(steps.RespondStepView, props(s))));
+    const answered = counter(
+      renderToStaticMarkup(
+        h(steps.RespondStepView, props(s, last ? graded(result()) : replying(result({ next_turn: next })))),
+      ),
+    );
+    return { reply: turn_index + 1, open, answered };
+  });
+  const headed = (label) =>
+    replies.filter((row) => row.open === label || row.answered === label).map((row) => row.reply);
+  assert.deepEqual(headed('Exchange 3 of 3'), [3], `«Exchange 3 of 3» heads replies: ${JSON.stringify(replies)}`);
+  // Each reply has its own position: no two replies share a counter.
+  const opens = replies.map((row) => row.open);
+  assert.equal(new Set(opens).size, opens.length, `one counter per reply: ${JSON.stringify(opens)}`);
+  // The counter a reply was written under is the one it is answered under.
+  replies.forEach((row) => assert.equal(row.answered, row.open, `reply ${row.reply}`));
+  // Past the plan the counter names the real exchange and promises no total.
+  assert.equal(replies[3].open, 'Exchange 4');
+  assert.equal(replies[4].answered, 'Exchange 5');
 });
 
 test('a four-exchange Intensif conversation shows four tokens and one verdict', () => {

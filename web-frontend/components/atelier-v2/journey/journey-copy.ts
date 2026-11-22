@@ -220,8 +220,10 @@ export type JourneyCopyKey =
   // STORY-ORIENTATION: the heading over the season's premise on day one.
   | 'premise_title'
   // WP-89 «Le fil»: the respond step as one conversation. `exchange_of` is the
-  // screen-reader text of the exchange tokens ({n}, {total}).
+  // screen-reader text of the exchange tokens ({n}, {total}); #948:
+  // `exchange_past` ({n}) counts an exchange the scene plays past its total.
   | 'exchange_of'
+  | 'exchange_past'
   | 'thread_label'
   | 'thread_you'
   | 'thread_note_open'
@@ -465,6 +467,7 @@ const EN: CopyTable = {
   cast_title: 'The characters',
   premise_title: 'Where you are',
   exchange_of: 'Exchange {n} of {total}',
+  exchange_past: 'Exchange {n}',
   thread_label: 'The conversation',
   thread_you: 'You:',
   thread_note_open: 'Show the correction',
@@ -692,6 +695,7 @@ const DE: CopyTable = {
   cast_title: 'Die Figuren',
   premise_title: 'Wo du bist',
   exchange_of: 'Austausch {n} von {total}',
+  exchange_past: 'Austausch {n}',
   thread_label: 'Das Gespräch',
   thread_you: 'Du:',
   thread_note_open: 'Korrektur zeigen',
@@ -919,6 +923,7 @@ const FR: CopyTable = {
   cast_title: 'Les personnages',
   premise_title: 'Où tu es',
   exchange_of: 'Échange {n} sur {total}',
+  exchange_past: 'Échange {n}',
   thread_label: 'La conversation',
   thread_you: 'Toi :',
   thread_note_open: 'Voir la correction',
