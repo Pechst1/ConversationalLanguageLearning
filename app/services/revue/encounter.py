@@ -2211,6 +2211,10 @@ class RevueEncounter:
         #: story's ``why`` record, while ``REVUE_PEDAGOGY_PICK_ENABLED`` is on.
         self._focus: dict[Any, Any] = {}
         self._whys: dict[str, dict[str, Any]] = {}
+        #: the same, for one rubric of a story (``why_for(…, key=…)``), and what scores it.
+        self._whys_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        self._ranked_dossiers: dict[str, EditorialDossier] = {}
+        self._ranked_focus: Any = None
 
     def _comptoir_desk(self) -> Any:
         """The takes desk a session start may call: the injected one, the real one beside a
@@ -2256,10 +2260,25 @@ class RevueEncounter:
             self._focus[user.id] = choix.focus_for(self.db, user, last_seen=self._topic_last_seen(user))
         return self._focus[user.id]
 
-    def why_for(self, dossier_id: str) -> dict[str, Any] | None:
-        """The ``why`` record of a story ranked by pedagogy, ``None`` with the switch off."""
+    def why_for(self, dossier_id: str, key: str | None = None) -> dict[str, Any] | None:
+        """The ``why`` record of a story ranked by pedagogy, ``None`` with the switch off.
 
-        return self._whys.get(dossier_id)
+        ``key``: the reason for that one rubric — what its card deals or its session plays —
+        scored over the French the learner meets there (real-data run 2026-11-22: a card dealt
+        «Le titre» promised words only the counter's takes held)."""
+
+        if key is None or dossier_id not in self._whys:
+            return self._whys.get(dossier_id)
+        cached = self._whys_by_key.get((dossier_id, key))
+        if cached is None:
+            from app.services.revue import choix
+
+            dossier, focus = self._ranked_dossiers.get(dossier_id), self._ranked_focus
+            if dossier is None or focus is None:
+                return self._whys.get(dossier_id)
+            cached = choix.score(dossier, focus, keys=[key], last_topic=choix.last_topic_of(focus)).why
+            self._whys_by_key[(dossier_id, key)] = cached
+        return cached
 
     def _pedagogy_ranked(self, user: Any, dossiers: list[EditorialDossier]) -> list[EditorialDossier]:
         """«Papier · le choix» (``REVUE_PEDAGOGY_PICK_ENABLED``): best for this learner today
@@ -2286,6 +2305,9 @@ class RevueEncounter:
         playable = (lambda d: bool(keys_of(d))) if on or comptoir_enabled() else None
         scored = choix.rank(dossiers, focus, keys_of=keys_of, playable=playable)
         self._whys = {row.dossier.id: row.why for row in scored}
+        self._whys_by_key = {}
+        self._ranked_dossiers = {row.dossier.id: row.dossier for row in scored}
+        self._ranked_focus = focus
         return [row.dossier for row in scored]
 
     def ranked(self, user: Any, week: str) -> tuple[list[EditorialDossier], str]:
@@ -2434,7 +2456,8 @@ class RevueEncounter:
                                   identity=lambda card: card.dossier_id)
         choices = []
         for card in picked:
-            why = self.why_for(card.dossier_id)
+            # The reason of the rubric the card deals: its words, its rule, in that French.
+            why = self.why_for(card.dossier_id, key=rubric(card))
             # A record with nothing in it says nothing (a fresh learner: no due card, no rule yet).
             choices.append(card.model_copy(update={"why": RvWhy.model_validate(why)}) if choix_says(why) else card)
         # The masthead's day is the server's: the daily period's own, else today in Paris.
@@ -2505,15 +2528,17 @@ class RevueEncounter:
             raise RevueError(404, "revue_dossier_not_found", dossier_id=dossier.id, angle_id=angle_id)
 
         spent_before = self._spent()
-        # «Papier · le choix»: why pedagogy offered this story, kept on the dossier choice.
-        why = self.why_for(dossier.id)
-        picked = {"why": why} if why is not None else {}
         takes, desk_cost = self._takes_at_start(dossier, week)
         if assignment is None and dossier_id:
             # «Papier · le choix»: a story picked from the front page plays the rubric it showed
             # there, even when the client does not say it.
             assignment = self._front_page_rubric(user, week, ordered, dossier.id)
         takes, dealt = self._deal(user, dossier, takes, wanted=assignment)
+        # «Papier · le choix»: why pedagogy offered this story, kept on the dossier choice — the
+        # reason of the rubric the session plays («Au comptoir» when only takes are dealt).
+        played = dealt[0] if dealt is not None else ("comptoir" if takes is not None else None)
+        why = self.why_for(dossier.id, key=played)
+        picked = {"why": why} if why is not None else {}
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
         if dealt is not None:

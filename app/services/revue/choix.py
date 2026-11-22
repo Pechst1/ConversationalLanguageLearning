@@ -210,13 +210,13 @@ def assignment_french(key: str, dossier: EditorialDossier, band: str) -> str:
 
 
 def story_french(dossier: EditorialDossier, band: str, *, keys: Sequence[str] = ()) -> str:
-    """The story at ``band``: its title, its lead at A1/A2 (B1 reads the summary), and the
-    material of the assignments ``keys`` it carries."""
+    """The story at ``band``: its title, the lead the learner reads (``lead_for``: an A2
+    learner without an A2 lead reads the A1 one; B1 reads the summary), and the material of
+    the assignments ``keys`` it carries."""
 
     leads = dossier.leads
-    lead = getattr(leads, band, None) if leads is not None and band in ("a1", "a2") else None
     parts = [dossier.title_fr, (leads.headline_fr if leads is not None else None) or "",
-             lead.fr if lead is not None else dossier.summary_fr]
+             dossier.lead_for(band.upper()).fr]
     parts += [assignment_french(key, dossier, band) for key in keys]
     return " ".join(part for part in parts if part)
 
@@ -288,12 +288,18 @@ def why(due: Sequence[str], focus: Focus | None, interest: dict[str, str] | None
     return {"due_words": list(due), "rule": rule, "interest": interest, "score": points}
 
 
+def last_topic_of(focus: Focus) -> str | None:
+    """The topic of the learner's last Papier (set back in the ranking)."""
+
+    return max(focus.last_seen, key=lambda topic: focus.last_seen[topic]) if focus.last_seen else None
+
+
 def rank(dossiers: Sequence[EditorialDossier], focus: Focus, *, keys_of: Callable[[EditorialDossier], list[str]],
          playable: Callable[[EditorialDossier], bool] | None = None, now: datetime | None = None) -> list[Scored]:
     """``dossiers`` best first: the ones that can be played, then by score, then the topic seen
     longest ago, then the kiosk's order. Deterministic."""
 
-    last_topic = max(focus.last_seen, key=lambda topic: focus.last_seen[topic]) if focus.last_seen else None
+    last_topic = last_topic_of(focus)
     scored = [score(d, focus, keys=keys_of(d), last_topic=last_topic, now=now) for d in dossiers]
     order = {d.id: index for index, d in enumerate(dossiers)}
     return sorted(scored, key=lambda s: (
