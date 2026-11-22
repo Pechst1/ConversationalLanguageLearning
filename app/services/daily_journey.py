@@ -259,6 +259,33 @@ def _planned_rule_id(journey: Any, today: date) -> int | None:
     return None
 
 
+def todays_planned_rule_id(db: Session, user: Any, *, now: datetime | None = None) -> int | None:
+    """#947: the rule the learner's plan for their own day teaches, read when it is asked.
+
+    La Forge opened as the day's step asks this when it starts. Its link may have
+    been read on Home before the day was planned, when the only answer for «today's
+    rule» was the Forge picker's (a due slip's rule first): a link carries a guess,
+    the plan carries the day's rule.
+    """
+
+    moment = now or _utcnow()
+    recent = (
+        db.execute(
+            select(DailyJourney)
+            .where(DailyJourney.user_id == user.id)
+            .order_by(DailyJourney.local_date.desc(), DailyJourney.created_at.desc())
+            .limit(2)
+        )
+        .scalars()
+        .all()
+    )
+    for journey in recent:
+        concept_id = _planned_rule_id(journey, local_date_for(journey.timezone, now=moment))
+        if concept_id is not None:
+            return concept_id
+    return None
+
+
 def _forge_block_completed(db: Session, user_id: Any, step_id: Any) -> bool:
     """WP-S4: was a forge block opened from this journey step completed?"""
 
@@ -7102,4 +7129,5 @@ __all__ = [
     "journey_error",
     "local_date_for",
     "resolve_timezone",
+    "todays_planned_rule_id",
 ]
