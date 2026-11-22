@@ -8420,7 +8420,7 @@ export interface components {
              * Desk
              * @enum {string}
              */
-            desk: "relecture" | "radio" | "correcteur";
+            desk: "relecture" | "radio" | "correcteur" | "papier";
             /** Dossier Id */
             dossier_id: string | null;
             relecture: components["schemas"]["RelectureOffer"] | null;
@@ -14492,8 +14492,23 @@ export interface components {
             /** Text Fr */
             text_fr: string;
         };
+        /**
+         * RvAffiche
+         * @description ``REVUE_QUARTIER_AFFICHE_ENABLED``: today's edition as the Quartier's Morris column
+         *     shows it — the story's headline (our French: the lead desk's headline, else the dossier
+         *     title) and whether this period's Papier is filed (the poster's «lu»).
+         */
+        RvAffiche: {
+            /** Dossier Id */
+            dossier_id: string;
+            /** Done */
+            done: boolean;
+            /** Headline Fr */
+            headline_fr: string;
+        };
         /** RvOffer */
         RvOffer: {
+            affiche?: components["schemas"]["RvAffiche"] | null;
             /** Alternatives */
             alternatives: components["schemas"]["RvStoryCard"][];
             /** Evergreen Only */

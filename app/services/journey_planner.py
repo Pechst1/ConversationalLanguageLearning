@@ -59,6 +59,7 @@ from app.services.journey_contracts import (
     MAX_RECALL_STEPS,
     MAX_RESPOND_TURNS,
     MIN_SCENE_EXCHANGES,
+    PAPIER_DESK,
     READ_MIN_BUDGET_SECONDS,
     RHYTHM_BUDGETS,
     ActBrief,
@@ -3529,8 +3530,13 @@ def _plan_journey_once(
         # at most two recalls, the reply, the ending (five steps at most, inside
         # the budget). No practice items, rule, forge or «Lecture»: the player
         # mounts Le Papier after the ending, and the two together are the day.
+        # REVUE_PLANNED_STEP_ENABLED: the Papier is then the day's last step
+        # (``desk`` is its offer), priced inside the day.
         practice = False
-        introduction = forge = reading = desk = None
+        introduction = forge = reading = None
+        desk = desk if _is_papier_offer(desk) else None
+    elif _is_papier_offer(desk):
+        desk = None
     if forge and introduction is not None and _authored_page(scenario):
         # GRAMMAR-DAY-ONE (#81): the page's rule follows its ending, so a forge
         # folded in with it before the scene would drill a unit not yet taught.
@@ -3683,7 +3689,10 @@ def _plan_journey_once(
             f"longer day: the story alone is {scene_cost + respond_cost + resolution_cost}s "
             f"against a {budget_seconds}s rhythm; nothing else is planned"
         )
-        forge = reading = desk = None
+        forge = reading = None
+        # The Papier day's Papier is not dropped: the day is the story and the
+        # Papier whatever the story's length, and its minutes are said.
+        desk = desk if _is_papier_offer(desk) else None
         if introduction is None or first_day:
             # The new unit, when there is one, is kept (a deferral would hand
             # tomorrow the same unit again; a reprise would repeat forever):
@@ -3910,8 +3919,10 @@ def _plan_journey_once(
             used_targets.append(entry)
         return recalls, used_targets, dropped, reasons, notes
 
+    papier = _papier_step(desk, shape=shape, notes=notes)
+    papier_cost = papier.estimated_seconds if papier is not None else 0
     recalls, used_targets, dropped, reasons, recall_notes = shape_recalls(
-        budget_seconds - (scene_cost + respond_cost + resolution_cost)
+        budget_seconds - (scene_cost + respond_cost + resolution_cost + papier_cost)
     )
     if (
         not first_day
@@ -3926,7 +3937,7 @@ def _plan_journey_once(
         shorter = respond_seconds(
             task, turns=turns - 1, spt=spt, multiplier=multiplier, band=band, authored=authored
         )
-        retry = shape_recalls(budget_seconds - (scene_cost + shorter + resolution_cost))
+        retry = shape_recalls(budget_seconds - (scene_cost + shorter + resolution_cost + papier_cost))
         if any(not skipped for _e, _t, _c, skipped in retry[0]):
             turns, respond_cost = turns - 1, shorter
             recalls, used_targets, dropped, reasons, recall_notes = retry
@@ -4127,6 +4138,10 @@ def _plan_journey_once(
         )
     )
 
+    if papier is not None:
+        # The Papier day's second half: after the ending, the day's last step.
+        steps.append(replace(papier, ordinal=len(steps)))
+
     omitted = [*selection.omitted, *dropped]
     rationale = _rationale(
         selected=used_targets,
@@ -4149,7 +4164,7 @@ def _plan_journey_once(
         longer_day=longer_day,
     )
     plan.validate()
-    if len(plan.steps) > MAX_PLANNED_STEPS:  # pragma: no cover - validate() already raises
+    if len(plan.steps) - (papier is not None) > MAX_PLANNED_STEPS:  # pragma: no cover - validate() already raises
         raise PlanUnavailable("plan_exceeds_step_budget")
     return plan
 
@@ -5979,6 +5994,52 @@ def _desk_step(
             "dossier_id": (str(desk["dossier_id"]) if desk.get("dossier_id") else None),
             "relecture": dict(desk["relecture"]) if isinstance(desk.get("relecture"), dict) else None,
             "seconds": int(desk["seconds"]) if desk.get("seconds") else None,
+        },
+        optional=True,
+    )
+
+
+#: ``REVUE_PLANNED_STEP_ENABLED``: what the Papier is priced at as its day's step.
+#: Measured from the session's shape, at an A2 learner's pace (the band the Papier
+#: opens at): Romy's lead read with its picture (~40 words, ~60 s); one
+#: assignment — «Au comptoir», the one that works: the question and three takes of
+#: up to 28 words read (~100 words, ~75 s), a side and a reason picked (~30 s),
+#: Gus's slip caught (~30 s), the learner's own opinion written (~90 s); then
+#: Romy's edit read and one fix (~75 s). About 360 s — the length of a desk
+#: (``DESK_SECONDS``: 120-150 s for a single piece of one) times two and a half,
+#: inside the session's own ceiling of eight minutes (``revue.session.Budget``).
+PAPIER_DESK_SECONDS = 360
+
+
+def papier_offer(*, title_fr: str = "Le Papier", dossier_id: str | None = None) -> dict[str, Any]:
+    """The planner's ``desk`` argument on a Papier day (``REVUE_PLANNED_STEP_ENABLED``)."""
+
+    return desk_offer(PAPIER_DESK, title_fr=title_fr, dossier_id=dossier_id, seconds=PAPIER_DESK_SECONDS)
+
+
+def _is_papier_offer(desk: Any) -> bool:
+    return isinstance(desk, dict) and str(desk.get("desk") or "") == PAPIER_DESK
+
+
+def _papier_step(desk: Any, *, shape: DayShape, notes: list[str]) -> PlannedStep | None:
+    """The Papier day's ``papier`` step, or ``None`` (no offer, or not the Papier day).
+
+    Optional, advanced not answered: the Papier grades on its own routes, and
+    skipping it never holds the day's completion."""
+
+    if not _is_papier_offer(desk) or shape is not DayShape.REVUE:
+        return None
+    notes.append(f"papier planned: {PAPIER_DESK_SECONDS}s after the ending")
+    return PlannedStep(
+        ordinal=0,
+        kind=StepKind.DESK,
+        estimated_seconds=PAPIER_DESK_SECONDS,
+        public_prompt={
+            "desk": PAPIER_DESK,
+            "title_fr": str(desk.get("title_fr") or "Le Papier"),
+            "dossier_id": (str(desk["dossier_id"]) if desk.get("dossier_id") else None),
+            "relecture": None,
+            "seconds": PAPIER_DESK_SECONDS,
         },
         optional=True,
     )

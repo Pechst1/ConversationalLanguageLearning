@@ -360,6 +360,16 @@ class RvFiled(RevueModel):
     dispatch: RvDispatch | None = None
 
 
+class RvAffiche(RevueModel):
+    """``REVUE_QUARTIER_AFFICHE_ENABLED``: today's edition as the Quartier's Morris column
+    shows it — the story's headline (our French: the lead desk's headline, else the dossier
+    title) and whether this period's Papier is filed (the poster's «lu»)."""
+
+    dossier_id: str
+    headline_fr: str
+    done: bool
+
+
 class RvOffer(RevueModel):
     week: RvWeek
     recommended: RvStoryCard | None
@@ -368,6 +378,9 @@ class RvOffer(RevueModel):
     evergreen_only: bool
     resume: RvResume | None = None
     filed: RvFiled | None = None
+    #: ``REVUE_QUARTIER_AFFICHE_ENABLED``: the poster on the quai; ``None`` with the switch
+    #: off or no edition today (the column keeps its posters).
+    affiche: RvAffiche | None = None
     #: «Papier · le choix» (``REVUE_CHOICE_ENABLED``, 2026-11-22): the front page — up to three
     #: stories, the top of the ranking, different rubrics where possible; and the language their
     #: ``why`` lines are said in (the mother tongue). Both omitted with the switch off.
