@@ -19,6 +19,8 @@ import { PAPIER_FR } from '../papier/papier-copy';
 import { folio } from '../papier/papier-model';
 import { PpFolio } from '../papier/PapierPrint';
 import { RvGlossText, RvTranslate, type RvWordEvent } from '../RvThread';
+import { useVxReplay, useVxVeil } from '../voix/VoixContext';
+import { VxFace, VxVeil } from '../voix/VxParts';
 import { COMPTOIR_LINES, lineIn, type ComptoirCopy, type ComptoirLine } from './comptoir-copy';
 import { STANCE_TAGS_FR, STEP_LABELS_FR, stepDots } from './comptoir-model';
 
@@ -174,11 +176,16 @@ export function ComptoirBubble({
   children,
   anchor,
 }: ComptoirBubbleProps) {
+  // «Papier · la voix»: a regular's line is heard before it is read; the face says it again.
+  const veil = useVxVeil(castId, textFr, past);
+  const replay = useVxReplay(castId, textFr);
   return (
-    <div className="ct-say" data-char={castId} data-past={past ? '' : undefined} data-ct-anchor={anchor}>
-      <span className="ct-say__face" aria-hidden="true">
-        <CastPortrait characterId={castId} name={name} mood={mood} size={past ? 'xs' : 'sm'} ring />
-      </span>
+    <div className="ct-say" data-char={castId} data-past={past ? '' : undefined} data-ct-anchor={anchor} data-vx-veiled={veil ? '' : undefined}>
+      <VxFace handle={past ? null : replay} name={name}>
+        <span className="ct-say__face" aria-hidden="true">
+          <CastPortrait characterId={castId} name={name} mood={mood} size={past ? 'xs' : 'sm'} ring />
+        </span>
+      </VxFace>
       <div className="ct-bub">
         <p className="ct-bub__nm">
           <span className="ct-bub__name">
@@ -187,10 +194,14 @@ export function ComptoirBubble({
           </span>
           {stance && <StanceTag stance={stance} />}
         </p>
-        <p className="ct-bub__fr" lang="fr">
-          <RvGlossText text={textFr} glosses={glosses} mode="tap" glossLanguage={glossLanguage} onWord={onWord} speaker={name} />
-        </p>
-        {!past && (
+        {veil ? (
+          <VxVeil handle={veil} textFr={textFr} name={name} />
+        ) : (
+          <p className="ct-bub__fr" lang="fr">
+            <RvGlossText text={textFr} glosses={glosses} mode="tap" glossLanguage={glossLanguage} onWord={onWord} speaker={name} />
+          </p>
+        )}
+        {!past && !veil && (
           <RvTranslate
             textFr={textFr}
             translation={translation}
@@ -199,7 +210,7 @@ export function ComptoirBubble({
             before={<ListenChip voice={voice} voiceKey={voiceKey} textFr={textFr} castId={castId} copy={copy} ccopy={ccopy} />}
           />
         )}
-        {children}
+        {!veil && children}
       </div>
     </div>
   );

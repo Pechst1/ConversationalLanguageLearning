@@ -30,6 +30,8 @@ import { RvComptoir } from './comptoir/RvComptoir';
 import { RvFil } from './fil/RvFil';
 import { RvRubrique } from './rubriques/RvRubrique';
 import { RvEncounter } from './RvEncounter';
+import { VoixProvider } from './voix/VoixContext';
+import { voixClient } from '@/lib/revue-voix';
 
 export type RvJourneyPapierProps = {
   language: unknown;
@@ -157,7 +159,8 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
 
   return (
     <AtelierV2Root language={chrome} className="rv-page" data-revue-journey={state.kind}>
-      {body}
+      {/* «Papier · la voix»: the real client only beside the real API (a scripted client stays silent). */}
+      <VoixProvider client={state.kind === 'session' && !client ? voixClient() : null}>{body}</VoixProvider>
     </AtelierV2Root>
   );
 }
