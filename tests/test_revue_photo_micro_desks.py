@@ -179,20 +179,38 @@ def test_the_shipped_interviews_pass_every_check() -> None:
     assert "micro" not in dumped and "photo" not in dumped, "never attached to the loaded evergreen"
 
 
+def _left_out(raw: dict, index: int) -> list[str]:
+    """Repair ``raw`` whose fact ``index`` (1-based) was broken: the desk passes on the five
+    others and the broken fact is never shown (tirage 2026-11-22)."""
+
+    broken = raw["facts"][index - 1]
+    made, problems = micro.repair_micro(raw, dossier())
+    assert made is not None and len(made.facts) == 5
+    assert all(fact.tile.fr != broken["tile"]["fr"] or fact.claim_id != broken["claim_id"] for fact in made.facts)
+    assert f"micro:dropped:{index}" in problems
+    return problems
+
+
 def test_an_answer_line_with_a_number_its_claim_lacks_is_refused() -> None:
     raw = micro_answer()
     fact = raw["facts"][2]  # c2: the festival is free
     fact["answer"]["b1"]["fr"] = "Rien du tout : depuis 1982, la fête est gratuite."  # 1982 is c1's, not c2's
-    made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and "micro:3:answer:b1:number_not_in_claim" in problems
+    assert "micro:3:answer:b1:number_not_in_claim" in _left_out(raw, 3)
     raw = micro_answer()
     raw["facts"][0]["answer"]["a2"]["fr"] = "Le 21 juin 1982, avec Jack Lang, mon chou !"  # a name no claim gives
-    made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and any(p.startswith("micro:1:answer:a2:name_not_in_claim") for p in problems)
+    assert any(p.startswith("micro:1:answer:a2:name_not_in_claim") for p in _left_out(raw, 1))
     raw = micro_answer()
     raw["facts"][0]["answer"]["a1"]["fr"] = "C'est en été, mon chou !"  # does not say the value
+    assert "micro:1:answer:a1:value_not_said" in _left_out(raw, 1)
+
+
+def test_two_refused_facts_of_six_refuse_the_interview() -> None:
+    raw = micro_answer()
+    raw["facts"][0]["answer"]["a1"]["fr"] = "C'est en été, mon chou !"
+    raw["facts"][3]["keywords"] = ["jazz"]
     made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and "micro:1:answer:a1:value_not_said" in problems
+    assert made is None
+    assert "micro:1:answer:a1:value_not_said" in problems and "micro:4:keywords_not_in_claim" in problems
 
 
 def test_the_witness_tiles_and_shrug_are_checked() -> None:
@@ -202,19 +220,22 @@ def test_the_witness_tiles_and_shrug_are_checked() -> None:
     raw = micro_answer()
     raw["facts"][1]["tile"]["fr"] = "Pourquoi est-ce qu'il y a des plaintes ?"  # another fact's question
     made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and "micro:2:tile:not_its_fact" in problems
+    # Left out (never shown) while five facts stand; refused when it would leave fewer.
+    assert made is not None and len(made.facts) == 5 and "micro:2:tile:not_its_fact" in problems
+    assert (raw["facts"][1]["claim_id"], raw["facts"][1]["ask"]) not in {(f.claim_id, f.ask) for f in made.facts}
+    raw["facts"][0]["answer"]["a1"]["fr"] = "C'est en été, mon chou !"
+    made, problems = micro.repair_micro(raw, dossier())
+    assert made is None
     raw = micro_answer()
     raw["facts"][0]["tile"]["fr"] = "Lila, dis-moi la date !"
-    made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and "micro:1:tile:not_a_plain_question" in problems
+    assert "micro:1:tile:not_a_plain_question" in _left_out(raw, 1)
     raw = micro_answer()
     raw["shrug"]["a2"]["fr"] = "Ça, je ne sais pas. Il y avait 10 groupes, je crois."
     made, problems = micro.repair_micro(raw, dossier())
     assert made is None and problems and problems[0].startswith("micro:shrug:a2:")
     raw = micro_answer()
     raw["facts"][3]["keywords"] = ["jazz"]
-    made, problems = micro.repair_micro(raw, dossier())
-    assert made is None and "micro:4:keywords_not_in_claim" in problems
+    assert "micro:4:keywords_not_in_claim" in _left_out(raw, 4)
 
 
 def test_the_interview_desk_is_asked_with_its_witness_and_retries_once() -> None:

@@ -43,7 +43,7 @@ from app.services.revue.dossier import (
 from app.services.revue.fil import new_names
 from app.services.revue.intox import grounded
 
-MICRO_PROMPT_VERSION = "micro-desk-v1"
+MICRO_PROMPT_VERSION = "micro-desk-v2"
 
 ANSWER_MAX_WORDS: dict[str, int] = {"a1": 14, "a2": 22, "b1": 32}
 TILE_MAX_WORDS = 10
@@ -228,9 +228,11 @@ MICRO_SPEC = """{"fit": "interview" | "skip",
 where T = {"fr": str, "en": str, "de": str} (en and de translate the French faithfully, every time)"""
 
 MICRO_RULES = """RULES
-- fit: "skip" when the story is a death, a war, a crime with victims, an election or a party's politics, or
-  anything where playing an interview would be cruel; also when the claims hold fewer than five things to ask.
-  Otherwise "interview".
+- fit: "skip" ONLY when the story is a death, a war, a crime with victims, an election or a party's politics, or
+  anything where playing an interview would be cruel, or when there are fewer than three claims. Otherwise
+  "interview": three or four claims are enough, because one claim holds several things to ask (who, when, where,
+  how many, why: «Cent voiles d'ombrage doivent être installés dès l'été 2027.» answers «Combien ?» AND
+  «Quand ?»).
 - witness: copy INPUT.witness.id. The learner interviews this regular, who was there; every answer is in their
   voice (INPUT.witness.sheet), friendly, never rude, and never about anyone's private life.
 - facts: five or six things the witness can tell, each from ONE claim (claim_id), each with the question word that
@@ -378,9 +380,10 @@ def _fact(index: int, row: Any, dossier: EditorialDossier, check: _Checker, witn
 
 def repair_micro(raw: Any, dossier: EditorialDossier) -> tuple[MicroDesk | None, list[str]]:
     """What the interview desk wrote, checked against ``dossier``. ``(None, ["skip"])`` for
-    an unfit story; ``(None, problems)`` when it is refused (one fact fails, the witness is not
-    who was there, a tile the matcher would not send to its own fact); else the desk's work
-    and what fell back to authored lines."""
+    an unfit story; ``(None, problems)`` when it is refused (fewer than :data:`FACTS_MIN` facts
+    pass, the witness is not who was there, a tile the matcher would not send to its own fact);
+    else the desk's work and what fell back to authored lines or was left out (``micro:dropped:N``
+    and the refusals of the fact left out: a refused fact is never shown)."""
 
     if not isinstance(raw, dict):
         return None, ["micro:missing"]
@@ -395,21 +398,33 @@ def repair_micro(raw: Any, dossier: EditorialDossier) -> tuple[MicroDesk | None,
     check = _Checker(dossier)
     facts: list[MicroFact] = []
     refusals: list[str] = []
+    dropped: list[str] = []
     for index, row in enumerate(rows, start=1):
         fact, refused = _fact(index, row, dossier, check, witness)
         refusals += refused
         if fact is not None:
             facts.append(fact)
-    if refusals:
+        else:
+            dropped.append(f"micro:dropped:{index}")
+    if refusals and len(facts) < FACTS_MIN:
         return None, refusals
+    # Tirage 2026-11-22: a refused fact is left out (never shown) when enough facts pass.
+    dropped_problems = [*dropped, *refusals] if refusals else []
+    refusals = []
     if len({(f.claim_id, f.ask) for f in facts}) < len(facts):
         return None, ["micro:facts:duplicate"]
-    for index, fact in enumerate(facts):
-        found = match(fact.tile.fr, facts, generic=generic_words(dossier))
-        if found.get("kind") != "match" or found.get("index") != index:
-            refusals.append(f"micro:{index + 1}:tile:not_its_fact")
-    if refusals:
-        return None, refusals
+    for _round in range(2):  # a tile the matcher sends elsewhere: its fact is left out too
+        stray = [index for index, fact in enumerate(facts)
+                 if (found := match(fact.tile.fr, facts, generic=generic_words(dossier))).get("kind") != "match"
+                 or found.get("index") != index]
+        if not stray:
+            break
+        refusals = [f"micro:{index + 1}:tile:not_its_fact" for index in stray]
+        if len(facts) - len(stray) < FACTS_MIN or _round == 1:
+            return None, refusals
+        dropped_problems += refusals
+        facts = [fact for index, fact in enumerate(facts) if index not in stray]
+    refusals = []
     shrug, why = _band_texts(check, raw.get("shrug"), ANSWER_MAX_WORDS, "micro:shrug")
     if why or len(shrug) < 3:
         return None, why or ["micro:shrug:incomplete"]
@@ -424,7 +439,8 @@ def repair_micro(raw: Any, dossier: EditorialDossier) -> tuple[MicroDesk | None,
         if line is None:
             problems.append(f"micro:phrase:{band}:{why_phrase}")
         phrase[band] = line or getattr(AUTHORED_PHRASE, band)
-    return MicroDesk(witness=witness, facts=facts, shrug=BandTexts(**shrug), phrase=ComptoirPhrase(**phrase)), problems
+    return (MicroDesk(witness=witness, facts=facts, shrug=BandTexts(**shrug), phrase=ComptoirPhrase(**phrase)),
+            [*dropped_problems, *problems])
 
 
 def as_desk_answer(desk: MicroDesk) -> dict[str, Any]:
