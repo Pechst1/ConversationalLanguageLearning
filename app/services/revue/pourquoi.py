@@ -262,6 +262,19 @@ def mark_fixes(learner_fr: str, target_fr: str) -> dict[int, dict[str, str]]:
     corrected stretch (``fix``) and the target's words around it (``before``, ``after``).
     Server-side only: never in a view before the proof is settled."""
 
+    from app.services.revue.comptoir_loop import _sentences_at
+
+    mine_s, theirs_s = _sentences_at(learner_fr), _sentences_at(target_fr)
+    if len(mine_s) > 1 and len(mine_s) == len(theirs_s):  # as proof_marks: sentence by sentence
+        out: dict[int, dict[str, str]] = {}
+        for (offset, sentence), (_, corrected) in zip(mine_s, theirs_s, strict=True):
+            for start, fix in _mark_fixes(sentence, corrected).items():
+                out[start + offset] = fix
+        return out
+    return _mark_fixes(learner_fr, target_fr)
+
+
+def _mark_fixes(learner_fr: str, target_fr: str) -> dict[int, dict[str, str]]:
     from app.services.revue.comptoir_loop import _TOKEN, _token_key
 
     mine = list(_TOKEN.finditer(learner_fr))

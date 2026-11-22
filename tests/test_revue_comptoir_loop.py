@@ -589,3 +589,27 @@ def test_a_chat_session_answers_409(api: TestClient, monkeypatch) -> None:
     response = api.post(f"/api/v1/revue/sessions/{session['id']}/comptoir", headers=headers,
                         json={"act": "vote", "value": "pour"})
     assert response.status_code == 409 and response.json()["detail"]["code"] == "revue_not_comptoir"
+
+
+def test_marks_on_several_questions_stay_inside_their_own_question() -> None:
+    """First real run (2026-11-22): «est-ce que» dropped from question 1 and added to question 2
+    was diffed as one text: «chevaux» marked as a missing word, «courent ? Quand» as word order."""
+
+    learner = "Combien de chevaux est-ce que courent ? Quand la course commence ? Combien d'argent le gagner reçoit ?"
+    target = "Combien de chevaux courent ? Quand est-ce que la course commence ? Combien d'argent le gagnant reçoit-il ?"
+    marks = comptoir_loop.proof_marks(learner, target)
+    spans = [(m["span_fr"], m["kind"]) for m in marks]
+    assert spans == [("est-ce que", "mot"), ("Quand", "manque"), ("gagner reçoit", "mot")]
+    for mark in marks:
+        assert learner[mark["start"]:mark["start"] + len(mark["span_fr"])] == mark["span_fr"]
+        assert "?" not in mark["span_fr"]
+    # «Le pourquoi» reads the corrected stretch at the same places, inside the same question.
+    from app.services.revue import pourquoi
+
+    fixes = pourquoi.mark_fixes(learner, target)
+    assert {mark["start"] for mark in marks} <= set(fixes)
+    assert all("?" not in fix["fix"] for fix in fixes.values())
+    assert fixes[learner.index("gagner")]["fix"] == "gagnant reçoit-il"
+    # One sentence, or a different count of sentences: the whole text is diffed as before.
+    assert comptoir_loop.proof_marks("Je suis pour, parce que c'est bon.", "Je suis pour, parce que c'est bien.") == [
+        {"span_fr": "bon", "start": 30, "kind": "mot"}]

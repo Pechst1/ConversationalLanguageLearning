@@ -871,13 +871,37 @@ def _common_prefix(a: str, b: str) -> str:
     return a[:size]
 
 
+_SENTENCE = re.compile(r"[^?!.…]+(?:[?!.…]+|$)")
+
+
+def _sentences_at(text: str) -> list[tuple[int, str]]:
+    return [(m.start(), m.group(0)) for m in _SENTENCE.finditer(text or "") if _TOKEN.search(m.group(0))]
+
+
 def proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Romy's marks: where ``learner_fr`` differs from her corrected ``target_fr``, word by
     word (typography, the first capital and the punctuation aside), as the learner's own words
     at their place (``span_fr``, ``start``) with the kind of slip, the model's hint when one
     covers those words, else guessed. A missing word marks the word before the gap. At most
-    :data:`MARKS_MAX`; empty when nothing differs."""
+    :data:`MARKS_MAX`; empty when nothing differs.
 
+    Sentence by sentence when both texts have as many (tirage 2026-11-22: three interview
+    questions, «est-ce que» dropped from one and added to the next, were diffed as one text
+    and marked «chevaux» as a missing word and «courent ? Quand» as word order)."""
+
+    mine, theirs = _sentences_at(learner_fr), _sentences_at(target_fr)
+    if len(mine) > 1 and len(mine) == len(theirs):
+        marks: list[dict[str, Any]] = []
+        for (offset, sentence), (_, corrected) in zip(mine, theirs, strict=True):
+            for mark in _proof_marks(sentence, corrected, hints):
+                marks.append({**mark, "start": mark["start"] + offset})
+                if len(marks) >= MARKS_MAX:
+                    return marks
+        return marks
+    return _proof_marks(learner_fr, target_fr, hints)
+
+
+def _proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     mine = list(_TOKEN.finditer(learner_fr))
     theirs = list(_TOKEN.finditer(target_fr))
     if not mine:
