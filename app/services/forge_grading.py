@@ -243,6 +243,8 @@ _QUESTION_PREPOSITIONS = frozenset(
     {"a", "de", "d'", "depuis", "pour", "par", "avec", "chez", "jusqu'", "jusque", "vers", "et", "mais"}
 )
 _SUBJECTS = frozenset({"je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"})
+#: The slip categories about a verb's form: the rule is cited after them (#992).
+VERB_SLIPS = frozenset({"person", "person_subject", "tense", "not_a_form", "not_a_form_subject", "other_verb"})
 
 
 def _noun_gender(word: str) -> str | None:
@@ -353,19 +355,108 @@ def _same_tense(lemma: str, learner: str, target: str) -> bool:
     """Both words are one-word forms of ``lemma`` in one tense: a person slip («est» for
     «es»), not a tense one («avions» for «aurons»)."""
 
+    return bool(_shared_tense(lemma, learner, target))
+
+
+#: The tenses a one-word form is read in, in the order a learner meets them. The passé
+#: composé (two words) and the imperative (no subject) name no person.
+_FORM_TENSES = ("present", "imparfait", "futur_simple", "conditionnel_present", "subjonctif_present")
+#: How a subject reads as a row of the conjugation table.
+_SUBJECT_PERSON = {
+    "je": "je", "j'": "je", "tu": "tu", "il": "il/elle", "elle": "il/elle", "on": "il/elle",
+    "nous": "nous", "vous": "vous", "ils": "ils/elles", "elles": "ils/elles",
+}
+#: A row of the table as the learner reads it («on» goes with «il/elle»).
+_PERSON_SHOWN = {"il/elle": "il/elle/on"}
+
+
+@lru_cache(maxsize=256)
+def _rows(lemma: str) -> tuple[tuple[str, tuple[tuple[str, str], ...]], ...]:
+    """``lemma``'s one-word rows, accents folded: ``((tense, ((person, form), …)), …)``."""
+
     from app.services.conjugation import fallback_conjugation_table
 
     try:
         table = fallback_conjugation_table(lemma)
-    except Exception:  # pragma: no cover - an unknown verb is no person slip
+    except Exception:  # pragma: no cover - an unknown verb has no rows
+        return ()
+    return tuple(
+        (tense, tuple((person, strip_accents(form)) for person, form in (table.get(tense) or {}).items()))
+        for tense in _FORM_TENSES
+    )
+
+
+def _shared_tense(lemma: str, learner: str, target: str) -> str | None:
+    for tense, row in _rows(lemma):
+        forms = {form for _person, form in row}
+        if learner in forms and target in forms:
+            return tense
+    return None
+
+
+def _tense_of(lemma: str, word: str) -> str | None:
+    """The first tense ``word`` is a one-word form of ``lemma`` in, or ``None``."""
+
+    for tense, row in _rows(lemma):
+        if any(form == word for _person, form in row):
+            return tense
+    return None
+
+
+def _persons(lemma: str, word: str, tense: str) -> list[str]:
+    for row_tense, row in _rows(lemma):
+        if row_tense == tense:
+            return [person for person, form in row if form == word]
+    return []
+
+
+def _is_form_of(lemma: str, word: str) -> bool:
+    """Is ``word`` any form of ``lemma``: its infinitive, a one-word form or its participle?"""
+
+    from app.services.conjugation import fallback_conjugation_table
+
+    if word == strip_accents(lemma) or _tense_of(lemma, word):
+        return True
+    try:
+        compound = fallback_conjugation_table(lemma).get("passe_compose") or {}
+    except Exception:  # pragma: no cover
         return False
-    for tense, forms in table.items():
-        if tense in {"passe_compose", "imperatif"}:
-            continue
-        row = {strip_accents(form) for form in forms.values()}
-        if learner in row and target in row:
-            return True
-    return False
+    return any(word == strip_accents(str(form).split()[-1]) for form in compound.values() if str(form).split())
+
+
+def _verb_slip(learner: str, target: str, kind: str) -> dict[str, str] | None:
+    """#992: a verb form the person classifier cannot name, by what the learner wrote.
+
+    * ``tense``: another tense of the same verb («voudrai», the future, for «voudrais»);
+    * ``not_a_form``: no form of the verb the line needs («somme», «et» for «es»);
+    * ``other_verb``: a form of another verb («est» for «a» in «On a froid»).
+
+    La Forge answered these with the rule card's gloss, and while the solution waited
+    the gloss was all that was left (the clause naming the answer is scrubbed).
+    """
+
+    lemma = _verb_lemma(target)
+    a, b = strip_accents(learner), strip_accents(target)
+    if not lemma or not _tense_of(lemma, b):
+        return None
+    if _is_form_of(lemma, a):
+        learner_tense, target_tense = _tense_of(lemma, a), _tense_of(lemma, b)
+        if learner_tense and target_tense and learner_tense != target_tense and not _shared_tense(lemma, a, b):
+            return {"category": "tense", "lemma": lemma, "learner_tense": learner_tense, "target_tense": target_tense}
+        return None
+    other = _verb_lemma(learner) if kind == "word" else None
+    if other and other != lemma and _tense_of(other, a):
+        return {"category": "other_verb", "lemma": lemma, "learner_lemma": other}
+    return {"category": "not_a_form", "lemma": lemma}
+
+
+def _in_line(sentence: Any, line: Any, word: str, at: Any) -> tuple[Any, Any]:
+    """Where to read ``word``'s neighbours: in the whole ``line`` when the key only fills
+    its gap («es» in «Tu ___ beau ?»), else in ``sentence`` at ``at`` (#992)."""
+
+    if line and _place(line, word) is not None and fold_typography(line) != fold_typography(sentence):
+        return line, None
+    return sentence, at
 
 
 def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = None) -> dict[str, str] | None:
@@ -413,9 +504,10 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = N
     # about the noun after it («le clé»: «clé» is feminine), and a verb form of the wrong
     # person about its subject, not the day's rule card.
     kind = slip_kind(shown_learner, shown_target)
-    at = slips[0].get("at")
+    # #992: a gap's key is one word; its noun and its subject stand in the line.
+    context, at = _in_line(sentence, line, shown_target, slips[0].get("at"))
     if kind in {"gender", "number"}:
-        noun = _after(sentence, shown_target, at) if sentence else None
+        noun = _after(context, shown_target, at) if context else None
         gender = _noun_gender(noun) if noun else None
         if gender is None and noun and kind == "number":
             # a plural target names the count, not the gender: read it off a singular
@@ -425,17 +517,30 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = N
         if noun and gender and not _elided_possessive(shown_learner, shown_target, noun):
             return {"category": kind, "learner": shown_learner, "target": shown_target, "noun": noun, "gender": gender}
         return None
+    subject = _before(context, shown_target, at) if context else None
+    subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
     if kind == "person":
         lemma = _verb_lemma(shown_target) or ""
-        subject = _before(sentence, shown_target, at) if sentence else None
-        subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
+        # #992: what the form written goes with («veut»: il/elle/on), so the reason stands
+        # without the right form while the solution waits.
+        tense = _shared_tense(lemma, learner, target) or ""
+        persons = _persons(lemma, learner, tense)
+        if subject and _SUBJECT_PERSON.get(strip_accents(subject)) in persons:
+            subject = None
         return {
             "category": "person_subject" if subject else "person",
             "learner": shown_learner,
             "target": shown_target,
             "lemma": lemma,
             "subject": subject or "",
+            "persons": ", ".join(_PERSON_SHOWN.get(person, person) for person in persons),
         }
+    verb = _verb_slip(shown_learner, shown_target, str(slips[0].get("kind"))) if kind is None else None
+    if verb:
+        category = verb.pop("category")
+        if category == "not_a_form" and subject:
+            category = "not_a_form_subject"
+        return {"category": category, "learner": shown_learner, "target": shown_target, "subject": subject or "", **verb}
     return None
 
 
@@ -481,6 +586,21 @@ def slip_note(
         return (
             _copy("forge.slip.elision.why", language, **fields),
             _copy("forge.slip.elision.repair", language, **fields),
+        )
+    if slip["category"] == "tense":
+        fields = {
+            **fields,
+            "learner_tense": _copy(f"forge.slip.tense.name.{slip['learner_tense']}", language),
+            "target_tense": _copy(f"forge.slip.tense.name.{slip['target_tense']}", language),
+        }
+        return (
+            _copy("forge.slip.tense.why", language, **fields),
+            _copy("forge.slip.tense.repair", language, **fields),
+        )
+    if slip["category"] in {"not_a_form", "not_a_form_subject", "other_verb"}:
+        return (
+            _copy(f"forge.slip.{slip['category']}.why", language, **fields),
+            _copy("forge.slip.verb.repair", language, **fields),
         )
     return (
         _copy(f"forge.slip.{slip['category']}.why", language, **fields),
@@ -1517,6 +1637,7 @@ __all__ = [
     "TO_CORRECT_LABEL",
     "reconcile_with_sentence",
     "sentence_differences",
+    "VERB_SLIPS",
     "accent_miss_note",
     "classify_follow_up",
     "FREE_PRODUCTION_ROUNDS",

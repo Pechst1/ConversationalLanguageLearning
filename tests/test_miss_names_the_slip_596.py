@@ -41,7 +41,8 @@ def test_an_article_number_miss_says_plural():
 
 def test_a_verb_form_miss_names_the_subject_when_the_sentence_has_one():
     why, _repair = slip_note(token_diff("Tu est à l'hôpital ?", "Tu es à l'hôpital ?"), "en", "Tu es à l'hôpital ?")
-    assert why == "With «tu», «être» is «es», not «est»."
+    # #992: what «est» goes with, in a sentence of its own, then the right form.
+    assert why == "«est» goes with il/elle/on, not with «tu». With «tu», «être» is «es»."
 
 
 def test_the_cards_example_never_crosses_out_the_form_the_answer_needed():

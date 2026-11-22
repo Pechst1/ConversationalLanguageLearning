@@ -64,6 +64,7 @@ from app.services.exercise_generation import _transform_noop_errors as _transfor
 from app.services.forge_grading import (
     FREE_PRODUCTION_ROUNDS,
     LOCAL_RIGHT,
+    VERB_SLIPS,
     accent_miss_note,
     classify_follow_up,
     describe_diff,
@@ -6741,7 +6742,7 @@ class AtelierCorrectionService:
                 # A verb form is the rule's own matter, so the rule is cited; an article's
                 # gender or number is the noun's, whatever the day's rule is.
                 category = (slip_category(ops, target, line) or {}).get("category", "")
-                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category.startswith("person") else ""
+                cite = _copy("atelier.recognize.rule_reference", language, title=title) if category in VERB_SLIPS else ""
                 # #828: the slip names the right form, so the line before it does not.
                 answered = self._answered(mode, item, learner_text)
                 erratum = self._recognize_erratum_payload(
@@ -6750,9 +6751,15 @@ class AtelierCorrectionService:
                     repair=named[1],
                     task_type=self._task_type_for(concept, item),
                 )
-                if normalize_language(language) != "en":
-                    self._hint_without_answer(erratum, concept, item, (named[0], named[1], self._why_for(concept, item)))
+                # #992: in every language the hint is the slip's own reason: in English the
+                # scrubbed why kept «Rule.» once the rule's title (it names the form) was out.
+                self._hint_without_answer(erratum, concept, item, (named[0], named[1], self._why_for(concept, item)))
                 return erratum
+            # #992: a built line no slip category names («au» left out) still says what
+            # differs in it, before the rule; the rule card's gloss alone said nothing of it.
+            told = describe_diff(ops, language) if mode == "word_bank" and not outside_rule else ""
+            if told:
+                why = f"{told} {why}".strip()
             if outside_rule:
                 # #380: say what differs in the learner's text, not the rule's headline.
                 # Walk of 19 Nov: alone, not after «You chose X;» (a typed line was not chosen).
@@ -6781,7 +6788,7 @@ class AtelierCorrectionService:
                 # nothing else, though its reason in plain words was there behind «Voir la
                 # solution». The hint is that reason (``solution_gate.learner_view`` drops any
                 # clause of it that would name the answer).
-                self._hint_without_answer(erratum, concept, item, (self._why_for(concept, item), repair))
+                self._hint_without_answer(erratum, concept, item, (told, self._why_for(concept, item), repair))
             return erratum
         if mode == "fill":
             erratum = self._fill_erratum(concept, item, learner_text, target)
