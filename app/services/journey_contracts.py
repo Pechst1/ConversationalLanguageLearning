@@ -971,8 +971,9 @@ class ResponseTask:
     #: #776 (root cause #145): the exchanges the scene plays on every route. ``max_turns`` is
     #: the most it may take (a deflection asked again, a «Convaincre»'s objections, the
     #: question an authored page asks only when the reader writes one); the learner's
-    #: «Exchange N of M» counts only these, and an exchange past them is shown as the last
-    #: one again. ``0``: every planned exchange is played (a generated scene).
+    #: «Exchange N of M» counts only these, and an exchange past them is counted by its
+    #: real number with no total («Exchange 4», #948), never as the last one again.
+    #: ``0``: every planned exchange is played (a generated scene).
     sure_turns: int = 0
 
     def shown_turns(self, planned: int) -> int:

@@ -542,28 +542,50 @@ export type ExchangeProgress = {
   total: number;
   /** Exchanges already played: the filled tokens. */
   played: number;
-  /** The exchange the learner is in (1-based), for «Échange 2 sur 3». */
+  /**
+   * The exchange the learner is in (1-based), for «Échange 2 sur 3»: the real
+   * one, which is past `total` when the scene plays past its plan.
+   */
   position: number;
 };
 
 /**
  * `closed` is true once the closing turn is answered. The total is the one the
  * scene started with and never grows (#467: «Exchange 3 of 3», then «4 of 4»
- * promised a longer scene than the learner began). A turn the server plays past
- * the plan (the answer to an open question, a nudge that used no exchange) is
- * shown as the last exchange again: the last token stays the active one.
+ * promised a longer scene than the learner began). The total is a promise and
+ * the position a fact, so a turn the server plays past the plan (the answer to
+ * an open question, a deflection asked again, a nudge that used no exchange)
+ * keeps its real position (#948: «Exchange 3 of 3» for replies 3, 4 and 5 broke
+ * the promise twice): every planned token is filled, and the count names the
+ * exchange without a total (`exchangeCount`).
  */
 export function exchangeProgress(prompt: RespondPrompt, closed: boolean): ExchangeProgress {
   const index = Math.max(0, Math.floor(Number(prompt.turn_index) || 0));
   const total = Math.max(1, Math.floor(Number(prompt.max_turns) || 1));
-  const played = closed ? Math.min(total, index + 1) : Math.min(index, total - 1);
-  const position = closed ? played : played + 1;
-  return { total, played, position };
+  const played = Math.min(total, closed ? index + 1 : index);
+  return { total, played, position: index + 1 };
+}
+
+/** The exchange is past the planned total: there is no total left to promise. */
+export function pastThePlan(progress: ExchangeProgress): boolean {
+  return progress.position > progress.total;
 }
 
 /** «Échange 2 sur 3» with the template from the copy table. */
 export function exchangeLabel(template: string, progress: ExchangeProgress): string {
   return template.replace('{n}', String(progress.position)).replace('{total}', String(progress.total));
+}
+
+type CountCopy = { exchange_of: string; exchange_past: string };
+
+/**
+ * What the counter says: «Échange 2 sur 3» inside the plan, «Échange 4» past
+ * it — never «4 sur 3», and never the last promised exchange a second time.
+ */
+export function exchangeCount(copy: CountCopy, progress: ExchangeProgress): string {
+  return pastThePlan(progress)
+    ? copy.exchange_past.replace('{n}', String(progress.position))
+    : exchangeLabel(copy.exchange_of, progress);
 }
 
 // ---------------------------------------------------------------------------
@@ -626,7 +648,10 @@ export { correctionNotes, dedupeNotes };
 export type ExchangeCue = {
   /** «À vous — répondez à Marin». */
   lead: string;
-  /** «Échange 2 sur 3», or «Dernier échange»; `null` when there is one exchange only. */
+  /**
+   * «Échange 2 sur 3», «Dernier échange», or «Échange 4» past the plan; `null`
+   * when there is one exchange only.
+   */
   part: string | null;
   /** The last planned exchange: the field is about to close the conversation. */
   last: boolean;
@@ -634,11 +659,10 @@ export type ExchangeCue = {
   text: string;
 };
 
-type CueCopy = {
+type CueCopy = CountCopy & {
   exchange_your_turn_to: string;
   exchange_your_turn: string;
   exchange_last: string;
-  exchange_of: string;
 };
 
 /**
@@ -654,9 +678,10 @@ export function exchangeCue(input: {
   const { copy, progress } = input;
   const name = String(input.name ?? '').trim();
   const lead = name ? copy.exchange_your_turn_to.replace('{name}', name) : copy.exchange_your_turn;
-  const last = progress.total >= 2 && progress.position >= progress.total;
-  const part =
-    progress.total < 2 ? null : last ? copy.exchange_last : exchangeLabel(copy.exchange_of, progress);
+  // #948: «last» is the promised last exchange only; past the plan it was
+  // already said once, so it is not said again.
+  const last = progress.total >= 2 && progress.position === progress.total;
+  const part = progress.total < 2 ? null : last ? copy.exchange_last : exchangeCount(copy, progress);
   return { lead, part, last, text: part ? `${lead} · ${part}` : lead };
 }
 

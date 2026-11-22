@@ -6071,8 +6071,9 @@ class DailyJourneyService:
             # total was whatever the engine decided next): ``max_turns`` is fixed
             # when the scene starts and never changes. A nudge that did not use
             # an exchange, or the answer an open question takes (#378), is one
-            # more turn under the same total; the client shows it as the last
-            # exchange instead of promising a bigger scene than the one it began.
+            # more turn under the same total; the client counts it by its real
+            # number with no total («Exchange 4», #948) instead of promising a
+            # bigger scene than the one it began.
             if not scene_record.enabled():
                 if history[-1].get("free"):
                     # The exchange the nudge did not use is still owed: one more token.

@@ -545,6 +545,10 @@ test('T7 · the exchange cue, in each chrome language', () => {
   assert.equal(last.text, 'À toi — réponds à Marin · Dernier échange');
   assert.equal(last.last, true);
   assert.equal(cue(EN, 4, 4).part, 'Last exchange');
+  // #948: an exchange past the plan is not «last» a second time; it is counted.
+  const past = cue(FR, 4, 3);
+  assert.equal(past.part, 'Échange 4');
+  assert.equal(past.last, false);
 
   // One exchange only: no count, and never «last».
   const single = cue(FR, 1, 1);
