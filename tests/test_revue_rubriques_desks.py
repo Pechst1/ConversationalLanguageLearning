@@ -413,3 +413,37 @@ def _honest(fr: str):
 
     line = ComptoirText(fr=fr, en=fr, de=fr)
     return titre.TitreHeadline(role="honest", claim_id="c1", a1=line, a2=line, b1=line)
+
+
+def test_every_subject_and_fact_tile_makes_a_true_headline() -> None:
+    """First real run (2026-11-22, «Les prix des produits frais accélèrent»): the build offered
+    «Les prix alimentaires» and «Les produits frais» with «progressent de 9,9 %» and «progressent
+    de 1,5 %» — two of the four headlines a beginner could print were false."""
+
+    from app.services.revue.dossier import Claim
+
+    raw = gold_titre()
+    story = beauvau()
+    claims = [
+        Claim(id="c1", kind="fact", fr="Les produits frais affichent une hausse de 9,9 % sur un an.",
+              quote=story.claims[0].quote, source_id=story.claims[0].source_id, url=story.claims[0].url,
+              published_at=story.claims[0].published_at, confidence="confirmed"),
+        Claim(id="c2", kind="fact", fr="Les prix alimentaires progressent de 1,5 % sur un an.",
+              quote=story.claims[1].quote, source_id=story.claims[1].source_id, url=story.claims[1].url,
+              published_at=story.claims[1].published_at, confidence="confirmed"),
+    ]
+    prices = story.model_copy(update={"claims": claims})
+
+    def tile(fr: str) -> dict:
+        return {"fr": fr, "en": fr, "de": fr}
+
+    raw["build"] = {"subjects": [tile("Les produits frais"), tile("Les prix alimentaires")],
+                    "facts": [tile("progressent de 9,9 %"), tile("progressent de 1,5 %")],
+                    "frame": tile("Les produits frais")}
+    made, refused, _ = titre._build(raw["build"], raw["wrong_fr"], prices, titre._Checker(prices))
+    assert made is None
+    assert {"titre:build:pair:0:1:not_one_claim", "titre:build:pair:1:0:not_one_claim"} <= set(refused)
+    raw["build"]["facts"] = [tile("affichent une hausse de 9,9 %"), tile("affichent une hausse sur un an")]
+    raw["build"]["subjects"] = [tile("Les produits frais"), tile("Les fruits et légumes frais")]
+    made, refused, _ = titre._build(raw["build"], raw["wrong_fr"], prices, titre._Checker(prices))
+    assert made is not None, refused

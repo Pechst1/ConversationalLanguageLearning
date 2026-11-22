@@ -311,6 +311,15 @@ def _build(raw: Any, wrong: str, dossier: EditorialDossier, check: _Checker) -> 
         refusals.append("titre:build:count")
     if refusals:
         return None, refusals, []
+    # Every subject + fact is a headline the beginner may print: one claim must say both (first
+    # real run: «Les prix alimentaires» + «progressent de 9,9 %» — 9,9 % is the fresh produce's rise).
+    for i, subject in enumerate(subjects):
+        for j, fact in enumerate(facts):
+            if not any(grounded(subject.fr, c.fr) and grounded(fact.fr, c.fr) and numbers(fact.fr) <= numbers(c.fr)
+                       for c in dossier.claims):
+                refusals.append(f"titre:build:pair:{i}:{j}:not_one_claim")
+    if refusals:
+        return None, refusals, []
     frame_row = raw.get("frame")
     if isinstance(frame_row, dict):
         frame_row = {**frame_row, "fr": headline_text(frame_row.get("fr") or "").rstrip(" …")}
