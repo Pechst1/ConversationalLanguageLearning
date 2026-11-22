@@ -80,7 +80,7 @@ def _open(client: TestClient, headers: dict[str, str], link: str) -> list[int]:
     return [int(unit["concept_id"]) for unit in response.json()["quote"]["forge"]["units"]]
 
 
-def test_the_days_forge_opened_from_a_link_read_before_the_day_works_on_the_days_rule(
+def test_stale_link_forges_days_rule(
     client: TestClient, db_session: Session, v2, enabled
 ) -> None:
     user, headers = _learner(client, db_session)
