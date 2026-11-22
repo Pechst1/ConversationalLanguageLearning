@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.services.chrome_language import mother_tongue
+from app.services.spelling_variants import same_word_variant
 
 AccentPolicy = Literal["lenient", "strict"]
 
@@ -415,6 +416,30 @@ def elision_slip_words(learner: object, target: object) -> tuple[str, str, str] 
     return found if i == len(said) else None
 
 
+def _other_spelling(got: str, want: str) -> bool:
+    """#966: ``got`` is ``want`` in its other accepted spelling, with other letters:
+    «clef» / «clé», «ognon» / «oignon», «paie» / «paye», «l'ognon» / «l'oignon».
+
+    The two spellings are :mod:`app.services.spelling_variants`' list, the one the
+    correction gate already refuses to «fix». A variant that differs by an accent
+    alone («plait» / «plaît») is the accent rule's, read and named as before."""
+
+    if got == want or strip_accents(got) == strip_accents(want):
+        return False
+    got_head, _, got_word = got.rpartition("'")
+    want_head, _, want_word = want.rpartition("'")
+    return got_head == want_head and bool(got_word) and same_word_variant(got_word, want_word)
+
+
+def in_key_spelling(words: Iterable[str], key_words: Iterable[str]) -> list[str]:
+    """The learner's words, each one written in another accepted spelling of a word of
+    the key put in the key's spelling (#966). A right word in its other spelling is the
+    same word: no judge may refuse it, and no miss may name it."""
+
+    key = list(key_words)
+    return [next((want for want in key if _other_spelling(word, want)), word) for word in words]
+
+
 def _compare(
     learner: str,
     target: str,
@@ -424,6 +449,9 @@ def _compare(
 ) -> Verdict:
     """One learner answer against one accepted answer, both typography-folded."""
 
+    if learner == target:
+        return Verdict(correct=True, exact=True)
+    learner = " ".join(in_key_spelling(learner.split(), target.split()))
     if learner == target:
         return Verdict(correct=True, exact=True)
     if learner.count("'") < target.count("'"):
@@ -924,10 +952,14 @@ def _er_singular(lemma: str) -> str | None:
             candidates.append(stem[:at] + "è" + stem[at + 1 :] + "e")
     if stem[-1:] in {"l", "t"}:
         candidates.append(stem + stem[-1] + "e")
+    if stem.endswith("y"):
+        candidates.append(stem[:-1] + "ie")  # envoyer → envoie, nettoyer → nettoie
     for candidate in candidates:
         if _lemma_of(candidate) == lemma:
             return candidate
-    if lemma in (_core_lexicon().get("lemmas") or {}) and not re.search(r"[eé][^aeiouyéèêë]+$", stem):
+    if lemma in (_core_lexicon().get("lemmas") or {}) and not stem.endswith("y") and not re.search(
+        r"[eé][^aeiouyéèêë]+$", stem
+    ):
         return stem + "e"  # «laisser» → «laisse»: no stem change is possible
     return None
 
@@ -1021,6 +1053,39 @@ def on_nous_variants(sentence: str) -> list[str]:
                 else:
                     new[reflexive] = "se"
         out.append(" ".join(word for word in new if word))
+    out.extend(_et_moi_variants(words, comma=bool(re.search(r"\bmoi\s*,", sentence))))
+    return list(dict.fromkeys(out))
+
+
+def _et_moi_variants(words: list[str], *, comma: bool) -> list[str]:
+    """#592: «Romy et moi, on envoie» ↔ «Romy et moi, nous envoyons» ↔ «Romy et moi
+    envoyons»: a subject «X et moi» is «we», with or without the pronoun that takes it
+    up again. The verb is read through :func:`on_nous_variants` on its own, so a verb
+    it cannot conjugate with certainty gives no variant here either."""
+
+    out: list[str] = []
+    for index in range(1, len(words)):
+        if words[index].rstrip(",") != "moi" or words[index - 1] != "et":
+            continue
+        head, tail = words[: index], words[index + 1 :]
+        if tail and tail[0] == "nous" and not comma:
+            # «Romy et moi nous levons»: with no comma this «nous» is the verb's reflexive,
+            # not the pronoun taking the subject up: «Romy et moi, on se lève».
+            for singular in on_nous_variants(" ".join(["nous", *tail])):
+                if singular.startswith("on "):
+                    out.append(" ".join([*head, "moi,", singular]))
+            continue
+        rest = tail[1:] if tail and tail[0] in {"on", "nous"} else tail
+        if not rest:
+            continue
+        for plural in on_nous_variants(" ".join(["on", *rest])):  # «on envoie» → «nous envoyons»
+            if plural.startswith("nous "):
+                verb = plural.split(" ", 1)[1]
+                out.append(" ".join([*head, "moi,", "nous", verb]))
+                out.append(" ".join([*head, "moi", verb]))
+        for singular in on_nous_variants(" ".join(["nous", *rest])):  # «nous envoyons» → «on envoie»
+            if singular.startswith("on "):
+                out.append(" ".join([*head, "moi,", singular]))
     return out
 
 
@@ -1526,9 +1591,11 @@ def widened_answers(accepted: Iterable[object], *, english: object = None) -> li
 
     base = [str(item) for item in accepted if item and str(item).strip()]
     out: list[str] = list(base)
-    we = isinstance(english, str) and re.search(r"\bwe\b", english, re.IGNORECASE) and not re.search(
-        r"\b(?:our|ours|us)\b", english, re.IGNORECASE
-    )
+    # «we» is also «Romy and I» (#592): the prompt need not say «with on» for the
+    # «nous» sentence to be as right as the key's «on» one.
+    we = isinstance(english, str) and (
+        re.search(r"\bwe\b", english, re.IGNORECASE) or re.search(r"\band I\b", english)
+    ) and not re.search(r"\b(?:our|ours|us)\b", english, re.IGNORECASE)
     for sentence in base:
         people = [sentence, *(on_nous_variants(sentence) if we else [])]
         for variant in people:

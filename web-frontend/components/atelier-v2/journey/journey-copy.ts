@@ -220,8 +220,10 @@ export type JourneyCopyKey =
   // STORY-ORIENTATION: the heading over the season's premise on day one.
   | 'premise_title'
   // WP-89 «Le fil»: the respond step as one conversation. `exchange_of` is the
-  // screen-reader text of the exchange tokens ({n}, {total}).
+  // screen-reader text of the exchange tokens ({n}, {total}); #948:
+  // `exchange_past` ({n}) counts an exchange the scene plays past its total.
   | 'exchange_of'
+  | 'exchange_past'
   | 'thread_label'
   | 'thread_you'
   | 'thread_note_open'
@@ -244,6 +246,9 @@ export type JourneyCopyKey =
   | 'drill_recall'
   | 'drill_warmup'
   | 'drill_retry'
+  // #975: a drill on a rule that is not today's, and on the learner's own slip.
+  | 'drill_review'
+  | 'drill_mistakes'
   // P5 (owner, 2026-11-13): a miss asked again later says where and why, not what.
   | 'drill_miss_where'
   | 'drill_miss_choice'
@@ -468,6 +473,7 @@ const EN: CopyTable = {
   cast_title: 'The characters',
   premise_title: 'Where you are',
   exchange_of: 'Exchange {n} of {total}',
+  exchange_past: 'Exchange {n}',
   thread_label: 'The conversation',
   thread_you: 'You:',
   thread_note_open: 'Show the correction',
@@ -486,6 +492,8 @@ const EN: CopyTable = {
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
+  drill_review: 'Rule to review',
+  drill_mistakes: 'From your mistakes',
   drill_miss_where: 'What is off',
   drill_miss_choice: 'Not this answer',
   drill_solution_later: 'This one comes back at the end of the set. Find it yourself first; the solution comes after.',
@@ -696,6 +704,7 @@ const DE: CopyTable = {
   cast_title: 'Die Figuren',
   premise_title: 'Wo du bist',
   exchange_of: 'Austausch {n} von {total}',
+  exchange_past: 'Austausch {n}',
   thread_label: 'Das Gespräch',
   thread_you: 'Du:',
   thread_note_open: 'Korrektur zeigen',
@@ -714,6 +723,8 @@ const DE: CopyTable = {
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
+  drill_review: 'Regel zum Wiederholen',
+  drill_mistakes: 'Aus deinen Fehlern',
   drill_miss_where: 'Was nicht stimmt',
   drill_miss_choice: 'Nicht diese Antwort',
   drill_solution_later: 'Diese Aufgabe kommt am Ende der Reihe noch einmal. Finde es zuerst selbst; die Lösung kommt danach.',
@@ -924,6 +935,7 @@ const FR: CopyTable = {
   cast_title: 'Les personnages',
   premise_title: 'Où tu es',
   exchange_of: 'Échange {n} sur {total}',
+  exchange_past: 'Échange {n}',
   thread_label: 'La conversation',
   thread_you: 'Toi :',
   thread_note_open: 'Voir la correction',
@@ -942,6 +954,8 @@ const FR: CopyTable = {
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',
+  drill_review: 'Règle à revoir',
+  drill_mistakes: 'Tes erreurs',
   drill_miss_where: 'Ce qui ne va pas',
   drill_miss_choice: 'Pas cette réponse',
   drill_solution_later: 'Cette question revient à la fin de la série. Cherche d’abord toi-même ; la solution vient après.',

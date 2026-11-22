@@ -223,3 +223,20 @@ test('#175: the whole exit — start from the day, fail, and La Forge is the nex
   assert.doesNotMatch(exit.href, /^\/grammar/);
   assert.match(exit.label, /Grammatik/);
 });
+
+test('#997: a failed rule check offered after the grammar step is done hands on to the words, not a second séance', () => {
+  // The day's La Forge is finished (Home: «Grammatik — erledigt»); its end sheet offered
+  // the optional Regelprüfung on a due rule, and the learner missed it.
+  const grammarDone = plan(['done', 'done', 'todo']);
+  const failed = dp.ruleCheckExitFromDay(grammarDone, false, 'de');
+  assert.equal(failed.kind, 'words', `a failed optional check reopened «${failed.label}» (${failed.href})`);
+  assert.equal(failed.href, WORDS);
+  assert.match(failed.label, /Wörter/);
+  assert.equal(dp.handOnAfterRuleCheck(grammarDone, false, 'de').href, WORDS);
+  // Words done too: the day's seal, never La Forge again.
+  const allDone = dp.ruleCheckExitFromDay(plan(['done', 'done', 'done']), false, 'de');
+  assert.equal(allDone.kind, 'finish');
+  assert.equal(allDone.href, '/fertig');
+  // While the grammar step is still open, a failed check keeps handing back to it.
+  assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'todo']), false, 'de').href, FORGE);
+});

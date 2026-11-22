@@ -10,7 +10,8 @@
  *
  * Under the character's name, one small red triangle per planned exchange —
  * the respond part of the mark — filled as each exchange passes. A sequence,
- * never a ring.
+ * never a ring. An exchange the scene plays past them fills every token and is
+ * counted by its real number (#948).
  *
  * WP-91 «Les voix»: every character face in the column is the play button for
  * its own line (the step's server clip when `journeyId`/`stepId` are given,
@@ -31,9 +32,11 @@ import { useAutoSpeak, type LineVoice, type VoiceLine } from './useLineVoice';
 import { listenLabel, useStepVoice } from './useStepVoice';
 import { replyFinishedTyping } from './voice-autoplay';
 import {
-  exchangeLabel,
+  exchangeCount,
   markSpan,
   moreNoteKey,
+  printedFix,
+  sameVoice,
   threadFixes,
   type ExchangeProgress,
   type LearnerBubble,
@@ -54,7 +57,8 @@ export function ExchangeTokens({ progress, copy }: { progress: ExchangeProgress;
           <ShapeToken kind="action" size="sm" />
         </span>
       ))}
-      <span className="av2-sr">{exchangeLabel(copy.exchange_of, progress)}</span>
+      {/* #948: past the plan the count names the real exchange, never «3 of 3» again. */}
+      <span className="av2-sr">{exchangeCount(copy, progress)}</span>
     </p>
   );
 }
@@ -265,7 +269,8 @@ export function RespondThread({
           );
         }
         const typing = typingKey === bubble.key && typedText.length < bubble.text.length;
-        // A many-voiced reply draws each speaker with their own face; a speaker
+        // Every line is drawn with its own speaker's face (#664: a past line keeps
+        // whoever said it when the header moves on to the next addressee); a speaker
         // other than the one the learner addresses is also named.
         const who =
           bubble.speaker && (bubble.speaker.id || bubble.speaker.name)
@@ -274,7 +279,13 @@ export function RespondThread({
         // The listen button is named after the voice it plays: this bubble's
         // speaker, never the one the learner addresses.
         const label = listenLabel(copy, who?.name || name);
-        const other = Boolean(bubble.speaker && speaker && bubble.speaker.id !== speaker.id);
+        const other = Boolean(
+          bubble.speaker &&
+            speaker &&
+            (bubble.speaker.id && speaker.id
+              ? !sameVoice(bubble.speaker.id, speaker.id)
+              : bubble.speaker.id !== speaker.id || bubble.speaker.name !== speaker.name),
+        );
         const whoLabel = other && who ? (
           <span className="av2-label av2-thread__who">{who.name}</span>
         ) : null;

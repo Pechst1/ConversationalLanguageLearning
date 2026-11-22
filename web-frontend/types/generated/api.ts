@@ -12170,6 +12170,8 @@ export interface components {
             prompt_fr: string | null;
             /** Retry */
             retry?: boolean | null;
+            /** Role */
+            role?: ("mistake" | "day_rule" | "review") | null;
             /** Slip Fr */
             slip_fr?: string | null;
             /** Source Fr */
@@ -17401,6 +17403,7 @@ export interface components {
             correction: components["schemas"]["JourneyCorrection"] | null;
             /** Learner Fr */
             learner_fr: string;
+            prompt_line: components["schemas"]["ThreadLine"] | null;
             /**
              * Unchecked
              * @default false

@@ -460,6 +460,9 @@ export class LearnerWalk {
       if (await next.count()) { await next.click({ timeout: 3000 }).catch(() => {}); return true; }
       return false;
     }
+    // Le Montage (the grammar pilot): one thing to tap at a time, then «Try it» as a primary.
+    const montageTap = page.locator('.rm-tap').first();
+    if (await montageTap.count()) { await montageTap.click({ timeout: 3000 }).catch(() => {}); await sleep(300); return true; }
     // Le Lexique's deck (the day's words step): turn the card, then file it, «I know it»
     // mostly and «Again» every fourth card. Main's season walk stood 10 s on «Lexique —
     // review 0/27» on day 8 (run 43000929857): the walk had no hand for the grades.

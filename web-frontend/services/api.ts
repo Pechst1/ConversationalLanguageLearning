@@ -1633,6 +1633,9 @@ export interface RealWorldMission {
   target_errata_ids: string[];
   target_vocabulary_ids: number[];
   target_vocabulary?: MissionTargetVocabulary[];
+  /** #928: the target words the learner's messages used, as the corrector recorded them
+   *  (any accent, any real inflection). The ribbon's «used» reads only this. */
+  used_target_word_ids?: number[];
   source_snapshot: Record<string, any>;
   objectives: Array<Record<string, any>>;
   prompt_payload: Record<string, any>;

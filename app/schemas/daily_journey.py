@@ -449,7 +449,7 @@ class RecallPrompt(JourneyModel):
     # This serializer drops audio_url on silent formats, leaving all other defaults.
     model_config = ConfigDict(
         json_schema_extra=lambda schema: _drop_required(
-            schema, "audio_url", "met", "retry", "slip_fr", "speaker"
+            schema, "audio_url", "met", "retry", "role", "slip_fr", "speaker"
         ),
     )
     #: WP-66 brought three Séance formats into the daily loop. Additive: the
@@ -520,6 +520,12 @@ class RecallPrompt(JourneyModel):
     #: without it, it keeps the rule's coach or the day's character. Omitted on an
     #: item that is not cut from a character's line, and on «Qui a dit ça ?».
     speaker: RecallSpeaker | None = None
+    #: #469/#975 (additive): what the drill is for in the day, as the planner dealt it
+    #: (``journey_planner.recall_role``): the learner's own ``mistake``, the ``day_rule``
+    #: taught today, or another rule to ``review``. The device names the drill by it
+    #: (sticker and header), never by the target's kind. Omitted on a word drill and on
+    #: steps planned before it.
+    role: Literal["mistake", "day_rule", "review"] | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_audio(self, handler: Any):
@@ -539,6 +545,8 @@ class RecallPrompt(JourneyModel):
             data.pop("retry", None)
         if isinstance(data, dict) and data.get("speaker") is None:
             data.pop("speaker", None)
+        if isinstance(data, dict) and data.get("role") is None:
+            data.pop("role", None)
         return data
 
 
@@ -646,6 +654,10 @@ class ThreadExchange(JourneyModel):
     #: The reply as its speakers' lines, when several people answer (an authored
     #: season page); empty for a one-voiced reply.
     character_lines: list[ThreadLine] = Field(default_factory=list)
+    #: #664: the line this exchange answered, with the speaker who said it. The
+    #: prompt's ``character_id`` names whoever the open question is put to and moves
+    #: on with it (#594); a past line never reads it. ``None`` on an older exchange.
+    prompt_line: ThreadLine | None = None
 
 
 class RespondChoice(JourneyModel):

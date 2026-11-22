@@ -210,11 +210,17 @@ import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
 import { ruleReadToday } from '@/lib/rule-read-today';
 import { RuleCard } from '@/components/atelier-v2/rule/RuleCard';
+import { RULE_CARD_COPY } from '@/lib/rule-card';
 import { CastPortrait } from '@/components/atelier-v2/ui/CastPortrait';
 import { coachFor, coachMood, type ForgeCoach } from '@/lib/forge-coach';
 import { pulseAppHaptic } from '@/lib/haptics';
 import { epreuveOf } from '@/lib/can-dos';
 import { STORY_FEATURE_VISIBLE } from '@/lib/launch-flags';
+import { grammarPilotOn } from '@/lib/launch-flags';
+import { DeclicPrompt, DeclicWhy, type DeclicVerdict } from '@/components/epreuve/Declic';
+import { RuleMontage } from '@/components/atelier-v2/rule/RuleMontage';
+import { MONTAGE_COPY, markMontageSeen, montageFor, montageSeen } from '@/lib/rule-montage';
+import { whyWithoutEcho } from '@/lib/rule-diff';
 import { atelierCopy } from '@/lib/atelier-v2-copy';
 import { explanationLanguage, journeyChromeLanguage, journeyLevel } from '@/lib/language-rule';
 import { chromeDate } from '@/lib/chrome-locale';
@@ -3816,6 +3822,8 @@ function SessionView({
   const activeConceptTitle = activeConcept ? displayConceptTitle(activeConcept) : t.session_fallback;
   const focusedItemLabel = activeItemCount > 1 ? `${activeItemIndex + 1}/${activeItemCount}` : '';
   const [ruleOpenByConcept, setRuleOpenByConcept] = useState<Record<string, boolean>>({});
+  // The grammar pilot: a rule's Montage, closed for this rule, or replayed from its card.
+  const [montageView, setMontageView] = useState<Record<string, 'closed' | 'replay'>>({});
   const conceptRuleKey = `${session.session_id}:${activeConcept?.id || 'session'}`;
   const firstConceptDrill = Boolean(
     activeConcept
@@ -3859,6 +3867,15 @@ function SessionView({
   // to A2, French from B1 (it printed «Today's rule» on a French B1 forge).
   const ruleCard = usableCard(activeConcept?.rule_card) ? activeConcept?.rule_card ?? null : null;
   const ruleIntro = Boolean(ruleCard && firstConceptDrill && ruleExpanded);
+  // The grammar pilot: a rule's first visit opens with its Montage; «Skip» or a later visit is the card.
+  const montage = forge && !forgeTestOut && ruleCard && ruleExpanded && grammarPilotOn() ? montageFor(activeConcept?.external_id) : null;
+  const montageRequest = montageView[conceptRuleKey];
+  const montagePlaying = Boolean(montage && (montageRequest === 'replay' || (ruleIntro && !montageRequest && !montageSeen(montage.unit))));
+  const closeMontage = (toDrill: boolean) => {
+    if (montage) markMontageSeen(montage.unit);
+    setMontageView((prev) => ({ ...prev, [conceptRuleKey]: 'closed' }));
+    if (toDrill) toggleRule();
+  };
   // WP-S5: the rule's coach — the face on the card and on every answer.
   const ruleCoach = coachFor(forgeNext, forgeRule, activeConcept);
 
@@ -3898,6 +3915,8 @@ function SessionView({
   const drill: ForgeDrill | null = forge && activeConcept && !isRetest
     ? drillOnScreen(forge.next, currentCorrection, { conceptId: activeConcept.id, round, mode, itemId: activeItemId })
     : null;
+  // The grammar pilot's exercises land their feedback on the rule.
+  const declic = isDeclicDrill(drill, round, mode);
   // «Rafale»: its four judgements while it is served, its marks once answered.
   const burstMemo = useRef<Record<string, Array<Record<string, any>>>>({});
   const [burstMs, setBurstMs] = useState<Record<string, number>>({});
@@ -4001,7 +4020,20 @@ function SessionView({
               />
             </>
           )}
-          {ruleIntro && ruleCard ? (
+          {montage && !montagePlaying && (
+            <button type="button" className="rm-replay" onClick={() => setMontageView((prev) => ({ ...prev, [conceptRuleKey]: 'replay' }))}>
+              {MONTAGE_COPY[language]?.replay ?? MONTAGE_COPY.en.replay}
+            </button>
+          )}
+          {montagePlaying && montage && ruleCard ? (
+            <RuleMontage
+              script={montage}
+              card={ruleCard}
+              language={language}
+              onDone={() => closeMontage(true)}
+              onSkip={() => closeMontage(false)}
+            />
+          ) : ruleIntro && ruleCard ? (
             <RuleCard
               card={ruleCard}
               language={language}
@@ -4023,7 +4055,7 @@ function SessionView({
           {forge && !forgeTestOut && ruleExpanded && !ruleIntro && onTestOut && (
             <ForgeSheetTestOut copy={fc} pending={testOutPending} onClick={() => onTestOut(activeConcept.id)} />
           )}
-          {!ruleIntro && (<>
+          {!ruleIntro && !montagePlaying && (<>
               {isNamedDrill(drill) && (drill !== 'rafale' || rafale) && <ForgeDrillTag drill={drill} copy={fc} />}
               {rafale && (
                 <div className="ep-frame">
@@ -4181,6 +4213,7 @@ function SessionView({
                 picked={round === 'recognize' ? drill !== 'typed' || typedAsIs : round === 'transform' && Boolean(drill)}
                 ruleShown={forge ? activeConceptTitle : null}
                 attempt={attemptIdsByKey[currentKey] ?? null}
+                declic={declic}
               />}
           </>)}
         </section>
@@ -4254,6 +4287,7 @@ export function ExerciseFeedbackMoment({
   picked = false,
   ruleShown = null,
   attempt = null,
+  declic = false,
   onRevealSolution,
   revealing = false,
 }: {
@@ -4287,6 +4321,8 @@ export function ExerciseFeedbackMoment({
   ruleShown?: string | null;
   /** The server's id for the attempt on screen: the cast counts a checked answer once (#302). */
   attempt?: string | null;
+  /** The grammar pilot: the corrected sentence on screen carries the correction. */
+  declic?: boolean;
   /** Owner 2026-11-13: «Show the solution» spends the second chance. */
   onRevealSolution?: () => void;
   revealing?: boolean;
@@ -4506,6 +4542,9 @@ export function ExerciseFeedbackMoment({
     )
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
+  const slipNote = typeof correction?.slip_note_native === 'string' ? correction.slip_note_native.trim() : '';
+  const accentNote = slipNote || (feedback.accented && feedback.why ? feedback.why : '');
+
   if (feedback.correct) {
     // #213 / #553: one verdict per card. A right judgement stays right; nothing is
     // shown while the repair is open, and the repair has its own line.
@@ -4515,10 +4554,9 @@ export function ExerciseFeedbackMoment({
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
         {!picked && <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />}
-        {/* #954: a hit whose accent was forgiven names it, in one line (the rule check). */}
-        {typeof correction?.slip_note_native === 'string' && correction.slip_note_native.trim() && (
-          <p className="ep-why" lang={noteLang}>{correction.slip_note_native}</p>
-        )}
+        {/* #954 / #562: a hit whose accent was forgiven names it, in one line: the free
+            sentence's `slip_note_native`, else a gap's accent note. */}
+        {accentNote && <p className="ep-why" lang={noteLang} data-accent-note role="note">{accentNote}</p>}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -4541,7 +4579,7 @@ export function ExerciseFeedbackMoment({
   return (
     // The answer stays a miss (`data-verdict`, the line comes back later); `data-mended`
     // says its line was fixed.
-    <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} ref={feedbackRef}>
+    <div className="ep-feedback" data-verdict="wrong" data-mended={mended ? 'true' : undefined} data-declic={declic ? 'true' : undefined} ref={feedbackRef}>
       {/* #779: one card per correction and one field per corrected line (a repeated
           erratum drew the same line twice, and its second «Compare» behind the sheet). */}
       {shownCorrections.map(({ issue, index, repair: fieldHere }, position) => {
@@ -4577,6 +4615,16 @@ export function ExerciseFeedbackMoment({
               why={explained(reason) || undefined}
               repair={explained(repairHint) || undefined}
               more={solutionOnScreen && rest.length ? <EpMore label={t.more}>{rest.map((note) => <p key={note} lang={noteLang}>{note}</p>)}</EpMore> : undefined}
+              brief={declic
+                ? (
+                  <DeclicWhy
+                    why={whyWithoutEcho(reason || '', learner, target)}
+                    hint={repairHint || null}
+                    label={RULE_CARD_COPY[language]?.why ?? RULE_CARD_COPY.en.why}
+                    lang={noteLang}
+                  />
+                )
+                : undefined}
               // One second-look note per correction sheet, not one per erratum.
               relecture={index === 0 ? relecture : undefined}
             >
@@ -4694,6 +4742,13 @@ function ConceptRulePanel({ payload, concept }: { payload: Record<string, any>; 
   );
 }
 
+/** The grammar pilot's exercise types: the Forge's tapped and typed fill-ins, and «Trouve l'erreur». */
+function isDeclicDrill(drill: ForgeDrill | null, round: unknown, mode: unknown): boolean {
+  if (!grammarPilotOn()) return false;
+  if (round === 'transform') return drill === 'spot';
+  return round === 'recognize' && mode === 'fill' && (drill === 'choice' || drill === 'typed');
+}
+
 function EpreuveBlankPrompt({ prompt, answer }: { prompt: string; answer?: string }) {
   const parts = String(prompt || '').split(/_{2,}/);
   if (parts.length < 2) return <>{prompt}</>;
@@ -4754,14 +4809,27 @@ function RecognizePanel({
   if (buildGoal && buildMarks && !('marks' in buildGoal && buildGoal.marks)) Object.assign(buildGoal, { marks: buildMarks });
   // «Dictée»: the sentence is heard, so its meaning waits for the answer.
   const dictation = mode === 'word_bank' && drill === 'dictation';
+  const declic = isDeclicDrill(drill, 'recognize', mode);
+  const declicVerdict: DeclicVerdict = submitted && feedback && !feedback.unscored ? (feedback.correct ? 'right' : 'wrong') : null;
   return (
-    <div className="ep-exercise ep-recognize">
+    <div className="ep-exercise ep-recognize" data-declic={declic ? declicVerdict ?? 'open' : undefined}>
       {mode === 'fill' && (
         <>
           {/* WP-103 T3: every drill says what it asks for. */}
           <ForgeGoalLine goal={itemGoal(item, '')} />
           <EpPrompt>
-            <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
+            {declic ? (
+              <DeclicPrompt
+                key={item.id}
+                prompt={String(item.prompt || '')}
+                answer={answers[item.id]}
+                choices={item.choices || []}
+                target={(item.choices || []).find((choice: string) => normalizeClient(choice) === normalizeClient(feedback?.target)) ?? feedback?.target}
+                verdict={declicVerdict}
+              />
+            ) : (
+              <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={feedback?.accented && feedback.target ? feedback.target : answers[item.id]} />
+            )}
           </EpPrompt>
           {drill === 'typed' ? (
             <ForgeTypedField
@@ -4907,6 +4975,27 @@ function TransformPanel({
   if (spotted) {
     // The sentence is the exercise: its goal above it, never the sentence twice.
     const goal = drillGoalLine({ goal_native: item.goal_native, goal_native_marks: item.goal_native_marks }) ?? (instruction ? { kind: 'goal' as const, text: instruction } : null);
+    const spotFeedback = isDeclicDrill(drill, 'transform', null) && submitted ? itemFeedback(item, answers[item.id], correction) : null;
+    if (spotFeedback && !spotFeedback.unscored) {
+      // The verdict lands on the line: what was written, its fault struck, then corrected in place.
+      return (
+        <div className="ep-exercise ep-transform" data-declic={spotFeedback.correct ? 'right' : 'wrong'}>
+          <ForgeGoalLine goal={goal} />
+          <EpPrompt>
+            <DeclicPrompt
+              key={item.id}
+              prompt="___"
+              answer={spotFeedback.learner || sentence}
+              choices={[sentence]}
+              ruleFrom={[sentence]}
+              target={spotFeedback.target}
+              verdict={spotFeedback.correct ? 'right' : 'wrong'}
+            />
+          </EpPrompt>
+          {modelAudio}
+        </div>
+      );
+    }
     return (
       <div className="ep-exercise ep-transform">
         <ForgeGoalLine goal={goal} />
@@ -4986,11 +5075,15 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     assessment === 'needs_work' && correction.errata?.some((error: AtelierErratum) => error.item_id && error.item_id !== item.id) && typeof corrected === 'object' && !!targetText &&
     normalizeClient(learnerText).replace(/['’]\s+/g, "'") === normalizeClient(targetText).replace(/['’]\s+/g, "'")
   ));
+  // #562: a right answer that lacked an accent is named, once, where the miss would be.
+  const accented = correct && Array.isArray(correction.accent_notes)
+    && correction.accent_notes.some((note: any) => String(note?.item_id || '') === String(item.id || ''));
   return {
     correct,
+    accented,
     learner: learnerText,
     target: targetText,
-    why: printableWhy(matchingErrata[0]?.why_wrong) || undefined,
+    why: printableWhy(matchingErrata[0]?.why_wrong) || (accented ? forgeCorrectionNotes(correction).join(' ') : '') || undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
     unscored: assessment === 'pending' || assessment === 'unavailable',
@@ -4999,6 +5092,8 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
 
 type InlineFeedbackModel = {
   correct: boolean;
+  /** #562: right up to an accent; `why` names it and `target` is the line with its accent. */
+  accented?: boolean;
   unscored?: boolean;
   learner?: string;
   target?: string;
@@ -5063,6 +5158,7 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   }
   return {
     correct,
+    accented: correct && Array.isArray(correction.accent_notes) && correction.accent_notes.length > 0,
     unscored: assessment === 'unavailable' || assessment === 'pending',
     learner,
     target: shownTarget,

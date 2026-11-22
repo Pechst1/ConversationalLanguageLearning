@@ -196,6 +196,31 @@ function levelEvidence(level: RecapLevelUp, language: ControlLanguage): string |
   return null;
 }
 
+/**
+ * #950: «A day off kept your streak.» is news on one day only. The streak's
+ * `freeze_used_on` is the last day a «jour de relâche» ever covered (WP-80,
+ * `app/services/streak.py`); it stays set for weeks after. A freeze is spent on
+ * the first missed day, so the day it kept the streak for is the day played
+ * right after it: the journey's own day minus one. Any other date, or a journey
+ * without its day, says nothing.
+ */
+export function relacheKeptThisDay(
+  freezeUsedOn: string | null | undefined,
+  localDate: string | null | undefined,
+): boolean {
+  const covered = isoDayNumber(freezeUsedOn);
+  const played = isoDayNumber(localDate);
+  return covered != null && played != null && played - covered === 1;
+}
+
+/** Days since the epoch for a `YYYY-MM-DD` date, or `null`. */
+function isoDayNumber(value: string | null | undefined): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? '').slice(0, 10));
+  if (!match) return null;
+  const ms = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isFinite(ms) ? Math.round(ms / 86_400_000) : null;
+}
+
 /** WP-S7: how many rules became held on the journey's day (the Seal's rings). */
 export function heldToday(journey: JourneySnapshot): number {
   const ids = journey.mastery_today?.held_concept_ids;
@@ -228,7 +253,7 @@ export function rewardView(
     });
   }
 
-  const freezeUsed = Boolean(journey.streak?.freeze_used_on) && streakDays > 0;
+  const freezeUsed = relacheKeptThisDay(journey.streak?.freeze_used_on, journey.local_date) && streakDays > 0;
   const firstPractice = (recap.practiced_targets || []).find((item) => item.practice_href);
   // WP-99: the engine's guarded `next_teaser_fr` first, then the structured teaser.
   const teaser = recapTeaserOf(recap);
