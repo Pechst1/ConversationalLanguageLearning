@@ -122,7 +122,7 @@ test('1 · a waiting retell is one chip on Home, second after the letter, gone o
     const chip = journal.journalHomeChip(waiting, language);
     assert.equal(chip.label, label, language);
     assert.equal(chip.href, '/notebook?mode=journal');
-    assert.equal(chip.meta, '≈ 2 min');
+    assert.equal(chip.meta, language === 'de' ? '≈ 2 Min.' : '≈ 2 min', language);
     assert.ok(chip.ariaLabel.length > chip.label.length, `${language}: the accessible name says what it is`);
   }
   // A scene from further back is never «hier».

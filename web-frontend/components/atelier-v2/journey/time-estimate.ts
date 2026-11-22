@@ -113,14 +113,26 @@ export function extensionLabel(
   return fill(copy.extension, { kind: copy.kinds[kind], minutes });
 }
 
+/**
+ * «≈ 4 min» / «≈ 4 Min.»: a chip's minutes, in the chrome's language, or
+ * `null`. Every Home chip that prints minutes says them through here (#998:
+ * the retell chip once wrote an English «≈ 2 min» beside the letter's «≈ 6 Min.»).
+ */
+export function approxMinutes(
+  seconds: number | null | undefined,
+  language: ControlLanguage,
+): string | null {
+  const minutes = formatPlannedDuration(seconds, language);
+  return minutes ? `≈ ${minutes}` : null;
+}
+
 /** «≈ 4 min» for a chip that already names its activity, or `null`. */
 export function extensionMinutes(
   estimate: DayTimeEstimate | null | undefined,
   kind: TimeExtensionKind,
   language: ControlLanguage,
 ): string | null {
-  const minutes = formatPlannedDuration(extensionSeconds(estimate, kind), language);
-  return minutes ? `≈ ${minutes}` : null;
+  return approxMinutes(extensionSeconds(estimate, kind), language);
 }
 
 /** The ending: «9 min · prévu 10 min» — measured first, the plan's core beside it. */
