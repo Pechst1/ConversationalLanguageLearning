@@ -91,3 +91,21 @@ def test_without_an_echo_in_the_context_the_guard_reads_nothing():
         ("lila_bonnet", "Le Goncourt retire le roman, et Gallimard ne dit rien."),
     )
     engine._validate_scene(page, _context())
+
+
+# -- the night writer reads the echo (story_split) ------------------------------------------
+
+
+def test_the_night_planner_reads_the_echo_and_the_author_only_when_someone_who_was_there_is_on_the_page():
+    from app.services import story_split
+    from tests.test_story_split import _context as split_context
+    from tests.test_story_split import _plan
+
+    echo = {**ECHO, "present": [{"id": "romy_tremblay", "name": "Romy"}, {"id": "lila_bonnet", "name": "Lila"}]}
+    context = {**split_context(), "papier_echo": echo}
+    assert story_split.planner_payload(context, [])["papier_echo"] == echo
+    assert "papier_echo" not in story_split.planner_payload(split_context(), [])
+
+    assert story_split.author_payload(context, _plan(), [])["papier_echo"] == echo
+    nobody_who_was_there = {**context, "papier_echo": {**echo, "present": [{"id": "romy_tremblay", "name": "Romy"}]}}
+    assert "papier_echo" not in story_split.author_payload(nobody_who_was_there, _plan(), [])
