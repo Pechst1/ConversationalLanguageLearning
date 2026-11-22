@@ -133,6 +133,10 @@ class Candidate:
     topic: str
     fetch_policy: str
     cluster_key: str = ""
+    #: «Papier · photos» (2026-11-20): the feed item carries the outlet's photo, and its credit
+    #: when the feed gives one. Recorded only: a press photo is never stored or shown.
+    press_photo: bool = False
+    press_photo_credit: str = ""
 
 
 @dataclass
@@ -239,6 +243,8 @@ def parse_feed(source: dict[str, Any], xml_text: str, *, today: date) -> list[Ca
                 published_at=dates.get(str(item.get("url") or ""), today),
                 topic=topic_for(text, source.get("topic_tags") or ()),
                 fetch_policy=str(source.get("fetch_policy") or "allows"),
+                press_photo=item.get("press_photo") == "yes",
+                press_photo_credit=str(item.get("press_photo_credit") or ""),
             )
         )
     return out

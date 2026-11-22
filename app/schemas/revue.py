@@ -84,6 +84,29 @@ class RvStageMember(RevueModel):
     hold: str | None = None
 
 
+class RvPicture(RevueModel):
+    """«Papier · photos» (2026-11-20): one picture of the story's gallery — a painted
+    illustration (``Illustration · Le Papier``) or a real photo from Wikimedia Commons, with
+    its French credit line (always printed), its licence and the link to its source."""
+
+    kind: Literal["illustration", "photo"]
+    url: str
+    width: int | None = None
+    height: int | None = None
+    #: The image's text alternative: the caption when there is one, else ``""`` (decorative).
+    alt_fr: str = ""
+    #: A photo's caption, stated from the dossier's own facts (a named place); never an
+    #: illustration's (the desk's caption is the answer of «La légende»).
+    caption_fr: str | None = None
+    #: «Photo · {author} · {licence} · Wikimedia Commons» or «Illustration · Le Papier».
+    credit_fr: str
+    licence: str | None = None
+    #: The licence's deed, else the file's page (where the licence is stated).
+    licence_url: str | None = None
+    #: A photo's file page on Commons.
+    source_url: str | None = None
+
+
 class RvStage(RevueModel):
     place_id: str
     place_fr: str
@@ -102,6 +125,10 @@ class RvStage(RevueModel):
     #: not sent here: it is the answer of «La légende»; the dispatch prints it after the close.
     plate_kind: PlateKind = "season"
     picture_words: list[RvGloss] = Field(default_factory=list)
+    #: «Papier · photos» (2026-11-20): the story's pictures in order — its painted picture, its
+    #: other painted shots (``REVUE_PICTURES_PER_STORY``), then its Commons photos
+    #: (``REVUE_PHOTOS_ENABLED``). With the default switches: the painted picture alone, or none.
+    pictures: list[RvPicture] = Field(default_factory=list)
 
 
 class RvStoryCard(RevueModel):

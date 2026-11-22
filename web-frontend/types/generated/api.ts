@@ -13616,6 +13616,40 @@ export interface components {
             resume?: components["schemas"]["RvResume"] | null;
             week: components["schemas"]["RvWeek"];
         };
+        /**
+         * RvPicture
+         * @description «Papier · photos» (2026-11-20): one picture of the story's gallery — a painted
+         *     illustration (``Illustration · Le Papier``) or a real photo from Wikimedia Commons, with
+         *     its French credit line (always printed), its licence and the link to its source.
+         */
+        RvPicture: {
+            /**
+             * Alt Fr
+             * @default
+             */
+            alt_fr?: string;
+            /** Caption Fr */
+            caption_fr?: string | null;
+            /** Credit Fr */
+            credit_fr: string;
+            /** Height */
+            height?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "illustration" | "photo";
+            /** Licence */
+            licence?: string | null;
+            /** Licence Url */
+            licence_url?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Url */
+            url: string;
+            /** Width */
+            width?: number | null;
+        };
         /** RvPlanView */
         RvPlanView: {
             angle: components["schemas"]["RvAngle"];
@@ -13892,6 +13926,8 @@ export interface components {
             dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";
             /** Picture Words */
             picture_words?: components["schemas"]["RvGloss"][];
+            /** Pictures */
+            pictures?: components["schemas"]["RvPicture"][];
             /** Place Fr */
             place_fr: string;
             /** Place Id */
