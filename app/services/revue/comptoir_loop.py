@@ -115,8 +115,9 @@ ROMY_CLOSE_LINE = "Merci ! Ta voix est dans le micro-trottoir."
 KICKER = "Le micro-trottoir de Romy"
 #: A1's first tile, per side; the sentence goes on «, parce que …».
 A1_OPENERS: dict[str, str] = {"pour": "Je suis pour", "contre": "Je suis contre", "nuance": "Ça dépend"}
-#: How «La page» and the memories say a side.
-STANCE_FR: dict[str, str] = {"pour": "pour", "contre": "contre", "nuance": "partagé"}
+#: How the memories say a side: «Tu étais entre les deux», never «partagé», which is masculine
+#: and was said to every learner (real run, 22 Nov 2026); «moi entre les deux» fits every guest.
+STANCE_FR: dict[str, str] = {"pour": "pour", "contre": "contre", "nuance": "entre les deux"}
 
 _t = comptoir._t  # noqa: SLF001 - the desk's own constructor for authored lines
 

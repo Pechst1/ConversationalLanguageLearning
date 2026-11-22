@@ -51,7 +51,8 @@ INSTRUCTION = (
     "first) refer to it ONCE, naturally, in one short line — e.g. Romy says the piece ran («notre "
     "papier»), or a regular still disagrees with what the learner said at the counter — and that "
     "line may reuse ONE of papier_echo.kept_words. Never state anything about the news story beyond "
-    "papier_echo (headline_fr and what the learner did); never quote more than it holds; never "
+    "papier_echo (headline_fr, learner_did and, when present, regulars_remember: what a regular "
+    "who was there remembers of it, for that regular's line only); never quote more than it holds; never "
     "refer to it twice in the scene. If today's situation makes it forced, leave it out entirely."
 )
 
