@@ -350,3 +350,18 @@ def test_headline_write_is_unavailable_below_b1(api: TestClient, revue_on) -> No
                         json={"kind": "headline_write", "action": "write", "text_fr": "Un titre"})
     assert response.status_code == 409
     assert response.json()["detail"] == {"code": "revue_make_unavailable", "kind": "headline_write"}
+
+
+def test_the_close_route_completes_the_days_papier_step(api: TestClient, revue_on, monkeypatch) -> None:
+    """Integration 2026-11-22: closing the session (with or without «Le Papier ablegen») is
+    what completes the day's Papier step (``daily_journey.complete_papier_step``)."""
+
+    from app.services import daily_journey
+
+    calls: list[object] = []
+    monkeypatch.setattr(daily_journey, "complete_papier_step", lambda db, user: calls.append(user.id) or False)
+    headers = login(api)
+    session_id = start(api, headers, dossier_id=MARCHE)["id"]
+    closed = api.post(f"/api/v1/revue/sessions/{session_id}/close", headers=headers, json={})
+    assert closed.status_code == 200, closed.text
+    assert len(calls) == 1

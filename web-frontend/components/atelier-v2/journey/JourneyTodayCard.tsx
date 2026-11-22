@@ -74,7 +74,8 @@ import {
   type InterludeView,
   type SeasonPremiereView,
 } from './season-return-model';
-import { joinMeta, type JourneyPhase } from './journey-state';
+import { currentStepOf, joinMeta, type JourneyPhase } from './journey-state';
+import { isPapierStep } from './desk-step-model';
 import { coreEstimateLabel, dayTotalLabel, extensionLabel } from './time-estimate';
 import { TomorrowChoice } from './TomorrowChoice';
 import type { DailyJourneyController } from './useDailyJourney';
@@ -256,6 +257,15 @@ function JourneyPrimary({
       break;
     case 'session':
     case 'paused':
+      // REVUE_PLANNED_STEP_ENABLED: the story played, the press opens the Papier and says so;
+      // the Quartier stages the scene, not the Papier.
+      if (isPapierStep(currentStepOf(phase.journey))) {
+        return (
+          <Action tone="primary" disabled={busy} onClick={phase.kind === 'paused' ? onResume : onOpen} data-papier-next="">
+            {copy.resume_papier}
+          </Action>
+        );
+      }
       action = (
         <Action
           tone={quartier && way === 'quartier' ? 'secondary' : 'primary'}

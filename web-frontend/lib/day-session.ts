@@ -41,6 +41,8 @@ function counted(n: number, one: string, many: string): string {
 type Copy = {
   scene: string;
   papier: string;
+  /** The planned Papier opened and not filed yet («angefangen · 6 Min.»). */
+  papier_started: string;
   words: (n: number) => string;
   /** «10 new · 8 to review»: the deck's two halves, named apart (#279). */
   words_split: (fresh: number, due: number) => string;
@@ -83,6 +85,7 @@ type Copy = {
 const DE: Copy = {
   scene: 'Szene',
   papier: 'Le Papier',
+  papier_started: 'angefangen',
   words: (n) => counted(n, 'Wort', 'Wörter'),
   words_split: (fresh, due) => `${fresh} neu · ${due} zum Wiederholen`,
   grammar: 'Grammatik',
@@ -123,6 +126,7 @@ const DE: Copy = {
 const FR: Copy = {
   scene: 'Scène',
   papier: 'Le Papier',
+  papier_started: 'commencé',
   words: (n) => counted(n, 'mot', 'mots'),
   words_split: (fresh, due) => `${counted(fresh, 'nouveau', 'nouveaux')} · ${due} à revoir`,
   grammar: 'Grammaire',
@@ -163,6 +167,7 @@ const FR: Copy = {
 const EN: Copy = {
   scene: 'Scene',
   papier: 'Le Papier',
+  papier_started: 'started',
   words: (n) => counted(n, 'word', 'words'),
   words_split: (fresh, due) => `${fresh} new · ${due} to review`,
   grammar: 'Grammar',
@@ -225,13 +230,51 @@ export const SESSION_SHAPE: Record<DaySessionStepKind, 'story' | 'reward' | 'act
 };
 
 export type SessionRow = {
-  kind: DaySessionStepKind;
+  /** `papier`: the Papier day's planned Papier (`REVUE_PLANNED_STEP_ENABLED`), after the scene. */
+  kind: DaySessionStepKind | 'papier';
   state: DaySessionStep['state'];
   label: string;
   /** «8 Min.» while the step is still to do; empty once done, and for Fertig. */
   meta: string;
   shape: (typeof SESSION_SHAPE)[DaySessionStepKind];
 };
+
+/**
+ * Integration 2026-11-22 (`REVUE_PLANNED_STEP_ENABLED`): the Papier day's `papier` desk step as
+ * Home reads it off the journey — its own row after the scene, its minutes, its true state.
+ * `done` once the step is completed or skipped, or once today's Papier is filed (closing the
+ * session completes the step on the server; the journey may not be read again yet); `next`
+ * once every step before it is behind; `todo` otherwise. `started`: opened, not filed.
+ * `null` when the plan holds no Papier step (the switch off): Home reads as it did.
+ */
+export type PlannedPapier = { state: DaySessionStep['state']; minutes: number; started: boolean };
+
+type PapierJourneyLike = {
+  steps?: readonly { kind?: unknown; status?: unknown; estimated_seconds?: unknown; prompt?: unknown }[] | null;
+} | null | undefined;
+
+const STEP_BEHIND: ReadonlySet<unknown> = new Set(['completed', 'skipped']);
+
+export function plannedPapier(
+  journey: PapierJourneyLike,
+  options: { filed?: boolean; started?: boolean } = {},
+): PlannedPapier | null {
+  const steps = journey?.steps ?? [];
+  const index = steps.findIndex(
+    (step) => step.kind === 'desk' && (step.prompt as { desk?: unknown } | null | undefined)?.desk === 'papier',
+  );
+  if (index < 0) return null;
+  const step = steps[index];
+  const minutes = Math.max(1, Math.ceil(Number(step.estimated_seconds || 0) / 60));
+  const done = STEP_BEHIND.has(step.status) || Boolean(options.filed);
+  const state: DaySessionStep['state'] = done
+    ? 'done'
+    : steps.slice(0, index).every((earlier) => STEP_BEHIND.has(earlier.status))
+      ? 'next'
+      : 'todo';
+  return { state, minutes, started: !done && Boolean(options.started) };
+}
+
 
 /**
  * What the words step spends: its minutes, and when the deck holds both new
@@ -245,17 +288,24 @@ function wordsMeta(step: DaySessionStep, copy: Copy): string {
   return parts.filter(Boolean).join(' · ');
 }
 
-/** Home's programme: one row per step, with the minutes it still costs. */
+/**
+ * Home's programme: one row per step, with the minutes it still costs. On a news day without a
+ * planned Papier the scene row is «Le Papier» (the Papier follows the day's ending); with one
+ * (`planned`), the scene is the scene and the Papier its own row after it, and the scene's
+ * minutes no longer carry the Papier's.
+ */
 export function sessionRows(
   session: DaySession,
   language: ControlLanguage,
-  options: { papier?: boolean } = {},
+  options: { papier?: boolean; planned?: PlannedPapier | null } = {},
 ): SessionRow[] {
   const copy = daySessionCopy(language);
-  return session.steps.map((step) => {
+  const planned = options.planned ?? null;
+  const rows: SessionRow[] = [];
+  for (const step of session.steps) {
     const label =
       step.kind === 'scene'
-        ? options.papier
+        ? options.papier && !planned
           ? copy.papier
           : copy.scene
         : step.kind === 'words'
@@ -263,10 +313,26 @@ export function sessionRows(
           : step.kind === 'grammar'
             ? copy.grammar
             : copy.finish;
+    const minutes =
+      step.kind === 'scene' && planned && planned.state !== 'done'
+        ? Math.max(0, step.minutes - planned.minutes)
+        : step.minutes;
+    // One step is next: the planned Papier, while it is, holds that place.
+    const state = planned?.state === 'next' && step.state === 'next' && step.kind !== 'scene' ? 'todo' : step.state;
     const meta =
-      step.state === 'done' ? '' : step.kind === 'words' ? wordsMeta(step, copy) : step.minutes > 0 ? copy.minutes(step.minutes) : '';
-    return { kind: step.kind, state: step.state, label, meta, shape: SESSION_SHAPE[step.kind] };
-  });
+      state === 'done' ? '' : step.kind === 'words' ? wordsMeta(step, copy) : minutes > 0 ? copy.minutes(minutes) : '';
+    rows.push({ kind: step.kind, state, label, meta, shape: SESSION_SHAPE[step.kind] });
+    if (step.kind === 'scene' && planned) {
+      const papierMeta =
+        planned.state === 'done'
+          ? ''
+          : planned.started
+            ? `${copy.papier_started} · ${copy.minutes(planned.minutes)}`
+            : copy.minutes(planned.minutes);
+      rows.push({ kind: 'papier', state: planned.state, label: copy.papier, meta: papierMeta, shape: 'story' });
+    }
+  }
+  return rows;
 }
 
 /**
@@ -316,6 +382,21 @@ export function sessionNextAction(
         : copy.next_finish;
   const meta = step.kind === 'words' ? wordsMeta(step, copy) : step.minutes > 0 ? copy.minutes(step.minutes) : '';
   return { kind: step.kind, label, meta, href: step.href };
+}
+
+/**
+ * Home's one button after the scene (`sessionNextAction`), with the planned Papier: while it is
+ * not done, or while the journey that holds it is still open (closed elsewhere, the day not yet
+ * finished), the journey card's own press is the day's one action and leads to it.
+ */
+export function homeNextAction(
+  session: DaySession | null | undefined,
+  language: ControlLanguage,
+  planned: PlannedPapier | null,
+  options: { journeyOpen?: boolean } = {},
+): ReturnType<typeof sessionNextAction> {
+  if (planned && (planned.state !== 'done' || options.journeyOpen)) return null;
+  return sessionNextAction(session, language);
 }
 
 /**

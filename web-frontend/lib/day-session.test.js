@@ -303,5 +303,85 @@ test('P12: Home’s tracker reads the played scene through withScenePlayed', () 
   const src = require('node:fs').readFileSync(path.join(WEB_ROOT, 'pages/atelier.tsx'), 'utf8');
   assert.match(src, /const daySession = withScenePlayed\(serverSession, dayJourney\);/);
   // the one button stays the journey card's while the journey is open: no second press
-  assert.match(src, /sessionNextAction\(serverSession, chromeLanguage\)/);
+  // (homeNextAction is sessionNextAction with the planned Papier's own gate)
+  assert.match(src, /homeNextAction\(serverSession, chromeLanguage, papierPlanned,/);
+});
+
+// Integration 2026-11-22 (REVUE_PLANNED_STEP_ENABLED): the Papier is a step of its day.
+// Home named the scene row «Le Papier», marked it done before the Papier was opened and
+// showed two red buttons. With the step planned, the scene is the scene, the Papier its own
+// row after it with its minutes and its true state, and Home's one button is the journey's.
+function papierJourney(statuses, overrides = {}) {
+  const kinds = ['scene', 'respond', 'resolution', 'desk'];
+  return {
+    status: 'active',
+    steps: kinds.map((kind, index) => ({
+      id: `s${index}`,
+      kind,
+      status: statuses[index],
+      estimated_seconds: kind === 'desk' ? 360 : 120,
+      prompt: kind === 'desk' ? { desk: 'papier', title_fr: 'Le Papier' } : {},
+    })),
+    ...overrides,
+  };
+}
+
+test('no Papier step in the plan: no planned Papier (the switch off reads as before)', () => {
+  assert.equal(ds.plannedPapier(null), null);
+  const plain = papierJourney(['completed', 'completed', 'completed', 'active']);
+  plain.steps = plain.steps.slice(0, 3);
+  assert.equal(ds.plannedPapier(plain), null);
+  const rows = ds.sessionRows(session(['next', 'todo', 'todo', 'todo']), 'de', { papier: true, planned: null });
+  assert.equal(rows[0].label, 'Le Papier');
+});
+
+test('the planned Papier is its own row after the scene, with its minutes and its true state', () => {
+  const before = ds.plannedPapier(papierJourney(['active', 'pending', 'pending', 'pending']));
+  assert.deepEqual(before, { state: 'todo', minutes: 6, started: false });
+  const day = session(['next', 'todo', 'todo', 'todo']);
+  day.steps[0].minutes = 14; // the scene's minutes on the server hold the Papier's
+  const rows = ds.sessionRows(day, 'de', { papier: true, planned: before });
+  assert.deepEqual(rows.map((row) => [row.kind, row.label, row.state, row.meta]), [
+    ['scene', 'Szene', 'next', '8 Min.'],
+    ['papier', 'Le Papier', 'todo', '6 Min.'],
+    ['grammar', 'Grammatik', 'todo', '5 Min.'],
+    ['words', '32 Wörter', 'todo', '20 neu · 12 zum Wiederholen · 8 Min.'],
+    ['finish', 'Fertig', 'todo', ''],
+  ]);
+
+  // The story played, the Papier not opened: the scene is done, the Papier is next, alone.
+  const next = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'active']));
+  assert.deepEqual(next, { state: 'next', minutes: 6, started: false });
+  const after = ds.sessionRows(session(['done', 'next', 'todo', 'todo']), 'de', { planned: next });
+  assert.deepEqual(after.map((row) => [row.kind, row.state]), [
+    ['scene', 'done'], ['papier', 'next'], ['grammar', 'todo'], ['words', 'todo'], ['finish', 'todo'],
+  ]);
+
+  // Opened and not filed: in progress.
+  const open = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'active']), { started: true });
+  const openRow = ds.sessionRows(session(['done', 'next', 'todo', 'todo']), 'fr', { planned: open })[1];
+  assert.deepEqual([openRow.label, openRow.state, openRow.meta], ['Le Papier', 'next', 'commencé · 6 min']);
+
+  // Done only once the step is completed (or its session closed: the server completes it).
+  for (const planned of [
+    ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'completed'])),
+    ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'active']), { filed: true }),
+  ]) {
+    assert.equal(planned.state, 'done');
+    const row = ds.sessionRows(session(['done', 'next', 'todo', 'todo']), 'de', { planned })[1];
+    assert.deepEqual([row.state, row.meta], ['done', '']);
+  }
+  assert.equal(ds.sessionRows(session(['next', 'todo', 'todo', 'todo']), 'en', { planned: before })[1].label, 'Le Papier');
+});
+
+test('one primary action: while the planned Papier is open, Home has no second button', () => {
+  const day = session(['done', 'next', 'todo', 'todo']);
+  const next = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'active']));
+  assert.equal(ds.homeNextAction(day, 'de', next), null, 'the journey card opens the Papier');
+  const done = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'completed'], { status: 'completed' }));
+  assert.equal(ds.homeNextAction(day, 'de', done).label, 'Weiter: Grammatik');
+  // The Papier closed elsewhere and the day not yet finished: the card finishes it first.
+  const waiting = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'completed']));
+  assert.equal(ds.homeNextAction(day, 'de', waiting, { journeyOpen: true }), null);
+  assert.deepEqual(ds.homeNextAction(day, 'de', null), ds.sessionNextAction(day, 'de'));
 });

@@ -141,7 +141,8 @@ import {
   homeDayChip,
   recapStreak,
   sessionMarkState,
-  sessionNextAction,
+  homeNextAction,
+  plannedPapier,
   sessionRows,
   withScenePlayed,
 } from '@/lib/day-session';
@@ -2971,7 +2972,15 @@ function TodayView({
    * the next). Only while the journey owns the day (`homeDay`). The rule is `lib/revue-une.ts`, tested in
    * `components/atelier-v2/home/atelier-revue-entry.test.js`.
    */
-  const revueEntry = homeDay
+  // Integration 2026-11-22 (REVUE_PLANNED_STEP_ENABLED): a plan that holds the Papier as a
+  // step makes it a row of the programme in its own place, with its own state; the day's card
+  // is then the one way in (its press opens the next unfinished step, the Papier included), so
+  // no Revue hero promises the Papier and opens the scene.
+  const revueOffer = revueWeek?.enabled ? revueWeek.offer : null;
+  const papierPlanned = homeDay
+    ? plannedPapier(dayJourney, { filed: Boolean(revueOffer?.filed), started: Boolean(revueOffer?.resume) })
+    : null;
+  const revueEntry = homeDay && !papierPlanned
     ? revueUneEntry({
         week: revueWeek,
         language: chromeLanguage,
@@ -3198,7 +3207,9 @@ function TodayView({
   const sessionCopy = daySessionCopy(chromeLanguage);
   // P12: the button follows the server's session (the journey card's «Continue today» while
   // the journey's own steps go on); the tracker reads daySession.
-  const sessionNext = sessionNextAction(serverSession, chromeLanguage);
+  const sessionNext = homeNextAction(serverSession, chromeLanguage, papierPlanned, {
+    journeyOpen: dayJourney?.status === 'active' || dayJourney?.status === 'paused',
+  });
   // P7: no «Noch 5 neue Wörter» on Home after the day; Settings holds the offer.
   const homeHero = daySession && sessionNext ? (
     <>
@@ -3254,7 +3265,7 @@ function TodayView({
       // (Le Papier first); only an interlude has no scene to plan.
       planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       session={daySession ? {
-        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday, planned: papierPlanned }),
         tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
         onTempo: () => setTempoOpen(true),
       } : null}

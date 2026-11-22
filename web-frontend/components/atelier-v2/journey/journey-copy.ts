@@ -279,7 +279,9 @@ export type JourneyCopyKey =
   | 'spoken_too_long'
   | 'repeat_title'
   | 'repeat_hint'
-  | 'repeat_listen';
+  | 'repeat_listen'
+  // REVUE_PLANNED_STEP_ENABLED: the day's card when its next step is the Papier.
+  | 'resume_papier';
 
 type CopyTable = Record<JourneyCopyKey, string>;
 
@@ -287,6 +289,7 @@ const EN: CopyTable = {
   today_eyebrow: 'Today',
   start: 'Start today',
   resume: 'Continue today',
+  resume_papier: 'Next: Le Papier',
   // P12: the scene played in Le Quartier (3D), or read as the page
   play_in_quartier: 'Play in the Quartier',
   read_as_page: 'Read as a page',
@@ -516,6 +519,7 @@ const DE: CopyTable = {
   today_eyebrow: 'Heute',
   start: 'Heute starten',
   resume: 'Heute fortsetzen',
+  resume_papier: 'Weiter: Le Papier',
   play_in_quartier: 'Im Quartier spielen',
   read_as_page: 'Als Seite lesen',
   preparing_title: 'Heute wird vorbereitet',
@@ -743,6 +747,7 @@ const FR: CopyTable = {
   today_eyebrow: 'Aujourd’hui',
   start: 'Commencer',
   resume: 'Reprendre',
+  resume_papier: 'Suite : Le Papier',
   play_in_quartier: 'Jouer dans le Quartier',
   read_as_page: 'Lire la page',
   preparing_title: 'Préparation en cours',

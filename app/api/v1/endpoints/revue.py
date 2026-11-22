@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -216,6 +217,20 @@ def post_make(
         raise _http(error) from error
 
 
+def _complete_papier_step(db: Session, user: User) -> None:
+    """``REVUE_PLANNED_STEP_ENABLED``: the closed session completes the day's Papier step
+    (``daily_journey.complete_papier_step``). A failure costs the step, never the close."""
+
+    from app.services.daily_journey import complete_papier_step
+
+    try:
+        if complete_papier_step(db, user):
+            db.commit()
+    except Exception:  # pragma: no cover - the close is already committed
+        logger.exception("revue: the closed session did not complete the day's Papier step")
+        db.rollback()
+
+
 @router.post("/sessions/{session_id}/close", response_model=RvCloseResult)
 def close_session(
     session_id: str,
@@ -228,6 +243,7 @@ def close_session(
     try:
         row = owned_session(db, current_user, session_id, lock=True)
         view, closing = encounter.close(row)
+        _complete_papier_step(db, current_user)
         return RvCloseResult(session=view, closing=closing)
     except RevueError as error:
         raise _http(error) from error

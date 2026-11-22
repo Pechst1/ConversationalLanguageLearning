@@ -190,3 +190,61 @@ def test_a_week_played_end_to_end_the_papier_is_a_step_and_the_day_completes(
         stored = (row.plan_selection or {}).get("time_budget") or {}
         assert stored.get("core_seconds") == sum(step["estimated_seconds"] for step in journey["steps"])
     assert papier_days >= 1
+
+
+# ---------------------------------------------------------------------------
+# 3. A closed Papier session completes the step (integration 2026-11-22)
+# ---------------------------------------------------------------------------
+
+
+def _papier_day(db_session, *, papier_status: str = "active"):
+    from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
+    from app.db.models.user import User
+    from app.services.daily_journey import learner_timezone, local_date_for
+
+    user = User(id=uuid.uuid4(), email=f"papier-close-{uuid.uuid4().hex[:8]}@example.com", hashed_password="x",
+                cefr_estimate="A2.1", native_language="de", interests="")
+    db_session.add(user)
+    db_session.flush()
+    journey = DailyJourney(id=uuid.uuid4(), user_id=user.id, local_date=local_date_for(learner_timezone(user)),
+                           status="active", revision=4)
+    db_session.add(journey)
+    db_session.flush()
+    ending = DailyJourneyStep(id=uuid.uuid4(), journey_id=journey.id, ordinal=0, kind="resolution",
+                              status="completed" if papier_status == "active" else "active")
+    papier = DailyJourneyStep(id=uuid.uuid4(), journey_id=journey.id, ordinal=1, kind="desk", status=papier_status,
+                              optional=True, estimated_seconds=planner.PAPIER_DESK_SECONDS,
+                              public_prompt=planner.papier_offer())
+    db_session.add_all([ending, papier])
+    db_session.flush()
+    journey.current_step_id = papier.id if papier_status == "active" else ending.id
+    db_session.flush()
+    return user, journey, ending, papier
+
+
+@pytest.mark.parametrize("papier_status", ["active", "pending"])
+def test_a_closed_papier_session_completes_the_days_papier_step(db_session, monkeypatch, papier_status) -> None:
+    from app.services.daily_journey import complete_papier_step
+
+    monkeypatch.setattr(settings, "REVUE_PLANNED_STEP_ENABLED", True)
+    user, journey, ending, papier = _papier_day(db_session, papier_status=papier_status)
+    assert complete_papier_step(db_session, user) is True
+    db_session.refresh(papier)
+    db_session.refresh(journey)
+    assert papier.status == "completed" and papier.completed_at is not None
+    assert journey.revision == 5, "the player refreshes: the journey moved on"
+    if papier_status == "active":
+        assert journey.current_step_id is None, "the Papier was the day's last step"
+    else:
+        assert journey.current_step_id == ending.id, "the story goes on; the Papier will not open again"
+    assert complete_papier_step(db_session, user) is False, "idempotent"
+
+
+def test_with_the_switch_off_a_closed_session_leaves_the_journey_alone(db_session, monkeypatch) -> None:
+    from app.services.daily_journey import complete_papier_step
+
+    monkeypatch.setattr(settings, "REVUE_PLANNED_STEP_ENABLED", False)
+    user, journey, _ending, papier = _papier_day(db_session)
+    assert complete_papier_step(db_session, user) is False
+    db_session.refresh(papier)
+    assert papier.status == "active" and journey.revision == 4

@@ -104,6 +104,7 @@ from app.services.journey_contracts import (
     ACT_STEP_KINDS,
     DEFAULT_DAY_SHAPE,
     FIRST_DAY_KIND,
+    PAPIER_DESK,
     READ_MIN_BUDGET_SECONDS,
     SCENE_QUESTION_GRACE,
     TERMINAL_JOURNEY_STATUSES,
@@ -439,6 +440,50 @@ def local_date_for(timezone_name: str, *, now: datetime | None = None) -> date:
 
     moment = now or _utcnow()
     return moment.astimezone(ZoneInfo(resolve_timezone(timezone_name))).date()
+
+
+def complete_papier_step(db: Session, user: User) -> bool:
+    """``REVUE_PLANNED_STEP_ENABLED`` (integration 2026-11-22): a closed Papier session
+    completes today's ``papier`` step, wherever it was closed (at the step, from the news
+    card or the Quartier's column). Home and the Quartier read a closed session as done;
+    the journey now says the same instead of holding the step open behind a read-only
+    Papier. A step still ahead of the story is completed too, so the player never opens
+    it again. Bumps the journey's revision so an open player refreshes. Flushes, never
+    commits; ``True`` when a step changed."""
+
+    if not getattr(settings, "REVUE_PLANNED_STEP_ENABLED", False):
+        return False
+    day = local_date_for(learner_timezone(user))
+    journey = db.execute(
+        select(DailyJourney).where(DailyJourney.user_id == user.id, DailyJourney.local_date == day)
+    ).scalars().first()
+    if journey is None or journey.status not in (JourneyStatus.ACTIVE.value, JourneyStatus.PAUSED.value):
+        return False
+    step = next(
+        (
+            candidate
+            for candidate in journey.steps
+            if str(candidate.kind) == StepKind.DESK.value
+            and (candidate.public_prompt or {}).get("desk") == PAPIER_DESK
+            and candidate.status in (StepStatus.PENDING.value, StepStatus.ACTIVE.value)
+        ),
+        None,
+    )
+    if step is None:
+        return False
+    step.status = StepStatus.COMPLETED.value
+    step.completed_at = _utcnow()
+    if journey.current_step_id == step.id:
+        journey.current_step_id = None
+        for candidate in sorted(journey.steps, key=lambda item: item.ordinal):
+            if candidate.ordinal > step.ordinal and candidate.status == StepStatus.PENDING.value:
+                candidate.status = StepStatus.ACTIVE.value
+                candidate.started_at = _utcnow()
+                journey.current_step_id = candidate.id
+                break
+    journey.revision = int(journey.revision or 0) + 1
+    db.flush()
+    return True
 
 
 def journey_error(
