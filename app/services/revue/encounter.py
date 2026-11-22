@@ -821,17 +821,67 @@ def catalogue_words_in(claims: Sequence[dict[str, str]]) -> list[str]:
     return [row["fr"] for row in extract_vocabulary(claims, 50, strict=True) if _catalogue_known(row["fr"])]
 
 
-def appears_in(text: str, form: str) -> bool:
-    """``form`` occurs in ``text``, or (an infinitive, a singular) shares its stem with a word
-    there: «retirer» in «a retiré», «le cheval» in «seize chevaux» (§10e.5)."""
+#: Folded endings a regular verb takes after its root (``porter`` → ``port`` + …).
+_VERB_ENDINGS: dict[str, frozenset[str]] = {
+    "er": frozenset({"er", "e", "es", "ent", "ons", "ez", "ai", "as", "a", "ait", "ais", "aient", "ions", "iez",
+                     "ant", "ee", "ees", "era", "erai", "eras", "erons", "erez", "eront", "erait", "eraient"}),
+    "ir": frozenset({"ir", "is", "it", "i", "ie", "ies", "issons", "issez", "issent", "issait", "issais",
+                     "issaient", "issant", "isse", "ira", "irai", "iront", "irait"}),
+    "re": frozenset({"re", "s", "t", "d", "ons", "ez", "ent", "u", "ue", "us", "ues", "ait", "ais", "aient",
+                     "ant", "ra", "rai", "ront", "rait"}),
+}
+#: Feminine adjective endings (folded): «actif» → «active», «heureux» → «heureuse».
+_FEMININE = (("if", "ive"), ("eux", "euse"), ("el", "elle"), ("en", "enne"), ("on", "onne"), ("et", "ette"),
+             ("er", "ere"))
 
-    if _contains_word(text, form):
-        return True
-    bare = fold_keep_length(_without_article(form))
-    if " " in bare or len(bare) < 5:
+
+def _inflections(form: str) -> set[str]:
+    """The folded words that inflect ``form`` (a single word, with or without its article):
+    a noun with its article only its number; a bare word also its gender; a regular verb
+    (``-er``, ``-ir``, ``-re``) its conjugated forms and participles."""
+
+    lowered = (form or "").strip().lower()
+    article = lowered.split(" ", 1)[0] if " " in lowered else ("l'" if lowered.startswith(("l'", "l’")) else "")
+    bare = fold_keep_length(_without_article(form)).strip()
+    out = {bare}
+    if article in {"les", "des"} and len(bare) > 4 and bare[-1] in "sx":
+        singular = bare[:-1]  # «les élections» in «l'élection»
+        out.add(singular)
+        if bare.endswith("aux"):
+            out |= {bare[:-3] + "al", bare[:-3] + "ail"}
+        return out
+    if bare[-1:] not in "sxz":
+        out |= {bare + "s", bare + "x"}
+    if bare.endswith("al"):
+        out.add(bare[:-2] + "aux")
+    if bare.endswith("ail"):
+        out.add(bare[:-3] + "aux")
+    if article:
+        return out  # a noun: its number, never another word («le cours» is not «la course»)
+    if bare[-1:] not in "sxz" or bare.endswith(("ais", "ois")):
+        out |= {bare + "e", bare + "es"}
+    for masculine, feminine in _FEMININE:
+        if bare.endswith(masculine):
+            out |= {bare[: -len(masculine)] + feminine, bare[: -len(masculine)] + feminine + "s"}
+    if len(bare) >= 5 and bare[-2:] in _VERB_ENDINGS:
+        root = bare[:-2]
+        out |= {root + ending for ending in _VERB_ENDINGS[bare[-2:]]}
+    return out
+
+
+def appears_in(text: str, form: str) -> bool:
+    """``form`` occurs in ``text`` as a word, or inflected: «retirer» in «a retiré», «le
+    cheval» in «seize chevaux» (§10e.5). Only an inflectional ending may differ — «cours» is
+    not in «course» (real-data run 2026-11-22: a due word promised by a story without it)."""
+
+    bare = _without_article(form).strip()
+    if not bare:
         return False
-    stem = bare[: max(5, len(bare) - 3)]
-    return any(word.startswith(stem) for word in _WORD.findall(fold_keep_length(text)))
+    if re.search(r"[\s'’-]", bare):
+        # a phrase or a compound: the phrase itself, at a word start
+        return _contains_word(text, form)
+    words = set(re.findall(r"[^\W\d_]+", fold_keep_length(text)))
+    return bool(words & _inflections(form))
 
 
 @dataclass
