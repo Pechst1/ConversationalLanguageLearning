@@ -179,3 +179,26 @@ test('fr, en and de say every line', () => {
   }
   assert.equal(model.pourquoiCopy('xx'), model.POURQUOI_COPY.fr);
 });
+
+// ---------------------------------------------------------------------------
+// Integration 2026-11-22 (d5-03, d6-02): the opened why above the foot, one copy of the
+// learner's sentence while Romy's corrections are shown, the fix field in whole lines.
+// ---------------------------------------------------------------------------
+
+test('an opened why is brought into the band above the fixed foot', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'RvProofMarks.tsx'), 'utf8');
+  assert.match(src, /bringIntoView\(note,/);
+  assert.match(src, /leaderRise\(/);
+});
+
+test('while Romy’s corrections card is shown, the learner’s own bubble is not repeated', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'RvComptoirOpinion.tsx'), 'utf8');
+  assert.match(src, /\{opinion && !marked && <MineLine textFr=\{opinion\.learnerFr\}/);
+});
+
+test('the fix field shows whole lines: its cap is a whole number of lines plus its padding and border', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../../styles/revue.css'), 'utf8');
+  const rule = css.split('\n').find((line) => line.includes('.rv-composer .av2-field__control'));
+  assert.ok(rule, 'the composer control rule');
+  assert.match(rule, /max-height: calc\(4lh \+ 1rem \+ 4px\)/);
+});

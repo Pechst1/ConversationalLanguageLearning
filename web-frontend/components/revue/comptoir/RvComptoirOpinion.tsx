@@ -370,7 +370,8 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
     <>
       <div className="rv-body ct-body" data-step="opinion" data-input={input}>
         <RomyLine line={COMPTOIR_LINES.opinion_ask} props={props} past={Boolean(opinion)} />
-        {opinion && <MineLine textFr={opinion.learnerFr} copy={copy} />}
+        {/* Romy's corrections card is the sentence while it is shown: the learner's bubble steps aside. */}
+        {opinion && !marked && <MineLine textFr={opinion.learnerFr} copy={copy} />}
         {composer}
         {suite}
         {notice}

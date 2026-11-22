@@ -191,6 +191,16 @@ export function hairlineX(wordLeft: number, wordWidth: number, proofWidth: numbe
 }
 
 /**
+ * How far the margin note's leader rises (integration 2026-11-22): through the gap between the
+ * sentence's last line (`proofBottom`) and the note (`noteTop`) only, so it never crosses a
+ * line of text, whatever line its word (`wordBottom`, kept for the call's clarity) is on; the
+ * word itself is lit. Never shorter than a 4 px tick.
+ */
+export function leaderRise(noteTop: number, wordBottom: number, proofBottom: number): number {
+  return Math.max(4, Math.round(noteTop - Math.max(wordBottom, proofBottom) - 4));
+}
+
+/**
  * FLIP for the wire's strips: from the boxes before and after a reorder, how far each strip
  * must start from (its old place) to slide to its new one. Only strips that moved.
  */

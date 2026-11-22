@@ -8,7 +8,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
-import { hairlineX, stampTilt } from '../papier/papier-model';
+import { hairlineX, leaderRise, stampTilt } from '../papier/papier-model';
+import { bringIntoView } from './scroll';
 
 import type { RvComptoirMark, RvComptoirMarkKind, RvLanguage, RvMarkRule } from '@/lib/revue-types';
 
@@ -68,7 +69,12 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
     const n = note.getBoundingClientRect();
     const w = word.getBoundingClientRect();
     note.style.setProperty('--pp-x', `${hairlineX(w.left - n.left, w.width, n.width)}px`);
-    note.style.setProperty('--pp-rise', `${Math.max(4, Math.round(n.top - w.bottom - 4))}px`);
+    // The leader rises through the gap under the sentence only: never across its lines.
+    note.style.setProperty('--pp-rise', `${leaderRise(n.top, w.bottom, proof.getBoundingClientRect().bottom)}px`);
+    // The opened why comes into the band between the player's head and its fixed foot.
+    if (typeof document !== 'undefined') {
+      bringIntoView(note, document.querySelector<HTMLElement>('.rv-top'), document.querySelector<HTMLElement>('.rv-foot'), 'nearest');
+    }
   }, [open]);
 
   if (!hasWhy(marks)) {

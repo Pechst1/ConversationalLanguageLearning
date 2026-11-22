@@ -108,6 +108,18 @@ test('the margin note hangs from the middle of its word, inside the proof', () =
   assert.deepEqual(model.flipDeltas({ a: 0, b: 60, c: 120 }, { a: 60, b: 0, c: 120 }), { a: -60, b: 60 });
 });
 
+// Integration 2026-11-22 (d5-03): the leader ran from the note up through the sentence's
+// next line to the word. It now rises only through the gap under the sentence, never across
+// a line of text: from the note's top to the proof's last line, whatever line the word is on.
+test('the margin note’s leader never crosses a line of the sentence', () => {
+  // word on the first line (bottom 40), sentence ends at 120, note at 136: 12 px, not 92
+  assert.equal(model.leaderRise(136, 40, 120), 12);
+  // word on the last line: the same gap
+  assert.equal(model.leaderRise(136, 118, 120), 12);
+  // never shorter than a tick
+  assert.equal(model.leaderRise(121, 40, 120), 4);
+});
+
 test('the page prints the story’s own picture with its credit, never a season plate', () => {
   const stage = {
     plateUrl: '/media/p.png',

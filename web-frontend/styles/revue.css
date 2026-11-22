@@ -177,7 +177,7 @@
 .av2 .rv-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .av2 .rv-composer .av2-field { flex: 1 1 auto; min-width: 0; }
 .av2 .rv-composer .av2-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.av2 .rv-composer .av2-field__control { min-height: var(--av2-tap); max-height: 6.5rem; padding-block: 0.5rem; resize: none; }
+.av2 .rv-composer .av2-field__control { min-height: var(--av2-tap); max-height: 6.5rem; max-height: calc(4lh + 1rem + 4px); padding-block: 0.5rem; resize: none; } /* whole lines, then it scrolls (integration 2026-11-22) */
 
 /* RvMakePicker: ChoiceList with a sub-line and Romy's pick */
 .av2 .rv-make .av2-choice { flex-wrap: wrap; row-gap: 2px; align-items: flex-start; cursor: pointer; }
