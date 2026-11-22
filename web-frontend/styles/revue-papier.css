@@ -930,3 +930,46 @@ html:has(.av2.rv-page) { scroll-padding-top: 96px; scroll-padding-bottom: 140px;
 .av2 .pp-captions .rb-head[data-tried]:not([data-role='right']) .fl-strip__fr { text-decoration: line-through; text-decoration-color: var(--av2-red); text-decoration-thickness: 1.5px; color: var(--av2-ink-2); }
 .av2 .pp-wrong { margin-right: 0.55em; }
 .av2 .pp-wrong .pp-del { left: 0; right: auto; width: calc(100% + 0.55em); }
+
+/* ===========================================================================
+   «Papier · le choix» (2026-11-22) · components/revue/choix/RvChoix.tsx
+   The opening screen as a front page: the lead story under its picture at display size,
+   a heavy rule, then two stories side by side across a column rule. Each story is one
+   button; its rubric is the kicker; the line of why it is offered sits under it in the sans.
+   =========================================================================== */
+.av2 .pp-choix { display: flex; flex-direction: column; gap: 0; }
+.av2 .pp-choix .pp-opening { padding: 0; }
+.av2 .pp-choix__hint { margin: 6px 0 12px; font: italic 400 var(--av2-t-body)/1.35 var(--av2-serif); color: var(--av2-ink-2); }
+.av2 .pp-choix__lead, .av2 .pp-choix__col { display: flex; flex-direction: column; align-items: stretch; gap: 6px; width: 100%; min-width: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.av2 .pp-choix__lead { padding-bottom: 16px; }
+.av2 .pp-choix__lead:focus-visible, .av2 .pp-choix__col:focus-visible { outline: 2px solid var(--av2-focus); outline-offset: 4px; }
+.av2 .pp-choix__lead:disabled, .av2 .pp-choix__col:disabled { cursor: default; }
+.av2 .pp-choix__lead:disabled:not([data-pending]), .av2 .pp-choix__col:disabled:not([data-pending]) { opacity: 0.45; }
+.av2 .pp-choix__pic { position: relative; display: block; overflow: hidden; border-radius: 1px; box-shadow: 0 0 0 1px var(--pp-hair);
+  background: repeating-linear-gradient(135deg, var(--av2-line) 0 6px, var(--av2-card) 6px 12px); }
+.av2 .pp-choix__lead .pp-choix__pic { aspect-ratio: 2 / 1; margin-bottom: 4px; }
+.av2 .pp-choix__col .pp-choix__pic { aspect-ratio: 3 / 2; margin: 2px 0; }
+.av2 .pp-choix__pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.av2 .pp-choix__kicker { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font: 700 0.625rem/1.3 var(--av2-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--pp-red-text); }
+.av2 .pp-choix__kicker b { font-weight: 700; }
+.av2 .pp-choix__topic { color: var(--av2-muted); letter-spacing: 0.12em; }
+.av2 .pp-choix__hl { display: block; font: italic 800 1.25rem/1.1 var(--av2-serif); letter-spacing: -0.01em; color: var(--av2-ink); text-wrap: balance; hyphens: manual; }
+.av2 .pp-choix__lead .pp-choix__hl { font-size: 2.125rem; line-height: 1.02; letter-spacing: -0.02em; }
+.av2 .pp-choix__stand { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: italic 400 var(--av2-t-body-lg)/1.36 var(--av2-serif); color: var(--av2-ink-2); text-wrap: pretty; }
+.av2 .pp-choix__why { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; padding-left: 10px; border-left: 2px solid var(--av2-red); font: 500 0.8125rem/1.35 var(--av2-sans); color: var(--av2-ink); text-wrap: pretty; }
+.av2 .pp-choix__words { margin-top: 1px; font: italic 400 var(--av2-t-body)/1.3 var(--av2-serif); color: var(--av2-ink-2); }
+.av2 .pp-choix__col .pp-choix__hl { font-size: 1.375rem; }
+.av2 .pp-choix__go { align-self: flex-start; margin-top: 4px; font: 700 0.625rem/1.3 var(--av2-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--av2-ink);
+  border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.av2 .pp-choix__lead .pp-choix__go { margin-top: 6px; }
+.av2 .pp-choix__cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 12px; border-top: 3px solid var(--pp-rule); }
+.av2 .pp-choix__cols[data-n='2'] { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 0 14px; }
+.av2 .pp-choix__cols[data-n='2']::before { content: ''; grid-column: 2; grid-row: 1; background: var(--pp-hair); }
+.av2 .pp-choix__cols[data-n='2'] > :first-child { grid-column: 1; grid-row: 1; }
+.av2 .pp-choix__cols[data-n='2'] > :last-child { grid-column: 3; grid-row: 1; }
+.av2 .pp-choix [data-pending] .pp-choix__go { color: var(--pp-red-text); }
+.av2 .pp-choix [data-pending] .pp-choix__go::after { content: ' …'; }
+@media (hover: hover) {
+  .av2 .pp-choix__lead:hover .pp-choix__hl, .av2 .pp-choix__col:hover .pp-choix__hl { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+}

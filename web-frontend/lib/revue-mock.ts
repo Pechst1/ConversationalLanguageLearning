@@ -744,7 +744,16 @@ export type MockOptions = {
   pourquoi?: boolean;
   /** «Papier · photos»: every stage carries a `pictures` list of three, placeholders (default false). */
   photos?: boolean;
+  /**
+   * «Papier · le choix» (`&choix=1`): the offer carries a front page of three stories with their `why`
+   * (in `language`, as the mother tongue): Céline at the counter, the Fête's headlines, the market as a
+   * chat. Turns «Au comptoir» and «Le titre» on, the two offered assignments (default false).
+   */
+  choix?: boolean;
 };
+
+/** «Papier · le choix»: the day's rule as the mock learner's rule card names it. */
+const CHOIX_RULE: Record<Lang, string> = { fr: 'Donner son avis', en: 'Giving your opinion', de: 'Seine Meinung sagen' };
 
 const STORAGE_KEY = 'revue-mock-v1';
 /** The assignments' French names (assignments.py). */
@@ -827,7 +836,9 @@ function httpError(status: number, detail: unknown): HttpError {
   return error;
 }
 
-export function createMockRevueTransport(options: MockOptions = {}): RevueTransport & { reset: () => void } {
+export function createMockRevueTransport(given: MockOptions = {}): RevueTransport & { reset: () => void } {
+  // «Papier · le choix»: the two offered assignments, on.
+  const options: MockOptions = given.choix ? { ...given, comptoir: true, titre: true } : given;
   const language: Lang = options.language ?? 'en';
   const band: Band = options.band ?? 'A2';
   const latency = options.latency ?? 0;
@@ -1155,6 +1166,20 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
             ? [cardOf(MARCHE), cardOf(FETE)]
             : [cardOf(GREVE), cardOf(FETE)],
       evergreen_only: true,
+      ...(options.choix
+        ? {
+            choices: [
+              {
+                ...cardOf(CELINE),
+                assignment: { key: 'comptoir', name_fr: ASSIGNMENT_NAMES.comptoir },
+                why: { due_words: ['le concert', 'la chanteuse', 'revenir'], rule: { id: 'FR2_B11_OPINION', name: CHOIX_RULE[language], today: true }, interest: null, score: 10 },
+              },
+              { ...cardOf(FETE), why: { due_words: [], rule: null, interest: { topic: 'culture', word: 'musique' }, score: 5 } },
+              { ...cardOf(MARCHE), why: { due_words: ['le marché'], rule: null, interest: null, score: 2 } },
+            ],
+            why_language: language,
+          }
+        : {}),
       resume: current
         ? {
             session_id: current.id,

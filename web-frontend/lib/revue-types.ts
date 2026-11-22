@@ -131,6 +131,18 @@ export type RvStoryCard = {
   cast: string[] | null;
   /** The assignment this learner would be dealt («La photo»…), named by the chooser; null with the switch off. */
   assignment: { key: string; nameFr: string } | null;
+  /** «Papier · le choix»: why pedagogy offers it; null with REVUE_PEDAGOGY_PICK_ENABLED off. */
+  why: RvWhy | null;
+};
+/**
+ * «Papier · le choix» (2026-11-22): why a story is offered — the learner's due words its French
+ * contains, the grammar rule it gives occasion to use (named in the mother tongue; `today` false
+ * when it is the week's most recent, not the day's own), the interest it meets.
+ */
+export type RvWhy = {
+  dueWords: string[];
+  rule: { id: string; name: string; today: boolean } | null;
+  interest: { topic: string; word: string } | null;
 };
 export type RvSupport = {
   glosses: 'shown' | 'tap' | 'none';
@@ -240,6 +252,10 @@ export type RvOffer = {
   evergreenOnly: boolean;
   resume: RvResume | null;
   filed: RvFiled | null;
+  /** «Papier · le choix»: the front page (up to three stories); null with REVUE_CHOICE_ENABLED off. */
+  choices: RvStoryCard[] | null;
+  /** The language the choices' `why` lines are said in (the mother tongue). */
+  whyLanguage: RvLanguage | null;
 };
 /** `GET /revue/week`: a 404 (the flag is off) is `{ enabled: false }`, never an error. */
 export type RvWeekResult = { enabled: false } | { enabled: true; offer: RvOffer };
@@ -315,6 +331,8 @@ export type RvSessionView = {
   /** «La photo», «Le micro» (2026-11-21): null unless `mode` says so. */
   photo: RvPhotoView | null;
   micro: RvMicroView | null;
+  /** «Papier · le choix»: why pedagogy offered the story (null when it was not picked that way). */
+  why: RvWhy | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -655,6 +673,17 @@ export function parseStoryCard(raw: Json): RvStoryCard {
     questionFr: strOrNull(raw.question_fr) || null,
     cast: Array.isArray(raw.cast) ? raw.cast.filter((id: unknown): id is string => typeof id === 'string') : null,
     assignment: isObject(raw.assignment) && raw.assignment.name_fr ? { key: str(raw.assignment.key), nameFr: str(raw.assignment.name_fr) } : null,
+    why: isObject(raw.why) ? parseWhy(raw.why) : null,
+  };
+}
+
+export function parseWhy(raw: Json): RvWhy {
+  const rule = isObject(raw.rule) && str(raw.rule.name) ? raw.rule : null;
+  const interest = isObject(raw.interest) && str(raw.interest.word) ? raw.interest : null;
+  return {
+    dueWords: Array.isArray(raw.due_words) ? raw.due_words.filter((w: unknown): w is string => typeof w === 'string' && w.trim() !== '') : [],
+    rule: rule ? { id: str(rule.id), name: str(rule.name), today: rule.today === true } : null,
+    interest: interest ? { topic: str(interest.topic), word: str(interest.word) } : null,
   };
 }
 
@@ -802,6 +831,8 @@ export function parseOffer(raw: Json): RvOffer {
     recommendedReason: oneOf(raw.recommended_reason, ['topic_least_recent', 'interests', 'first'] as const, 'first'),
     alternatives: list(raw.alternatives, parseStoryCard),
     evergreenOnly: Boolean(raw.evergreen_only),
+    choices: Array.isArray(raw.choices) ? list(raw.choices, parseStoryCard).slice(0, 3) : null,
+    whyLanguage: raw.why_language === 'en' || raw.why_language === 'de' || raw.why_language === 'fr' ? raw.why_language : null,
     resume: resume
       ? {
           sessionId: str(resume.session_id),
@@ -924,6 +955,7 @@ export function parseSessionView(raw: Json): RvSessionView {
     intox: raw.mode === 'intox' && isObject(raw.intox) ? parseIntoxView(raw.intox, parseSource) : null,
     photo: raw.mode === 'photo' && isObject(raw.photo) ? parsePhotoView(raw.photo, parseSource) : null,
     micro: raw.mode === 'micro' && isObject(raw.micro) ? parseMicroView(raw.micro, parseSource) : null,
+    why: isObject(raw.why) ? parseWhy(raw.why) : null,
   };
 }
 

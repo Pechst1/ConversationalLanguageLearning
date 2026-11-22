@@ -10,6 +10,9 @@
  * «Au comptoir» mode, the ONE `RvComptoir`. The × and «Classer la Revue» both call
  * `onDone`, and the player then shows the day's recap.
  *
+ * «Papier · le choix» (2026-11-22): when the week carries a front page (`offer.choices`,
+ * REVUE_CHOICE_ENABLED), the learner picks the story there; one tap starts it.
+ *
  * Nothing to do (the Revue is off, nothing recommended, this week's Papier
  * already filed) calls `onDone` at once. A failure says so quietly and offers
  * «Continuer»: the day is never blocked by the Revue.
@@ -18,11 +21,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Router from 'next/router';
 
-import { AtelierV2Root, CastPortrait, StateBlock } from '@/components/atelier-v2/ui';
+import { AtelierV2Root, CastPortrait, CrossIcon, IconAction, StateBlock } from '@/components/atelier-v2/ui';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { RevueError, revueClient, type RevueClient } from '@/lib/revue-api';
 import { releveAnchor } from '@/lib/revue-releve';
-import type { RvLanguage, RvSessionView, RvWeekResult } from '@/lib/revue-types';
+import type { RvLanguage, RvOffer, RvSessionView, RvWeekResult } from '@/lib/revue-types';
+
+import { RvChoix } from './choix/RvChoix';
+import { PpBareHead } from './papier/PapierPrint';
 
 import { releveCopy } from './releve-copy';
 import { revueCopy } from './revue-copy';
@@ -37,7 +43,7 @@ export type RvJourneyPapierProps = {
   client?: RevueClient;
 };
 
-export type PapierEntryAction = 'done' | 'resume' | 'start';
+export type PapierEntryAction = 'done' | 'resume' | 'choose' | 'start';
 
 /** What the player does with the week's answer. Pure, tested. */
 export function papierEntryAction(week: RvWeekResult | null | undefined): PapierEntryAction {
@@ -46,7 +52,7 @@ export function papierEntryAction(week: RvWeekResult | null | undefined): Papier
   if (offer.resume) return 'resume';
   if (offer.filed) return 'done';
   if (!offer.recommended) return 'done';
-  return 'start';
+  return offer.choices?.length ? 'choose' : 'start';
 }
 
 /** The Relevé's anchor for a period: `/notebook?mode=releve#revue-2026-W40`. */
@@ -56,7 +62,11 @@ export function papierReleveHref(period: string): string {
 
 const asLanguage = (language: unknown): RvLanguage => (language === 'en' || language === 'de' ? language : 'fr');
 
-type State = { kind: 'loading' } | { kind: 'error' } | { kind: 'session'; session: RvSessionView };
+type State =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'choose'; offer: RvOffer; picked: string | null }
+  | { kind: 'session'; session: RvSessionView };
 
 export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPapierProps) {
   const chrome = asLanguage(language);
@@ -82,20 +92,11 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
         setState({ kind: 'session', session: await active.session(week.offer.resume.sessionId) });
         return;
       }
-      try {
-        setState({ kind: 'session', session: await active.start({}) });
-      } catch (error) {
-        // «Resume it instead» / «filed this week»: open that session (as /revue does).
-        if (
-          error instanceof RevueError &&
-          error.sessionId &&
-          (error.code === 'revue_session_active' || error.code === 'revue_week_filed')
-        ) {
-          setState({ kind: 'session', session: await active.session(error.sessionId) });
-          return;
-        }
-        throw error;
+      if (action === 'choose') {
+        setState({ kind: 'choose', offer: week.offer, picked: null });
+        return;
       }
+      await open(active, null);
     } catch (error) {
       if (error instanceof RevueError && error.code === 'revue_disabled') onDone();
       else setState({ kind: 'error' });
@@ -103,6 +104,30 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
     // One read per mount; `onDone` is the player's setter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client]);
+
+  /** Start the story (`null`: Romy's pick); «resume it instead» / «filed» opens that session. */
+  const open = async (active: RevueClient, dossierId: string | null) => {
+    try {
+      setState({ kind: 'session', session: await active.start(dossierId ? { dossierId } : {}) });
+    } catch (error) {
+      // «Resume it instead» / «filed this week»: open that session (as /revue does).
+      if (
+        error instanceof RevueError &&
+        error.sessionId &&
+        (error.code === 'revue_session_active' || error.code === 'revue_week_filed')
+      ) {
+        setState({ kind: 'session', session: await active.session(error.sessionId) });
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const pick = (dossierId: string) => {
+    if (state.kind !== 'choose' || state.picked) return;
+    setState({ ...state, picked: dossierId });
+    void open(client ?? revueClient(), dossierId).catch(() => setState({ kind: 'error' }));
+  };
 
   useEffect(() => {
     void load();
@@ -125,6 +150,29 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
         onExit={onDone}
         onReleve={() => void Router.push(papierReleveHref(period))}
       />
+    );
+  } else if (state.kind === 'choose') {
+    body = (
+      <>
+        <div className="rv-top">
+          <PpBareHead>
+            <IconAction label={copy.exit_label} onClick={onDone}>
+              <CrossIcon size={16} />
+            </IconAction>
+          </PpBareHead>
+        </div>
+        <div className="rv-body">
+          <RvChoix
+            choices={state.offer.choices ?? []}
+            week={state.offer.week}
+            whyLanguage={state.offer.whyLanguage ?? chrome}
+            language={chrome}
+            pending={state.picked}
+            onPick={pick}
+            copy={copy}
+          />
+        </div>
+      </>
     );
   } else if (state.kind === 'error') {
     body = (

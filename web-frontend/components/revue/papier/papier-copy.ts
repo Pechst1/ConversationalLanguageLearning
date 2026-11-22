@@ -14,6 +14,9 @@ import type { RvLanguage } from '@/lib/revue-types';
 export const PAPIER_FR = {
   masthead: 'Le Papier',
   edition_today: 'Édition du jour',
+  /** «Papier · le choix»: the front page's section line, and the word at the foot of each story. */
+  choix_section: 'À la une',
+  choix_read: 'Lire →',
   dispatch: 'Dépêche',
   stamp_vrai: 'Vrai',
   stamp_intox: 'Intox',

@@ -20,6 +20,8 @@
                      «Le titre» / «L'intox express»; ?photo=1 / ?micro=1: «La photo» /
                      «Le micro» (WIRE §12);
                      ?une=1 shows Home's Une card instead of the chooser;
+                     ?choix=1 opens on «Papier · le choix»'s front page (three stories,
+                     each with why it is offered, «Au comptoir» and «Le titre» on);
                      ?pourquoi=1 gives Romy's marks their rule; ?photos=1 gives every
                      story a `pictures` list of three (placeholders, no network).
 
@@ -38,6 +40,7 @@ import { useRouter } from 'next/router';
 
 import { AtelierV2Root, CastPortrait, CrossIcon, IconAction, Skeleton, StateBlock } from '@/components/atelier-v2/ui';
 import { PpBareHead } from '@/components/revue/papier/PapierPrint';
+import { RvChoix } from '@/components/revue/choix/RvChoix';
 import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, RvUneCard, revueCopy } from '@/components/revue';
 import { revueUneState } from '@/components/revue/revue-home';
 import { RdvProvider } from '@/components/revue/rdv';
@@ -51,7 +54,7 @@ type PageState =
   | { kind: 'loading' }
   | { kind: 'disabled' }
   | { kind: 'error' }
-  | { kind: 'choose'; offer: RvOffer; starting: boolean }
+  | { kind: 'choose'; offer: RvOffer; starting: boolean; picked?: string | null }
   | { kind: 'session'; session: RvSessionView };
 
 const HOME = '/atelier';
@@ -98,6 +101,7 @@ export default function RevuePage() {
           micro: router.query.micro === '1',
           pourquoi: router.query.pourquoi === '1',
           photos: router.query.photos === '1',
+          choix: router.query.choix === '1',
         }), { enabled: router.query.rdv === '1' });
         const next = { ...createRevueClient(transport), reset: transport.reset };
         if (router.query.reset === '1') next.reset();
@@ -226,8 +230,8 @@ export default function RevuePage() {
   }, [readOnly, router]);
 
   const pick = async (dossierId: string | null) => {
-    if (!client || state.kind !== 'choose') return;
-    setState({ ...state, starting: true });
+    if (!client || state.kind !== 'choose' || state.starting) return;
+    setState({ ...state, starting: true, picked: dossierId });
     try {
       await startOrResume(client, dossierId);
     } catch {
@@ -268,6 +272,30 @@ export default function RevuePage() {
           copy={copy}
         />
       </div>
+    );
+  } else if (state.kind === 'choose' && state.offer.choices?.length && client) {
+    // «Papier · le choix»: the front page — the learner picks the story, one tap starts it.
+    body = (
+      <>
+        <div className="rv-top">
+          <PpBareHead>
+            <IconAction label={copy.exit_label} onClick={exit}>
+              <CrossIcon size={16} />
+            </IconAction>
+          </PpBareHead>
+        </div>
+        <div className="rv-body">
+          <RvChoix
+            choices={state.offer.choices}
+            week={state.offer.week}
+            whyLanguage={state.offer.whyLanguage ?? language}
+            language={language}
+            pending={state.starting ? state.picked ?? null : null}
+            onPick={(id) => void pick(id)}
+            copy={copy}
+          />
+        </div>
+      </>
     );
   } else if (state.kind === 'choose' && state.offer.recommended && client) {
     body = (
