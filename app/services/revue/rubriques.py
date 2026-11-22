@@ -96,18 +96,48 @@ def desk_provider(name: str) -> Any:
     return OpenAIRevueProvider(name=name, max_tokens=4000)
 
 
+#: Tirage 2026-11-22: the retry told only the codes, and the second answer broke the same limits
+#: again. How to read them, so the retry fixes the line the code names and keeps the rest.
+RETRY_NOTE = (
+    "Your first answer was refused. Each problem reads desk:item:band:reason (item = a role, a statement or "
+    "fact number, «build»…). too_long: that line is over its band's word limit — count every word, numbers "
+    "and articles included, and cut it. number_not_in_claims / name_not_in_claim(s): the line carries a number "
+    "or a name its claim does not say, written as the claim writes it — copy it from the claim or drop it. "
+    "ungrounded / value_not_said / right_not_in_claim: use the claim's own words. distractor: another value of "
+    "the same kind copied from the claims. previous_answer is your refused answer: return it whole with exactly "
+    "the named lines fixed; keep every line that was not named, word for word."
+)
+
+
+#: Tirage 2026-11-22: with the refused answer in hand the second try fixed most named lines but
+#: often left one (a b1 headline one word too long); a third try costs about US$0.001.
+DESK_ATTEMPTS = 3
+
+
+def retry_feedback(problems: list[str], previous: Any) -> dict[str, Any]:
+    """What the second call is told: the codes, how to read them, and the refused answer itself
+    (without it «keep every line that was not named» could not be done: the desk wrote a new set
+    and broke other lines)."""
+
+    feedback: dict[str, Any] = {"problems": problems, "how_to_read": RETRY_NOTE}
+    if isinstance(previous, dict):
+        feedback["previous_answer"] = previous
+    return feedback
+
+
 def ask_desk(dossier: EditorialDossier, provider: Any, *, key: str, instructions: str,
              repair: Callable[[Any, EditorialDossier], tuple[Any, list[str]]],
              prompt_version: str) -> tuple[Any, list[str]]:
-    """One JSON call (a second with the problems when the first was refused), checked by
+    """Up to :data:`DESK_ATTEMPTS` JSON calls (each retry with the problems and the refused answer), checked by
     ``repair``. ``(None, ["skip"])`` for an unfit story; ``(None, problems)`` when nothing
     passes; ``(None, ["<key>:desk_failed"])`` when the call fails (asked again tomorrow)."""
 
     provider = provider if provider is not None else desk_provider(f"openai-revue-{key}-desk")
     payload = desk_payload(dossier)
     problems: list[str] = []
-    for attempt in range(2):
-        ask = payload if attempt == 0 else {**payload, "retry_feedback": {"problems": problems}}
+    raw: Any = None
+    for attempt in range(DESK_ATTEMPTS):
+        ask = payload if attempt == 0 else {**payload, "retry_feedback": retry_feedback(problems, raw)}
         try:
             raw = provider.ask_json(instructions, ask, system=DESK_SYSTEM, temperature=0.4, label=f"write_{key}")
         except Exception as exc:  # noqa: BLE001 - the story carries another assignment
@@ -184,4 +214,4 @@ def loop(key: str) -> ModuleType | None:
     return importlib.import_module(path) if path else None
 
 
-__all__ = ["LOOPS", "ask_desk", "desk_payload", "ensure_desk", "loop", "material_of", "private", "text"]
+__all__ = ["DESK_ATTEMPTS", "LOOPS", "RETRY_NOTE", "retry_feedback", "ask_desk", "desk_payload", "ensure_desk", "loop", "material_of", "private", "text"]

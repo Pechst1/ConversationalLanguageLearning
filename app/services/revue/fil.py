@@ -509,11 +509,16 @@ def write_fil(dossier: EditorialDossier, provider: Any = None) -> tuple[FilWire 
     checked by :func:`repair_fil`. ``(None, ["skip"])`` for an unfit story; ``(None,
     problems)`` when nothing passes or the call fails."""
 
+    from app.services.revue import (
+        rubriques,  # noqa: PLC0415 - rubriques reads the comptoir like this module
+    )
+
     provider = provider if provider is not None else desk_provider()
     payload = desk_payload(dossier)
     problems: list[str] = []
+    raw: Any = None
     for attempt in range(2):
-        ask = payload if attempt == 0 else {**payload, "retry_feedback": {"problems": problems}}
+        ask = payload if attempt == 0 else {**payload, "retry_feedback": rubriques.retry_feedback(problems, raw)}
         try:
             raw = provider.ask_json(FIL_DESK_INSTRUCTIONS, ask, system=DESK_SYSTEM, temperature=0.4, label="write_fil")
         except Exception as exc:  # noqa: BLE001 - the story carries another assignment

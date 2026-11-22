@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db.models.revue_session import RevueDossier
-from app.services.revue import intox, titre
+from app.services.revue import intox, rubriques, titre
 from app.services.revue.dossier import EditorialDossier
 from app.services.revue.evergreen import evergreen_intox, evergreen_titre, load_evergreens
 
@@ -190,7 +190,13 @@ def test_the_intox_desk_retries_once_with_the_problems_then_refuses() -> None:
     express, problems = intox.write_intox(beauvau(), desk)
     assert express is not None and problems == [] and express.prompt_version == intox.INTOX_PROMPT_VERSION
     assert desk.calls[1]["retry_feedback"]["problems"] == ["intox:1:a1:number_not_in_claims"]
-    assert intox.write_intox(beauvau(), _Desk([bad, bad])) == (None, ["intox:1:a1:number_not_in_claims"])
+    # Tirage 2026-11-22: the retry carries the refused answer, so the desk fixes the named line
+    # and keeps the others (without it, the second answer was a new set with new faults).
+    assert desk.calls[1]["retry_feedback"]["previous_answer"] == bad
+    assert "previous_answer" in desk.calls[1]["retry_feedback"]["how_to_read"]
+    third = _Desk([bad, bad, gold_intox()])
+    assert intox.write_intox(beauvau(), third)[0] is not None and len(third.calls) == rubriques.DESK_ATTEMPTS == 3
+    assert intox.write_intox(beauvau(), _Desk([bad, bad, bad])) == (None, ["intox:1:a1:number_not_in_claims"])
     assert intox.write_intox(beauvau(), _Desk([RuntimeError("down")])) == (None, ["intox:desk_failed"])
 
 
@@ -281,7 +287,7 @@ def test_the_titre_desk_retries_once_then_refuses() -> None:
     desk = _Desk([bad, gold_titre()])
     made, problems = titre.write_titre(beauvau(), desk)
     assert made is not None and problems == [] and desk.calls[1]["retry_feedback"]["problems"] == ["titre:wrong_in_claims"]
-    assert titre.write_titre(beauvau(), _Desk([bad, bad])) == (None, ["titre:wrong_in_claims"])
+    assert titre.write_titre(beauvau(), _Desk([bad, bad, bad])) == (None, ["titre:wrong_in_claims"])
     assert titre.write_titre(beauvau(), _Desk([{"fit": "skip"}])) == (None, ["skip"])
 
 

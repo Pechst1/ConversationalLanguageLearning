@@ -190,6 +190,7 @@ def test_the_desk_retries_once_with_the_problems_then_refuses() -> None:
     wire, problems = fil.write_fil(beauvau(), desk)
     assert wire is not None and problems == [] and wire.prompt_version == fil.FIL_PROMPT_VERSION
     assert desk.calls[1]["retry_feedback"]["problems"] == ["fil:4:a1:number_not_in_claims"]
+    assert desk.calls[1]["retry_feedback"]["previous_answer"] == bad  # tirage 2026-11-22
     desk = _Desk([bad, bad])
     assert fil.write_fil(beauvau(), desk) == (None, ["fil:4:a1:number_not_in_claims"])
     assert fil.write_fil(beauvau(), _Desk([RuntimeError("down")])) == (None, ["fil:desk_failed"])
