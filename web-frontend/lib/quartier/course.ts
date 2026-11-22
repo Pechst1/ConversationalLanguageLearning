@@ -811,7 +811,7 @@ export class Course implements Director {
     if (!did.length) did.push(this.say(w('Tu as fait un tour sur la pelouse, sans parier.', 'You had a wander on the lawn, without a bet.', 'Du bist über den Rasen geschlendert, ohne zu wetten.')));
     const next: Words[] = [];
     if (forgot) next.push(w('La prochaine fois, la guichetière se souviendra du bonjour.', 'Next time, the clerk will remember the bonjour.', 'Beim nächsten Mal erinnert sich die Schalterfrau an das Bonjour.'));
-    if (this.window.paid && this.won()) next.push(w('Le Papier racontera l’Arc. Tu sauras qui a vraiment gagné.', "The Papier will tell the Arc. You'll find out who really won.", 'Das Papier erzählt vom Arc. Du erfährst, wer wirklich gewonnen hat.'));
+    if (this.window.paid && this.won()) next.push(w('Le Papier racontera l’Arc. Tu sauras qui a vraiment gagné.', "Le Papier will tell the Arc. You'll find out who really won.", 'Le Papier erzählt vom Arc. Du erfährst, wer wirklich gewonnen hat.'));
     return { did: did.slice(0, 6), tomorrow: next.slice(0, 3).map((x) => this.say(x)) };
   }
 }

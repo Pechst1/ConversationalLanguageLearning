@@ -94,6 +94,13 @@ test('today’s edition: masthead date, headline lines, the Papier’s route; do
   assert.equal(read.done, true);
   assert.equal(model.afficheOpens(read).label.fr, 'Le Papier du jour · lu');
   assert.equal(model.afficheOpens(poster).label.fr, 'Le Papier du jour');
+  // Integration 2026-11-22: the name stays French and unarticled in every language.
+  assert.deepEqual(model.afficheOpens(poster).label, { fr: 'Le Papier du jour', de: 'Le Papier von heute', en: 'Le Papier, today' });
+  assert.deepEqual(model.afficheOpens(read).label, {
+    fr: 'Le Papier du jour · lu',
+    de: 'Le Papier von heute · gelesen',
+    en: 'Le Papier, today · read',
+  });
   assert.equal(model.afficheOpens(poster).route, '/revue');
   for (const lang of ['fr', 'en', 'de']) assert.ok(model.afficheOpens(poster).label[lang]);
 });

@@ -138,8 +138,8 @@ export function afficheOpens(affiche: Affiche): Opens {
   return {
     route: affiche.route,
     label: affiche.done
-      ? { fr: 'Le Papier du jour · lu', en: 'Today’s Papier · read', de: 'Der Papier von heute · gelesen' }
-      : { fr: 'Le Papier du jour', en: 'Today’s Papier', de: 'Der Papier von heute' },
+      ? { fr: 'Le Papier du jour · lu', en: 'Le Papier, today · read', de: 'Le Papier von heute · gelesen' }
+      : { fr: 'Le Papier du jour', en: 'Le Papier, today', de: 'Le Papier von heute' },
   };
 }
 
