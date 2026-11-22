@@ -4123,6 +4123,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/voix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Voix */
+        get: operations["read_voix_api_v1_revue_sessions__session_id__voix_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/voix/dictee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grade Voix Dictee */
+        post: operations["grade_voix_dictee_api_v1_revue_sessions__session_id__voix_dictee_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/voix/line": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speak Voix Line
+         * @description Speak one line of the session, or say ``disabled`` so the device reads it.
+         */
+        post: operations["speak_voix_line_api_v1_revue_sessions__session_id__voix_line_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/une": {
         parameters: {
             query?: never;
@@ -15773,6 +15827,87 @@ export interface components {
             rubriques_total?: number;
             week: components["schemas"]["RvWeek"];
         };
+        /** RvVoixDictee */
+        RvVoixDictee: {
+            /** Max Tries */
+            max_tries: number;
+            /** Text Fr */
+            text_fr: string;
+            /** Words */
+            words: number;
+        };
+        /** RvVoixDicteeRequest */
+        RvVoixDicteeRequest: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt?: number;
+            /** Text */
+            text: string;
+        };
+        /** RvVoixDicteeResult */
+        RvVoixDicteeResult: {
+            /** Answer Fr */
+            answer_fr: string;
+            /** Attempt */
+            attempt: number;
+            /** Expected Fr */
+            expected_fr?: string | null;
+            /** Marks */
+            marks: components["schemas"]["RvVoixMark"][];
+            /** Max Tries */
+            max_tries: number;
+            /** Note */
+            note?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "met" | "partially_met" | "not_yet";
+            /** Resolved */
+            resolved: boolean;
+        };
+        /** RvVoixLine */
+        RvVoixLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "lead" | "take" | "reply" | "last_word";
+            /** Speaker Id */
+            speaker_id: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvVoixManifest */
+        RvVoixManifest: {
+            /**
+             * Audio
+             * @enum {string}
+             */
+            audio: "ready" | "device";
+            dictee?: components["schemas"]["RvVoixDictee"] | null;
+            /** Lines */
+            lines: components["schemas"]["RvVoixLine"][];
+            /** Newsreader Id */
+            newsreader_id: string;
+        };
+        /** RvVoixMark */
+        RvVoixMark: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
+            /** Span Fr */
+            span_fr: string;
+            /**
+             * Start
+             * @default 0
+             */
+            start?: number;
+        };
         /** RvWeek */
         RvWeek: {
             /** Iso */
@@ -25485,6 +25620,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvTurnResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_voix_api_v1_revue_sessions__session_id__voix_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvVoixManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grade_voix_dictee_api_v1_revue_sessions__session_id__voix_dictee_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvVoixDicteeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvVoixDicteeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speak_voix_line_api_v1_revue_sessions__session_id__voix_line_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LineAudioRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineAudioResult"];
                 };
             };
             /** @description Validation Error */

@@ -12,6 +12,8 @@
                      lib/revue-mock.ts instead of the API. ?lang=de|en|fr and
                      ?band=A1|A2|B1 shape the mock learner; ?reset=1 forgets it;
                      ?rdv=1 answers «Papier · les rendez-vous» (lib/revue-mock-rdv.ts);
+                     ?voix=1 answers «Papier · la voix» (lib/revue-mock-voix.ts: silent clips
+                     as long as the line; &voixaudio=0 as a deployment without speech);
                      ?pictures=0 plays the story without its own picture (§8.4);
                      ?comptoir=1 turns «Au comptoir» on (WP-119-AU-COMPTOIR: the
                      Céline story leads the week and plays as the counter's debate);
@@ -45,10 +47,12 @@ import { RvChoix } from '@/components/revue/choix/RvChoix';
 import { RvChooser, RvComptoir, RvEncounter, RvFil, RvRubrique, RvSessionHead, RvStage, RvUneCard, revueCopy } from '@/components/revue';
 import { revueUneState } from '@/components/revue/revue-home';
 import { RdvProvider } from '@/components/revue/rdv';
+import { VoixProvider } from '@/components/revue/voix/VoixContext';
 import { enterImmersiveSurface } from '@/lib/immersive-surface';
 import { useChromeLanguage } from '@/lib/learner-language';
 import { RevueError, createRevueClient, revueClient, type RevueClient } from '@/lib/revue-api';
 import { createRdvClient, rdvClient, type RdvClient } from '@/lib/revue-rdv';
+import { createVoixClient, voixClient, type VoixClient } from '@/lib/revue-voix';
 import type { RvLanguage, RvOffer, RvSessionView } from '@/lib/revue-types';
 
 type PageState =
@@ -76,6 +80,8 @@ export default function RevuePage() {
   const [client, setClient] = useState<RevueClient | null>(null);
   // «Papier · les rendez-vous»: the regulars' line and «Trois mots», for the players' slots.
   const [rdv, setRdv] = useState<RdvClient | null>(null);
+  // «Papier · la voix»: the session's lines heard, the lead read, the dictée.
+  const [voix, setVoix] = useState<VoixClient | null>(null);
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [slow, setSlow] = useState(false);
 
@@ -87,9 +93,9 @@ export default function RevuePage() {
     // The literal NODE_ENV test lets the production build drop the mock chunk entirely.
     if (process.env.NODE_ENV !== 'production' && mock) {
       const band = queryString(router.query.band);
-      void Promise.all([import('@/lib/revue-mock'), import('@/lib/revue-mock-rdv')]).then(([{ createMockRevueTransport }, { withRdvMock }]) => {
+      void Promise.all([import('@/lib/revue-mock'), import('@/lib/revue-mock-rdv'), import('@/lib/revue-mock-voix')]).then(([{ createMockRevueTransport }, { withRdvMock }, { withVoixMock }]) => {
         if (!alive) return;
-        const transport = withRdvMock(createMockRevueTransport({
+        const transport = withVoixMock(withRdvMock(createMockRevueTransport({
           language,
           band: band === 'A1' || band === 'B1' || band === 'B2' ? band : 'A2',
           latency: 450,
@@ -104,15 +110,17 @@ export default function RevuePage() {
           regle: router.query.regle === '1',
           photos: router.query.photos === '1',
           choix: router.query.choix === '1',
-        }), { enabled: router.query.rdv === '1' });
+        }), { enabled: router.query.rdv === '1' }), { enabled: router.query.voix === '1', audio: router.query.voixaudio !== '0' });
         const next = { ...createRevueClient(transport), reset: transport.reset };
         if (router.query.reset === '1') next.reset();
         setClient(next);
         setRdv(createRdvClient(transport));
+        setVoix(createVoixClient(transport));
       });
     } else {
       setClient(revueClient());
       setRdv(rdvClient());
+      setVoix(voixClient());
     }
     return () => {
       alive = false;
@@ -372,7 +380,9 @@ export default function RevuePage() {
         <title>La Revue de Romy</title>
       </Head>
       <AtelierV2Root as="main" language={language} className="rv-page" aria-label="La Revue de Romy" data-revue-mock={mock ? '' : undefined}>
-        <RdvProvider client={rdv}>{body}</RdvProvider>
+        <RdvProvider client={rdv}>
+          <VoixProvider client={voix}>{body}</VoixProvider>
+        </RdvProvider>
         {mock && <p className="rv-mock">{copy.mock_badge}</p>}
       </AtelierV2Root>
     </>

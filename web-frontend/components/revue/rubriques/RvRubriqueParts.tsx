@@ -14,6 +14,8 @@ import type { RvComptoirText, RvGloss, RvLanguage, RvSessionView } from '@/lib/r
 
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
 import { ComptoirPicture, ListenChip } from '../comptoir/RvComptoirParts';
+import { VxDicteeSlot } from '../voix/VxDictee';
+import { VxLeadListen } from '../voix/VxParts';
 import type { RevueCopy } from '../revue-copy';
 import { RvSouvenirSlot } from '../rdv/RvSouvenir';
 import { RvGallery } from '../RvGallery';
@@ -129,7 +131,7 @@ export function LeadBlock({ read, props, voiceKey }: { read: RvRubriqueRead; pro
         translation={read.lead.tr}
         glossLanguage={glossLanguage}
         copy={copy}
-        before={<ListenChip voice={voice} voiceKey={voiceKey} textFr={read.lead.fr} castId="romy_tremblay" copy={copy} ccopy={ccopy} />}
+        before={<VxLeadListen textFr={read.lead.fr} fallback={<ListenChip voice={voice} voiceKey={voiceKey} textFr={read.lead.fr} castId="romy_tremblay" copy={copy} ccopy={ccopy} />} />}
       />
       {source && <RvSourceLine source={source} copy={copy} />}
     </section>
@@ -145,6 +147,7 @@ export function RvRubriqueRead({ read, press, props }: { read: RvRubriqueRead; p
         <ComptoirPicture url={session.stage.plateUrl} credit={session.stage.plateKind === 'story'} />
         <LeadBlock read={read} props={props} voiceKey={`rb-lead-${session.id}`} />
         <RvSouvenirSlot sessionId={session.id} props={props} chrome={session.plan.uiLanguage} />
+        <VxDicteeSlot />
         {/* The story's other pictures after the lead: the text first on a phone's first screen. */}
         <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={props.copy} />
         {notice}

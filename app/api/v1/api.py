@@ -38,6 +38,7 @@ from app.api.v1.endpoints import (
     revue_relecture,
     revue_rendez_vous,
     revue_vignettes,
+    revue_voix,
     serial,
     sessions,
     sessions_ws,
@@ -113,4 +114,6 @@ api_router.include_router(revue_rendez_vous.router)
 api_router.include_router(revue_correcteur.router)
 # WP-122 A: La Radio (404 unless REVUE_ENABLED and REVUE_RADIO_ENABLED; no paid guard: not a PAID_ROUTE).
 api_router.include_router(revue_radio.router)
+# «Papier · la voix» (2026-11-22): 404 unless REVUE_ENABLED and REVUE_VOIX_ENABLED; the line route pays for speech.
+api_router.include_router(revue_voix.router)
 api_router.include_router(revue_admin.router)

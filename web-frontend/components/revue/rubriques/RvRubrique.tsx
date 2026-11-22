@@ -30,6 +30,7 @@ import type { RvWordEvent } from '../RvThread';
 import { INTOX_FR, INTOX_STEP_LABELS_FR, rubriqueCopy, TITRE_FR, TITRE_STEP_LABELS_FR } from './rubriques-copy';
 import { bringNewestIntoView, scrollerOf } from '../comptoir/scroll';
 import { PpPlayerSection, PpTranslateSet } from '../papier/PapierPrint';
+import { VoixScope, useVoixSession } from '../voix/VoixContext';
 import { clampStep, errorText, nextStep, openingStep, refusalCopy, rubriqueProgress, stepOrder } from './rubriques-model';
 import { RvIntoxFix, RvIntoxRound } from './RvIntoxSteps';
 import { RvRubriquePage } from './RvRubriquePages';
@@ -95,7 +96,9 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
   const footRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headRef = useRef<HTMLDivElement | null>(null);
-  const voice = useLineVoice();
+  // «Papier · la voix»: the lead in the newsroom's voice (nothing changes while it is off).
+  const voix = useVoixSession(initial.id);
+  const voice = useLineVoice({ resolve: voix.resolve });
 
   const shownId = useRef(initial.id);
   useEffect(() => {
@@ -319,6 +322,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
           : INTOX_FR.name;
 
   return (
+    <VoixScope session={{ ...voix, id: session.id }} voice={voice} chrome={chrome} motherTongue={glossLanguage}>
     <div
       className="rv-encounter ct-player rb-player"
       data-mode={session.mode}
@@ -355,6 +359,7 @@ export function RvRubrique({ client, session: initial, language, onExit, onRelev
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />
     </div>
+    </VoixScope>
   );
 }
 

@@ -43,6 +43,8 @@ import '@/styles/revue-fil.css';
 import '@/styles/revue-rubriques.css';
 import '@/styles/revue-papier.css';
 import '@/styles/revue-rdv.css';
+// «Papier · la voix» (components/revue/voix), scoped under `.av2`.
+import '@/styles/revue-voix.css';
 // WP-120: La Carte (components/carte), scoped under `.av2`.
 import '@/styles/carte.css';
 // WP-122 B: Le Correcteur (components/correcteur), scoped under `.av2`.

@@ -300,6 +300,7 @@ PAID_ROUTES: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/revue/sessions/{session_id}/comptoir"),  # «Au comptoir»: Romy's edit
         ("POST", "/revue/sessions/{session_id}/fil"),  # «Le fil»: Romy's edit of the telling
         ("POST", "/revue/sessions/{session_id}/rubrique"),  # «Le titre»: Romy's edit of the headline
+        ("POST", "/revue/sessions/{session_id}/voix/line"),  # «Papier · la voix»: a line spoken
         # La Radio (WP-122 A): the bulletin GET synthesises speech on first request
         ("GET", "/revue/radio/{dossier_id}"),
         # Le Correcteur (WP-122 B): a draft may call the model once to rewrite a line
