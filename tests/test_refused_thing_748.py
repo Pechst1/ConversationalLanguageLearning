@@ -52,7 +52,9 @@ def test_walk_13_nov():
     )
     line = spoken_reply.repeat_line_for(step)
     assert line != OPENING_BEAT, "the card offered the pizza the learner refused"
-    assert line == REFUSAL_SHOWN
+    # #949: the refusal is the first sentence of what the learner was shown, said once.
+    assert REFUSAL_SHOWN.startswith(line)
+    assert line == "Non, je ne veux pas de pizza."
 
 
 def test_refusal_taken_back():

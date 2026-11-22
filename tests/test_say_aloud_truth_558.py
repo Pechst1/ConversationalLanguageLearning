@@ -61,7 +61,8 @@ def test_the_line_never_says_yes_to_what_the_learner_refused():
         suggested="Oui, on partage.",
     )
     line = spoken_reply.repeat_line_for(step)
-    assert line == WALK_9_NOV[1]
+    # #949: one sentence to say once, the refusal itself, not the whole reply.
+    assert line == "Je ne partage pas la pizza."
 
 
 def test_a_later_yes_takes_the_refusal_back():
@@ -101,7 +102,9 @@ def test_the_walk_of_5_nov_offers_the_corrected_sentence_with_a_verb():
     corrected = "Le feu est en haut, chez Odile. Gus dit en bas, mais il ne sait pas. Margaux a raison."
     step = _step((said, corrected), route={"turn": "a.enquete", "reply": "neon", "tap": True})
     line = spoken_reply.repeat_line_for(step)
-    assert line == corrected
+    # #949: one sentence of the correction, the answer the clue asked for.
+    assert line == "Le feu est en haut, chez Odile."
+    assert corrected.startswith(line)
     assert reads_as_sentence(line)
     assert not reads_as_sentence("LARTSIM")
 
@@ -122,7 +125,10 @@ def test_the_walk_of_6_nov_offers_what_the_learner_said_corrected():
     said = "Oui, un peu. Tu as menti pendant trois ans a ma grand-mere. Mais je veux comprendre pourquoi tu as fait ca."
     corrected = "Oui, un peu. Tu as menti pendant trois ans à ma grand-mère. Mais je veux comprendre pourquoi tu as fait ça."
     route = {"turn": "b.turn2", "reply": "a_little", "say_fr": "Un peu. Tu dois le dire."}
-    assert spoken_reply.repeat_line_for(_step((said, corrected), route=route)) == corrected
+    # #949: one sentence of it, and the one that keeps the «trois ans» the learner gave.
+    assert spoken_reply.repeat_line_for(_step((said, corrected), route=route)) == (
+        "Tu as menti pendant trois ans à ma grand-mère."
+    )
 
 
 def test_the_pages_line_stands_when_the_reply_is_about_it():
@@ -164,7 +170,7 @@ def test_the_audio_door_reads_the_same_line():
         # About the same thing, in other words.
         ("Un café, s'il vous plaît.", "Je voudrais un café, s'il vous plaît."),
         ("Je veux garder la clé.", "Je garde la clé."),
-        ("Je vais vendre l'appartement.", "Oui. Je vends et je rentre."),
+        ("Je vais vendre l'appartement.", "Oui, je vends et je rentre."),
         ("Je ne vends pas l'appartement.", "Non, je ne vends pas."),
         ("Je ne veux pas partager.", "Non, je ne partage pas."),
         # A «non» about one thing and a line about another word of the same reply.

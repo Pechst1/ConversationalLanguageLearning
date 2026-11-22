@@ -31,7 +31,7 @@ _MULTIPLIERS = {"cent": 100, "cents": 100, "mille": 1000}
 _MONTHS = frozenset(
     "janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre".split()
 )
-_REASON = re.compile(r"\b(?:parce qu'|parce que|puisque|puisqu'|car)\s*(.*)$")
+_REASON = re.compile(r"\b(?:parce qu'|parce que|puisque|puisqu'|car\b)\s*(.*)$")
 #: Words that carry no reason: a reason is compared by what it is about.
 _LIGHT = frozenset(
     "parce puisque pour avec dans mais suis fais est sont etre avoir tres trop aussi encore alors donc "
@@ -387,4 +387,18 @@ def looks_misspelled(text: Any) -> bool:
             return True
         if any(key.startswith(lead) and known(key[len(lead) :]) for lead in _ELIDED):
             return True
+    return False
+
+
+def drops_ne(text: Any) -> bool:
+    """A clause with a verb negated by «pas» or «jamais» and no «ne» (21 Nov: «Bastien est
+    pas un ami»). Fine in speech and in a character's voice, but not a model line for the
+    learner, and a margin that let it through gives no correction to offer instead (#949).
+    A clause with no verb («pas ce soir», «pourquoi pas») drops nothing."""
+
+    for sentence in _SENTENCE.findall(fold(text)):
+        for clause in _CLAUSE.split(sentence):
+            words = _clause_words(clause)
+            if "ne" not in words and _ALWAYS_NEGATES & set(words) and has_verb(clause):
+                return True
     return False

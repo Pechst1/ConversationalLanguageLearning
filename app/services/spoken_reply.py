@@ -25,6 +25,7 @@ the text is graded like typed text.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -36,9 +37,13 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db.models.daily_journey import DailyJourney, DailyJourneyStep
 from app.db.models.pilot_event import PilotEvent
+from app.services import sentence_line
 from app.services.learner_facts import (
     content_of,
     contradicts,
+    drops_ne,
+    facts_of,
+    has_verb,
     latest_clash,
     looks_misspelled,
     reads_as_sentence,
@@ -256,7 +261,10 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
     the learner said (:func:`_turn_it_goes_against`); otherwise what the learner said,
     as a correct sentence (:func:`_own_line`); otherwise none, and the card hides. So it
     is never a line they would refuse, a sentence with their mistakes in it, or a fragment
-    (#379, #535, #556, #558). ``None`` while the flag is off.
+    (#379, #535, #556, #558). Every line nobody wrote to be said aloud (the learner's text,
+    the margin's correction, a generated example) leaves through :func:`_as_line`, which
+    cuts it to one sentence of at most :data:`SAY_ALOUD_MAX_WORDS` words (#949). ``None``
+    while the flag is off.
     """
 
     from app.services import scene_record
@@ -281,9 +289,13 @@ def repeat_line_for(step: DailyJourneyStep, correction: Any = None) -> str | Non
         if len(line.split()) >= 3 if routed is not None else reads_as_sentence(line):
             against = _turn_it_goes_against([said for said, _ in turns], line)
             if against is None:
-                return line
-            return _own_line(turns, correction, first=against)
-        return _own_line(turns, correction, first=len(turns) - 1)
+                # The page's own line is written to be said; a generated one has no length.
+                shaped = line if routed is not None else _as_line(line)
+                if shaped:
+                    return shaped
+                against = len(turns) - 1
+            return _own_line(turns, correction, first=against, about=line)
+        return _own_line(turns, correction, first=len(turns) - 1, about=line)
     if routed is not None and routed.get("tap"):
         # #535: a clue's tap target is not a sentence (the neon's label, the pan). The recap
         # offers what the learner wrote, but only as the corrected sentence they were shown,
@@ -321,9 +333,11 @@ def _turn_it_goes_against(said: list[str], line: str) -> int | None:
     return None
 
 
-def _own_line(turns: list[tuple[str, Any]], correction: Any, *, first: int) -> str | None:
+def _own_line(turns: list[tuple[str, Any]], correction: Any, *, first: int, about: str = "") -> str | None:
     """What the learner said on the turn that counts, as a correct sentence; failing that,
-    on their latest turn that gives one. It never goes against what they said since."""
+    on their latest turn that gives one. It never goes against what they said since.
+    ``about`` is the line the question was written to elicit: of a long reply, the sentence
+    about the same thing is the one offered (#949)."""
 
     said = [text for text, _ in turns]
     order = [first, *[index for index in reversed(range(len(turns))) if index != first]]
@@ -333,7 +347,7 @@ def _own_line(turns: list[tuple[str, Any]], correction: Any, *, first: int) -> s
         text, stored = turns[index]
         # The correction handed in is the last turn's; the one the learner was shown is kept
         # with the turn, so the recap and its audio door read the same sentence.
-        own = _own_sentence(text, (correction if index == len(turns) - 1 else None) or stored)
+        own = _own_sentence(text, (correction if index == len(turns) - 1 else None) or stored, about=about)
         if own and latest_clash(said, own) is None:
             return own
     return None
@@ -398,30 +412,90 @@ def _learner_turns(private: dict[str, Any]) -> list[tuple[str, Any]]:
     return turns
 
 
-def _corrected_sentence(said: str, correction: Any) -> str | None:
+def _corrected_sentence(said: str, correction: Any, *, about: str = "") -> str | None:
     """The correction the learner was shown, when it is a sentence that keeps their facts.
     A correction can be partial (8 Nov: only «lappartement» was fixed), so it is read too."""
 
     corrected = str(getattr(correction, "corrected_fr", "") or "").strip()
     if not reads_as_sentence(corrected) or looks_misspelled(corrected) or contradicts(said, corrected):
         return None
-    return _as_line(corrected)
+    return _as_line(corrected, about=about)
 
 
-def _own_sentence(said: str, correction: Any) -> str | None:
+def _own_sentence(said: str, correction: Any, *, about: str = "") -> str | None:
     """The learner's sentence: the correction they were shown, or their own words when none
     was needed. Words the margin corrected hold a mistake, so they are never offered, not
     even when the correction itself cannot be (#445, #558)."""
 
     if str(getattr(correction, "corrected_fr", "") or "").strip():
-        return _corrected_sentence(said, correction)
-    return _as_line(said) if reads_as_sentence(said) and not looks_misspelled(said) else None
+        return _corrected_sentence(said, correction, about=about)
+    return _as_line(said, about=about) if reads_as_sentence(said) and not looks_misspelled(said) else None
 
 
-def _as_line(text: str) -> str:
-    """Written as a line: «je vais bien» is shown as «Je vais bien.»"""
+#: The most words «One line to say aloud» offers: one breath, said once, at A1 (#949).
+SAY_ALOUD_MAX_WORDS = 10
+#: Where a sentence divides into clauses: a comma, a «…», «mais», or «et» before a new subject
+#: («Je garde la banquette et je dis à Bastien de partir»); «toi et moi» stays whole.
+_CLAUSE_BREAK = re.compile(
+    r"\s*(?:[,;:…]|\bmais\b|\bet\b(?=\s+(?:je|j'|j’|tu|il|elle|on|nous|vous|ils|elles)\b))\s*",
+    re.IGNORECASE,
+)
 
-    line = text[:1].upper() + text[1:]
+
+def _shorter(sentence: str) -> list[str]:
+    """One sentence, then shorter forms of it to try: without the opening words that hold no
+    verb («Maintenant, Lila, …», «Oui, …»), then each clause with a verb on its own."""
+
+    body = sentence.rstrip(" .!?…")
+    end = sentence[len(body):].strip() or "."
+    forms = [sentence]
+    breaks = list(_CLAUSE_BREAK.finditer(body))
+    starts = [0, *(match.end() for match in breaks)]
+    stops = [*(match.start() for match in breaks), len(body)]
+    clauses = [(start, stop) for start, stop in zip(starts, stops, strict=True) if body[start:stop].strip()]
+    if len(clauses) < 2:
+        return forms
+    first_verb = next((start for start, stop in clauses if has_verb(body[start:stop])), None)
+    if first_verb:
+        forms.append(body[first_verb:] + end)
+    for start, stop in clauses:
+        forms.append(body[start:stop] + (end if stop == len(body) else "."))
+    return forms
+
+
+def _as_line(text: str, *, about: str = "") -> str | None:
+    """Written as one line to say aloud: «je vais bien» is shown as «Je vais bien.»
+
+    A reply is often longer than a line (20 Nov: two sentences, a vocative, a joke about a
+    cat, 21 words). The line is one sentence of it, cut down to :data:`SAY_ALOUD_MAX_WORDS`
+    words, and never one that drops «ne» (21 Nov: «Bastien est pas un ami», #949). The
+    sentence about what ``about`` is about comes first, then the reply's order: at A1 the
+    answer comes first and the chat after it. A cut never drops a date, number or reason
+    the text gives (#379): when every short form would, the sentence that keeps them all
+    stands whole.
+    ``None`` when no sentence of it can be said."""
+
+    # The one splitter (#896): a learner's «…» inside a thought («Non, je ne partage pas la
+    # pizza… tu as menti à Margaux.») ends no sentence.
+    sentences = list(sentence_line.sentences(text))
+    topic = content_of(about) if about else frozenset()
+    sentences.sort(key=lambda sentence: -len(content_of(sentence) & topic))
+    whole = None
+    for sentence in sentences:
+        for form in _shorter(sentence):
+            if not reads_as_sentence(form) or drops_ne(form) or contradicts(text, form):
+                continue
+            if len(form.split()) <= SAY_ALOUD_MAX_WORDS:
+                return _written(form)
+            if whole is None and form == sentence and facts_of(sentence):
+                whole = sentence
+    return _written(whole) if whole else None
+
+
+def _written(form: str) -> str:
+    """Capitalised and stopped: «je vais bien» is shown as «Je vais bien.»"""
+
+    line = form[:1].upper() + form[1:]
     return line if line[-1:] in ".!?…»\"" else f"{line}."
 
 
@@ -437,6 +511,7 @@ def _main_own_sentence(said: str, correction: Any) -> str | None:
 __all__ = [
     "FAKE_DEFAULT_TRANSCRIPT",
     "FAKE_TRANSCRIPT_MARKER",
+    "SAY_ALOUD_MAX_WORDS",
     "STORY_REPLY_SURFACE",
     "TURN_ENTITY_TYPE",
     "FakeTranscriber",

@@ -192,7 +192,9 @@ def test_label_not_said(reading, monkeypatch):
     assert evaluation.route["reply"] == "neon"
     assert evaluation.route.get("say_fr") != "LARTSIM", "the neon's label is a story prop, not a sentence"
     line = _line_to_say(history, WALK_5_NOV_CORRECTED)
-    assert line == WALK_5_NOV_CORRECTED, f"the recap offers {line!r} to say aloud"
+    # #949: one sentence of the corrected reply, the answer to the clue.
+    assert line == "Le feu est en haut, chez Odile.", f"the recap offers {line!r} to say aloud"
+    assert WALK_5_NOV_CORRECTED.startswith(line)
 
 
 # ---------------------------------------------------------------------------
