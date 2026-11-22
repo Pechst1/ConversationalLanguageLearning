@@ -244,3 +244,33 @@ def test_brief_never_a_taken_title():
     brief = engine._brief(_titled("Une habitude au zinc"), context, usage=[])
     assert brief.title_fr == "Une habitude au zinc, II"
     assert brief.story_context["draft"]["title_fr"] == "Une habitude au zinc, II"
+
+
+def test_no_title_twice(
+    assembled_client, db_session, journey_enabled, clock, provider  # noqa: F811
+):
+    """#194, structurally. «No uniqueness check against earlier episodes»: the check read
+    ``recent_situations``, the director's last 14 scenes, so the 17th episode could wear
+    the 1st one's title again. The Feuilleton lists every episode, so the check reads the
+    published scene records, whatever the director was shown."""
+
+    first = "Une habitude au zinc"
+
+    def retitle(schema, value):
+        if schema == "SceneDraft" and provider.scenes in (1, 17):
+            return {**value, "title_fr": first}
+        return value
+
+    provider.transform = retitle
+    d = driver(assembled_client, db_session)
+    titles = []
+    for _ in range(17):
+        d.create()
+        titles.append(d.journey["scenario"]["title_fr"])
+        d.play(answer="Je peux apporter les affiches samedi.")
+        d.finish("complete")
+        clock.advance(days=1)
+
+    assert titles[0] == first
+    assert titles.count(first) == 1, "a title was served again"
+    assert len(titles) == len(set(titles)), "two episodes share a title"
