@@ -257,6 +257,12 @@ def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
     #622: ``callback_fr`` is the hook, the line that opens tomorrow, and on the 9 Nov walk
     it said «L'appartement est un souvenir de ta grand-mère» on a day at the notary's.
     What the scene kept is in its record, read through ``scene_ledger.on_screen``.
+
+    #918/#971: whose line it is decides whether it may be a target. A character's line is
+    the scene's. A learner's reply is held to only as the checked correction of it
+    (:func:`_their_sentence`), never as they typed it: «Je pense elle est une femme très
+    fort…» was listed as a detail to remember, and a retell that repeated the learner's
+    own replies scored «everything the scene kept».
     """
 
     said: list[tuple[str, str, str]] = []
@@ -266,7 +272,7 @@ def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
         for fact in shown["established"]:
             at = fact.get("at")
             turn = shown["turns"][at] if isinstance(at, int) and 0 <= at < len(shown["turns"]) else {}
-            line = _their_sentence(fact.get("quote"), turn)
+            line = _their_sentence(turn)
             if line:
                 said.append((f"said:{fact.get('key') or at}", "said", line))
         for index, turn in enumerate(shown["turns"]):
@@ -280,13 +286,46 @@ def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
     return said[-_SAID_FACTS:] + lines[-_SCENE_LINES:]
 
 
-def _their_sentence(quote: Any, turn: dict[str, Any]) -> str:
-    """The learner's own words for a fact, when they read as written: the quote if the reply
-    needed no correction, else the corrected reply. A fact's ``fact_fr`` is a note for the
-    writers («L'apprenant a faim»), never something to show them."""
+def _their_sentence(turn: dict[str, Any]) -> str:
+    """The learner's fact in French that was checked: the corrected reply of a turn the
+    check read, else nothing.
 
-    line = str(turn.get("corrected_fr") or quote or "").strip()
+    Never the quote as typed (#971): a reply with no correction is not a reply known to
+    be right (the check may have failed, #333, or let a slip through, #919), and the
+    Journal shows its targets as what the scene kept. A fact's ``fact_fr`` is a note for
+    the writers («L'apprenant a faim»), never something to show them either."""
+
+    if not turn.get("checked", True):
+        return ""
+    line = str(turn.get("corrected_fr") or "").strip()
     return line if reads_as_sentence(line) and not looks_misspelled(line) else ""
+
+
+def scene_lines(journey: DailyJourney) -> list[str] | None:
+    """Everything the scene itself said in French: its setup, its opening line and every
+    character line, questions included. Never the learner's replies.
+
+    What a retell is checked *against* for made-up events (:func:`invented_clauses`); the
+    targets stay the few lines :func:`scene_facts_for` keeps. ``None`` for a scene with no
+    record of what its characters said (a day from before the record): known only by its
+    setup and its hook, it cannot tell a retell's own words from an invention."""
+
+    lines: list[str] = []
+    said = False
+    for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+        prompt = step.public_prompt if isinstance(step.public_prompt, dict) else {}
+        for key in ("setup_fr", "character_line_fr"):
+            line = french_only(prompt.get(key))
+            if line:
+                lines.append(line)
+        for turn in scene_ledger.on_screen(step)["turns"]:
+            if turn["stock_exit"] or is_stock_exit_reply(turn["character"]):
+                continue
+            line = french_only(turn["character"])
+            if line:
+                lines.append(line)
+                said = True
+    return lines if said else None
 
 
 def scene_facts_for(
@@ -456,7 +495,51 @@ def anchor_cue(cues: list[str]) -> str | None:
     return max(cues, key=lambda cue: (table.get(cue, unknown), len(cue)))
 
 
-def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, Any]:
+#: A clause is judged for made-up content only when it says this much: two content words
+#: are a paraphrase as often as an invention, so they are never called made up.
+INVENTED_MIN_CUES = 3
+
+_CLAUSE_SPLIT = re.compile(
+    r"[.!?…;:,«»()\n]+|\s(?:et|puis|mais|ou|donc|alors|ensuite|parce\s+que|car)\s", re.IGNORECASE
+)
+_CLAUSE_EDGE = " '’\"-"
+
+
+def _clauses(text: str) -> list[str]:
+    parts = _CLAUSE_SPLIT.split(f" {text or ''} ")
+    return [part.strip(_CLAUSE_EDGE) for part in parts if part.strip(_CLAUSE_EDGE)]
+
+
+def invented_clauses(
+    text: str, scene: list[str], *, given: set[str] | None = None
+) -> list[str]:
+    """The clauses of a retell that the scene does not back: made-up events.
+
+    #918: «… puis le chat a mangé un perroquet» was from another day. A clause with at
+    least :data:`INVENTED_MIN_CUES` content words of which fewer than half appear anywhere
+    in ``scene`` (everything the scene said, :func:`scene_lines`) is not a memory of it.
+    Short clauses and the names the learner was given are never judged.
+    """
+    skip = {fold_for_comparison(word) for word in given or ()}
+    backing = set(content_cues(" ".join(scene)))
+    invented: list[str] = []
+    for clause in _clauses(text):
+        cues = content_cues(clause, given=skip)
+        if len(cues) < INVENTED_MIN_CUES:
+            continue
+        backed = [cue for cue in cues if any(cue_matches(cue, word) for word in backing)]
+        if 2 * len(backed) < len(cues):
+            invented.append(clause)
+    return invented
+
+
+def score_content_recall(
+    text: str,
+    facts: list[dict[str, Any]],
+    *,
+    scene: list[str] | None = None,
+    given: set[str] | None = None,
+) -> dict[str, Any]:
     """How much of the scene the writing actually remembered.
 
     Deterministic and cheap on purpose: this is a *content* measure, and paying
@@ -465,8 +548,18 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
 
     A scene with no stored facts scores ``None``, not zero. "We had nothing to
     check against" and "they remembered nothing" are different sentences.
+
+    ``scene`` is everything the scene said (:func:`scene_lines`). A clause it does not
+    back (:func:`invented_clauses`) is listed as ``invented`` and its words prove no
+    memory: «le chat a mangé un perroquet» does not recall the scene's parrot photo
+    (#918). Without ``scene`` nothing is called invented.
     """
-    written = set(_tokens(text))
+    support = list(scene or []) + [str(raw.get("text_fr") or "") for raw in facts or []]
+    invented = invented_clauses(text, support, given=given) if scene else []
+    kept = text or ""
+    for clause in invented:
+        kept = kept.replace(clause, " ")
+    written = set(_tokens(kept))
     matched: list[dict[str, Any]] = []
     missed: list[dict[str, Any]] = []
     for raw in facts or []:
@@ -498,6 +591,7 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
             "matched": [],
             "missed": [],
             "facts_total": 0,
+            "invented": invented,
         }
     return {
         "version": RECALL_VERSION,
@@ -506,6 +600,7 @@ def score_content_recall(text: str, facts: list[dict[str, Any]]) -> dict[str, An
         "matched": matched,
         "missed": missed,
         "facts_total": total,
+        "invented": invented,
     }
 
 
@@ -537,6 +632,7 @@ def character_reaction(
     character_name: str | None,
     recall: dict[str, Any],
     address: str = JOURNAL_ADDRESS,
+    checked: bool = True,
 ) -> str | None:
     """One line, about the *content*, composed from public story context.
 
@@ -551,6 +647,11 @@ def character_reaction(
 
     ``None`` when there is nothing honest to say (no facts, or no name to say it
     with). An empty compliment is worse than silence.
+
+    #918/#971: «Oui, c’est bien comme ça que ça s’est passé» is a verdict, so it is said
+    only of a retell that recalled every fact, invented nothing and was ``checked``. A
+    retell that missed something hears what it missed; one whose check failed (#333) or
+    that made something up is confirmed by no one.
     """
     name = str(character_name or "").strip()
     if not name or recall.get("status") != "scored":
@@ -565,10 +666,11 @@ def character_reaction(
 
     matched = [item for item in matched if short(item)]
     missed = [item for item in missed if short(item)]
+    vouches = checked and not recall.get("invented")
     commitments = [item for item in matched if item.get("kind") == "commitment"]
-    if commitments:
+    if commitments and vouches:
         return f"{name} hoche la tête. « {forms['remembered']} : {short(commitments[0])}. »"
-    if matched:
+    if matched and not missed and vouches:
         return f"{name} sourit. « Oui, c’est bien comme ça que ça s’est passé. »"
     if missed:
         return (
@@ -879,12 +981,12 @@ class JournalService:
 
         self._settle_correction(user, entry, written, truncated=truncated)
 
-        recall = score_content_recall(written, list(entry.scene_facts or []))
+        recall = score_content_recall(
+            written, list(entry.scene_facts or []), **self._scene_support(entry)
+        )
         entry.content_recall = recall
         entry.recall_score = recall.get("score")
-        entry.reaction_fr = character_reaction(
-            character_name=(entry.cue or {}).get("character_name"), recall=recall
-        )
+        self._react(entry)
 
         self.db.add(entry)
         self.db.commit()
@@ -909,10 +1011,34 @@ class JournalService:
         self._settle_correction(
             user, entry, str(bounded.get("text") or entry.entry_text), truncated=truncated
         )
+        # The recall stays as it was; whether the character may confirm it follows the check.
+        self._react(entry)
         self.db.add(entry)
         self.db.commit()
         self.db.refresh(entry)
         return entry
+
+    def _scene_support(self, entry: JournalEntry) -> dict[str, Any]:
+        """What a retell of ``entry``'s scene is checked against for made-up events: every
+        line the scene said, its reveal, and the names the cue gave away."""
+
+        journey = self.db.get(DailyJourney, entry.journey_id) if entry.journey_id else None
+        reveal = entry.scene_reveal if isinstance(entry.scene_reveal, dict) else {}
+        cue = entry.cue if isinstance(entry.cue, dict) else {}
+        scene = scene_lines(journey) if journey is not None else None
+        if scene is not None:
+            scene += [str(value) for value in reveal.values() if value]
+        names = " ".join(str(cue.get(key) or "") for key in ("character_name", "location_name"))
+        return {"scene": scene, "given": set(content_cues(names))}
+
+    def _react(self, entry: JournalEntry) -> None:
+        """The character's line, from the stored recall and whether a model checked it."""
+
+        entry.reaction_fr = character_reaction(
+            character_name=(entry.cue or {}).get("character_name"),
+            recall=dict(entry.content_recall or {}),
+            checked=entry.assessment_status == "checked",
+        )
 
     def _settle_correction(
         self, user: User, entry: JournalEntry, written: str, *, truncated: bool
@@ -1011,7 +1137,9 @@ class JournalService:
         if not written:
             return entry
 
-        recall = score_content_recall(written, list(entry.scene_facts or []))
+        recall = score_content_recall(
+            written, list(entry.scene_facts or []), **self._scene_support(entry)
+        )
         # #775: the answer is the learner's own French, so it gets the rules' check like
         # every other free sentence; it was saved with no check at all («sa travail»).
         # Rules only: no paid call, so it counts for nothing and the screen says so.

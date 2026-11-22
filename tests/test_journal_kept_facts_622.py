@@ -68,8 +68,9 @@ def test_the_hook_is_not_what_the_scene_kept():
 
 def test_what_the_scene_kept_comes_from_its_replies():
     facts = scene_facts_for(_journey(WALK_TURNS, ledger=WALK_LEDGER), story_context={})
-    assert [fact.kind for fact in facts] == ["said", "scene", "scene"]
-    assert facts[0].text_fr == "je ne paie pas la dette de ton frère"
+    # #971: the learner's reply, as typed and never corrected, is not a line of the scene.
+    assert [fact.kind for fact in facts] == ["scene", "scene"]
+    assert "je ne paie pas la dette de ton frère" not in [fact.text_fr for fact in facts]
     assert NOTARY in [fact.text_fr for fact in facts]
     assert DEBT in [fact.text_fr for fact in facts]
 

@@ -214,6 +214,8 @@ const FR = {
     headline: 'Le journal de bord',
     cue_fallback: 'La scène d’hier',
     field_label: 'Hier, en français',
+    // #918: a scene from further back is not «hier».
+    field_label_days_ago: 'Il y a {n} jours, en français',
     hint: 'Une seule correction en avant, la liste complète sur demande. Dans une semaine, une ligne te redemandera cette scène.',
     word_count: '{n} mots · {min} au minimum',
     // French counts 0 and 1 in the singular («0 mot»), English and German only 1.
@@ -481,6 +483,7 @@ const EN: CahierCopy = {
     headline: 'The logbook',
     cue_fallback: 'Yesterday’s scene',
     field_label: 'Yesterday, in French',
+    field_label_days_ago: '{n} days ago, in French',
     hint: 'One correction up front, the full list on request. In a week, one line will ask you about this scene again.',
     word_count: '{n} words · {min} minimum',
     word_count_one: '{n} word · {min} minimum',
@@ -745,6 +748,7 @@ const DE: CahierCopy = {
     headline: 'Das Logbuch',
     cue_fallback: 'Die Szene von gestern',
     field_label: 'Gestern, auf Französisch',
+    field_label_days_ago: 'Vor {n} Tagen, auf Französisch',
     hint: 'Eine Korrektur vorab, die ganze Liste auf Wunsch. In einer Woche fragt dich eine Zeile noch einmal nach dieser Szene.',
     word_count: '{n} Wörter · mindestens {min}',
     word_count_one: '{n} Wort · mindestens {min}',
