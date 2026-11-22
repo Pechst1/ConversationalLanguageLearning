@@ -363,6 +363,7 @@ def test_the_morning_task_runs_both_desks_only_while_the_switch_is_on(monkeypatc
     monkeypatch.setattr(task, "rubriques_now", lambda **_: calls.append("rubriques") or {})
     monkeypatch.setattr(task, "_queue_painting", lambda period: {})
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_OFFERED", "comptoir,fil,titre,intox,photo,micro")
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False)
     assert "rubriques" not in task.weekly_intake() and calls == ["leads", "comptoir"]
     calls.clear()

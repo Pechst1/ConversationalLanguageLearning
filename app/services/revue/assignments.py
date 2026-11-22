@@ -19,6 +19,10 @@ learner's last two Papier sessions.
 - The dealt assignment is recorded on the session's first ``choice`` event (``mode``), like
   the comptoir's, and kept for the session's life (:func:`session_mode` replays it).
 
+«Papier · le choix» (2026-11-22): only the assignments ``REVUE_ASSIGNMENTS_OFFERED`` names
+(default «Au comptoir» and «Le titre») are dealt (:func:`offered_keys`); the others are parked
+— registered, so a session dealt one before plays to its end, but never dealt again.
+
 Nothing here runs while ``REVUE_ASSIGNMENTS_ENABLED`` is off: the session starts as before it
 existed (the comptoir when that switch is on and the story has takes, else the chat).
 """
@@ -124,26 +128,54 @@ def dealt_material(material: Material, key: str) -> Any:
             "intox": material.intox, "micro": material.micro}.get(key)
 
 
-def available(material: Material) -> list[str]:
-    """The assignments ``material`` can carry, in registration order."""
+#: «Papier · le choix» (2026-11-22): what ``REVUE_ASSIGNMENTS_OFFERED`` says when it is unset.
+DEFAULT_OFFERED = "comptoir,titre"
 
-    return [key for key, row in _REGISTRY.items() if row.carries(material)]
+
+def offered_keys() -> list[str]:
+    """The assignments the paper deals today (``REVUE_ASSIGNMENTS_OFFERED``), in registration
+    order; an unknown key is ignored. The others are parked: never dealt, their desks never run."""
+
+    from app.config import settings
+
+    raw = getattr(settings, "REVUE_ASSIGNMENTS_OFFERED", DEFAULT_OFFERED)
+    wanted = {part.strip().lower() for part in str(raw if raw is not None else DEFAULT_OFFERED).split(",")}
+    return [key for key in _REGISTRY if key in wanted]
+
+
+def is_offered(key: str) -> bool:
+    return key in offered_keys()
+
+
+def available(material: Material) -> list[str]:
+    """The offered assignments ``material`` can carry, in registration order."""
+
+    offered = set(offered_keys())
+    return [key for key, row in _REGISTRY.items() if key in offered and row.carries(material)]
 
 
 def _rank(seed: str, key: str) -> str:
     return hashlib.sha256(f"{seed}:{key}".encode()).hexdigest()
 
 
-def deal(offered: list[str], recent: list[str], *, seed: str) -> str | None:
+def deal(offered: list[str], recent: list[str], *, seed: str, prefer: list[str] | None = None) -> str | None:
     """The assignment a new session plays: one of ``offered`` that is not among the last
     :data:`RECENT` of ``recent`` (newest first), picked by ``seed`` (learner + dossier);
     when each was played lately, the one played least recently; ``None`` when nothing is
-    offered (the chat)."""
+    offered (the chat).
+
+    ``prefer`` («Papier · le choix»: the assignments whose material exercises the day's rule,
+    best first) goes ahead of the seed: the first preferred one not played lately, else the
+    first preferred one that is not the very last shape played; else the seeded deal."""
 
     if not offered:
         return None
     lately = list(recent[:RECENT])
     fresh = [key for key in offered if key not in lately]
+    for pool in (fresh, [key for key in offered if key not in lately[:1]]):
+        best = next((key for key in prefer or [] if key in pool), None)
+        if best is not None:
+            return best
     if fresh:
         return min(fresh, key=lambda key: _rank(seed, key))
     # every offered shape was played lately: the one played longest ago
@@ -193,6 +225,8 @@ __all__ = [
     "assignments_enabled",
     "available",
     "deal",
+    "is_offered",
+    "offered_keys",
     "recent_modes",
     "register",
     "registered",

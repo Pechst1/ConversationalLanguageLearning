@@ -981,6 +981,34 @@ class Settings(BaseSettings):
             "nothing changes (no new mode, no field, no call)."
         ),
     )
+    REVUE_ASSIGNMENTS_OFFERED: str = Field(
+        "comptoir,titre",
+        description=(
+            "«Papier · le choix» (owner 2026-11-22): the assignments that are dealt, comma-separated "
+            "(comptoir, fil, titre, intox, photo, micro). Only these are dealt, and only their desks are "
+            "built each morning: the parked ones cost model money for nothing (first real run: «Le fil», "
+            "«L'intox express», «La photo», «Le micro» flat or refused). Parked code stays, with its tests."
+        ),
+    )
+    REVUE_PEDAGOGY_PICK_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · le choix»: the stories are ranked by what the learner needs — their due words in "
+            "the story's French at their band, an occasion to use the day's grammar rule (its detectors over "
+            "the story), their interests (a real weight, not a tie-break) — and the assignment dealt prefers "
+            "the one whose material exercises the rule. Deterministic; the pick carries a small ``why`` record. "
+            "Off: the ranking by recency and the seeded deal, as before."
+        ),
+    )
+    REVUE_CHOICE_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · le choix»: a Papier opens on a front page of up to three stories (the top of the "
+            "ranking, different rubrics where possible), each with its rubric and one honest line of why it "
+            "is offered in the mother tongue; one tap starts it. Off: the journey's Papier starts Romy's pick "
+            "and /revue shows its chooser, as before."
+        ),
+    )
     REVUE_MEMORY_ENABLED: bool = Field(
         False,
         description=(

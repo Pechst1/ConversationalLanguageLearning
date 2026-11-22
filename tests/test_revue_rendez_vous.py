@@ -65,6 +65,8 @@ def switches(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", True)
+    # «Papier · le choix» (2026-11-22): every desk, the parked ones included, is dealt here.
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_OFFERED", "comptoir,fil,titre,intox,photo,micro")
     # These tests deal «Le titre» by the history they seed; «La photo» and «Le micro» (merged
     # 2026-11-21) have their own tests and are kept off the deal here, as in the rubriques' tests.
     from app.services.revue import micro as _micro

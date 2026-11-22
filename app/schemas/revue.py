@@ -139,6 +139,32 @@ class RvCardAssignment(RevueModel):
     name_fr: str
 
 
+class RvWhyRule(RevueModel):
+    """The grammar rule a story gives occasion to use: its id, its name in the mother tongue,
+    and whether it is the day's own (else the most recent of the week's)."""
+
+    id: str
+    name: str
+    today: bool
+
+
+class RvWhyInterest(RevueModel):
+    """The learner's interest a story meets: the story's topic when it matched, and their word."""
+
+    topic: str
+    word: str
+
+
+class RvWhy(RevueModel):
+    """«Papier · le choix» (2026-11-22): why pedagogy offered a story — the learner's due words its
+    French contains, the rule it gives occasion to use, the interest it meets, and its score."""
+
+    due_words: list[str]
+    rule: RvWhyRule | None = None
+    interest: RvWhyInterest | None = None
+    score: int = 0
+
+
 class RvStoryCard(RevueModel):
     dossier_id: str
     title_fr: str
@@ -157,12 +183,16 @@ class RvStoryCard(RevueModel):
     #: «Le Papier · les rubriques» (2026-11-21): the assignment the learner would be dealt
     #: (``REVUE_ASSIGNMENTS_ENABLED`` on); omitted otherwise, so the card is today's.
     assignment: RvCardAssignment | None = None
+    #: «Papier · le choix» (``REVUE_PEDAGOGY_PICK_ENABLED``): why it is offered; omitted otherwise.
+    why: RvWhy | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_assignment(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
         data = handler(self)
-        if isinstance(data, dict) and data.get("assignment") is None:
-            data.pop("assignment", None)
+        if isinstance(data, dict):
+            for key in ("assignment", "why"):
+                if data.get(key) is None:
+                    data.pop(key, None)
         return data
 
 
@@ -338,6 +368,20 @@ class RvOffer(RevueModel):
     evergreen_only: bool
     resume: RvResume | None = None
     filed: RvFiled | None = None
+    #: «Papier · le choix» (``REVUE_CHOICE_ENABLED``, 2026-11-22): the front page — up to three
+    #: stories, the top of the ranking, different rubrics where possible; and the language their
+    #: ``why`` lines are said in (the mother tongue). Both omitted with the switch off.
+    choices: list[RvStoryCard] | None = None
+    why_language: Language | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_choices(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict):
+            for key in ("choices", "why_language"):
+                if data.get(key) is None:
+                    data.pop(key, None)
+        return data
 
 
 class RvMatchRequest(RevueRequest):
@@ -1399,6 +1443,16 @@ class RvSessionView(RevueModel):
     #: «La photo» and «Le micro» (2026-11-21): the dealt assignment's view.
     photo: RvPhotoView | None = None
     micro: RvMicroView | None = None
+    #: «Papier · le choix» (2026-11-22): why pedagogy offered the story (the dossier choice's
+    #: record); omitted when the session was not picked that way.
+    why: RvWhy | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_why(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and data.get("why") is None:
+            data.pop("why", None)
+        return data
 
 
 class RvComptoirResult(RevueModel):

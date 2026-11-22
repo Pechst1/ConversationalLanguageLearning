@@ -283,6 +283,9 @@ _META_LINES = {QR_FORMULATE.send_fr, QR_AGREE.send_fr, QR_MORE.send_fr, QR_UNDER
 #: Every quick reply: a chip sent is not a line the learner wrote (2026-10-23).
 _CHIP_LINES = frozenset(q.send_fr for q in (QR_AGREE, QR_MORE, QR_FORMULATE, QR_UNDERSTOOD, QR_SIMPLER))
 
+#: «Papier · le choix»: how deep in the ranking the front page looks for different rubrics.
+CHOICE_POOL = 8
+
 #: Interest words (``users.interests``, comma-separated, any of en/fr/de) → topics.
 INTEREST_TOPICS: dict[str, tuple[str, ...]] = {
     "food": ("food", "cooking", "cuisine", "gastronomie", "kochen", "essen", "vin", "wine", "wein", "restaurant"),
@@ -1864,8 +1867,24 @@ def session_view(loaded: Loaded) -> RvSessionView:
         own_line=own_line(state),
         artifact=_made(artifact) if artifact else None,
         closing=_closing_of(state),
+        why=_why_of(state),
         **_comptoir_fields(loaded),
     )
+
+
+def _why_of(state: ConversationState) -> Any:
+    """«Papier · le choix»: the ``why`` record kept on the session's dossier choice, if any."""
+
+    from app.schemas.revue import RvWhy
+
+    for event in _choices(state, "dossier")[:1]:
+        raw = event.payload.get("why")
+        if isinstance(raw, dict):
+            try:
+                return RvWhy.model_validate(raw)
+            except ValueError:
+                return None
+    return None
 
 
 def _comptoir_fields(loaded: Loaded) -> dict[str, Any]:
@@ -2181,6 +2200,10 @@ class RevueEncounter:
         self.scorer = scorer or scorer_for(self.provider)
         #: «Au comptoir»: the takes desk for a story the morning did not write (``ask_json``).
         self.desk = desk
+        #: «Papier · le choix»: the learner's focus (read once per request) and each ranked
+        #: story's ``why`` record, while ``REVUE_PEDAGOGY_PICK_ENABLED`` is on.
+        self._focus: dict[Any, Any] = {}
+        self._whys: dict[str, dict[str, Any]] = {}
 
     def _comptoir_desk(self) -> Any:
         """The takes desk a session start may call: the injected one, the real one beside a
@@ -2217,10 +2240,64 @@ class RevueEncounter:
                 seen[topic] = max(seen.get(topic, 0.0), ts)
         return seen
 
+    def focus(self, user: Any) -> Any:
+        """«Papier · le choix»: what ``user`` needs today (``choix.focus_for``), read once."""
+
+        from app.services.revue import choix
+
+        if user.id not in self._focus:
+            self._focus[user.id] = choix.focus_for(self.db, user, last_seen=self._topic_last_seen(user))
+        return self._focus[user.id]
+
+    def why_for(self, dossier_id: str) -> dict[str, Any] | None:
+        """The ``why`` record of a story ranked by pedagogy, ``None`` with the switch off."""
+
+        return self._whys.get(dossier_id)
+
+    def _pedagogy_ranked(self, user: Any, dossiers: list[EditorialDossier]) -> list[EditorialDossier]:
+        """«Papier · le choix» (``REVUE_PEDAGOGY_PICK_ENABLED``): best for this learner today
+        first (due words, the day's rule, interests, the last topic set back); the stories that
+        can be played — an offered assignment, or the regulars' takes — ahead of the rest."""
+
+        from app.services.revue import assignments, choix
+        from app.services.revue.comptoir import comptoir_enabled
+
+        focus = self.focus(user)
+        on = assignments.assignments_enabled()
+        keys: dict[str, list[str]] = {}
+
+        def keys_of(dossier: EditorialDossier) -> list[str]:
+            if dossier.id not in keys:
+                if on:
+                    keys[dossier.id] = assignments.available(self._material(dossier, dossier.comptoir))
+                elif comptoir_enabled() and dossier.comptoir is not None:
+                    keys[dossier.id] = ["comptoir"]
+                else:
+                    keys[dossier.id] = []
+            return keys[dossier.id]
+
+        playable = (lambda d: bool(keys_of(d))) if on or comptoir_enabled() else None
+        scored = choix.rank(dossiers, focus, keys_of=keys_of, playable=playable)
+        self._whys = {row.dossier.id: row.why for row in scored}
+        return [row.dossier for row in scored]
+
     def ranked(self, user: Any, week: str) -> tuple[list[EditorialDossier], str]:
         dossiers = _kiosk(week, self.db)
         if not dossiers:
             return [], "first"
+        from app.services.revue.choix import pedagogy_enabled
+
+        if pedagogy_enabled():
+            ordered = self._pedagogy_ranked(user, dossiers)
+            from app.services.revue.weekly import is_daily_period
+
+            if is_daily_period(week):
+                from app.services.revue.daily import deal_daily
+
+                ordered = deal_daily(self.db, user, week, ordered)
+            top = self._whys.get(ordered[0].id) if ordered else None
+            reason = "interests" if top and top.get("interest") else "first"
+            return ordered, reason
         last_seen = self._topic_last_seen(user)
         interests = _interests(user)
         keyed = [
@@ -2296,7 +2373,34 @@ class RevueEncounter:
             evergreen_only=bool(cards) and all(d.evergreen for d in ordered[:3]),
             resume=resume,
             filed=filed,
+            **self._front_page(user, ordered, cards),
         )
+
+    def _front_page(self, user: Any, ordered: list[EditorialDossier], cards: list[RvStoryCard]) -> dict[str, Any]:
+        """«Papier · le choix» (``REVUE_CHOICE_ENABLED``): the offer's ``choices`` — up to three
+        stories from the top of the ranking, different rubrics where possible, each with its
+        ``why`` — and the language their lines are said in. Off: nothing (the offer as before)."""
+
+        from app.schemas.revue import RvWhy
+        from app.services.journey_contracts import normalize_control_language
+        from app.services.revue import choix
+
+        if not choix.choice_enabled():
+            return {}
+        pool = [*cards, *(self._card_for(user, d) for d in ordered[len(cards):CHOICE_POOL])]
+        if any(card.assignment is not None for card in pool):
+            # a story no offered assignment carries would be a chat: never on the front page
+            pool = [card for card in pool if card.assignment is not None]
+
+        def rubric(card: RvStoryCard) -> str | None:
+            return card.assignment.key if card.assignment is not None else None
+
+        picked = choix.front_page(pool, rubric=rubric, topic=lambda card: card.topic)
+        choices = []
+        for card in picked:
+            why = self.why_for(card.dossier_id)
+            choices.append(card.model_copy(update={"why": RvWhy.model_validate(why)}) if why else card)
+        return {"choices": choices, "why_language": normalize_control_language(user_mother_tongue(user))}
 
     def match(self, user: Any, text: str, week: str | None = None) -> RvMatchResult:
         week = week or current_period()
@@ -2360,6 +2464,9 @@ class RevueEncounter:
             raise RevueError(404, "revue_dossier_not_found", dossier_id=dossier.id, angle_id=angle_id)
 
         spent_before = self._spent()
+        # «Papier · le choix»: why pedagogy offered this story, kept on the dossier choice.
+        why = self.why_for(dossier.id)
+        picked = {"why": why} if why is not None else {}
         takes, desk_cost = self._takes_at_start(dossier, week)
         takes, dealt = self._deal(user, dossier, takes)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
@@ -2370,21 +2477,21 @@ class RevueEncounter:
             mode, material = dealt
             others = {"comptoir", *ASSIGNMENT_FIELDS} - {mode}
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                         free_request=(free_request or None), mode=mode,
+                         free_request=(free_request or None), mode=mode, **picked,
                          snapshot=dossier.model_copy(update={mode: material}).model_dump(mode="json", exclude=others),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
         elif takes is not None:
             # «Au comptoir» (WP-119, 2026-10-19): the mode is fixed here for the session's life.
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                         free_request=(free_request or None), mode="comptoir",
+                         free_request=(free_request or None), mode="comptoir", **picked,
                          snapshot=dossier.model_copy(update={"comptoir": takes}).model_dump(
                              mode="json", exclude=set(ASSIGNMENT_FIELDS)),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
         else:
             state.append("choice", kind="dossier", dossier_id=dossier.id, chosen_by=chosen_by,
-                         free_request=(free_request or None),
+                         free_request=(free_request or None), **picked,
                          snapshot=dossier.model_dump(mode="json", exclude={"comptoir", *ASSIGNMENT_FIELDS}),
                          cost_usd=round(self._spent() - spent_before + desk_cost, 6),
                          prompt_version=VOCABULARY_PROMPT_VERSION)
@@ -2467,11 +2574,19 @@ class RevueEncounter:
     def _dealt(self, user: Any, material: Any) -> str | None:
         """The assignment ``user`` is dealt on ``material``'s story (``assignments.deal``)."""
 
-        from app.services.revue import assignments
+        from app.services.revue import assignments, choix
 
         recent = assignments.recent_modes(self._sessions(user))
-        return assignments.deal(assignments.available(material), recent,
-                                seed=assignments.seed_for(user.id, material.dossier.id))
+        offered = assignments.available(material)
+        # «Papier · le choix»: the assignment whose material exercises the day's rule goes first.
+        prefer = None
+        if choix.pedagogy_enabled():
+            dossier = material.dossier
+            if material.takes is not None and dossier.comptoir is None:
+                dossier = dossier.model_copy(update={"comptoir": material.takes})
+            prefer = choix.prefer(offered, dossier, self.focus(user))
+        return assignments.deal(offered, recent, seed=assignments.seed_for(user.id, material.dossier.id),
+                                **({"prefer": prefer} if prefer else {}))
 
     def _card_for(self, user: Any, dossier: EditorialDossier) -> RvStoryCard:
         """The chooser's card, as the session will play: a story dealt «Le fil», «Le titre»,

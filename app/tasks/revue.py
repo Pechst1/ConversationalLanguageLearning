@@ -141,11 +141,14 @@ def photos_now(*, period: str | None = None, now: datetime | None = None) -> dic
 def fil_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
     """Write the «Le fil» wires ``period``'s kiosk is missing (2026-11-20); off with either switch."""
 
+    from app.services.revue.assignments import is_offered
     from app.services.revue.fil import ensure_fil, fil_enabled
     from app.services.revue.weekly import period_for
 
     if not fil_enabled():
         return {"status": "disabled"}
+    if not is_offered("fil"):
+        return {"status": "parked"}
     target = period or period_for(now or datetime.now(UTC))
     db = SessionLocal()
     try:
@@ -161,9 +164,10 @@ def fil_now(*, period: str | None = None, now: datetime | None = None) -> dict[s
 def rubriques_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
     """Write «Le titre», «L'intox express», «La photo» and «Le micro» for ``period``'s kiosk
     (2026-11-20/21), each desk on its own (one failing leaves the others); off with either switch.
+    Only the offered ones (``REVUE_ASSIGNMENTS_OFFERED``, 2026-11-22): a parked desk is not asked.
     The photo desk reads the story's gallery: it runs after the morning's photos (:func:`photos_now`)."""
 
-    from app.services.revue.assignments import assignments_enabled
+    from app.services.revue.assignments import assignments_enabled, offered_keys
     from app.services.revue.intox import ensure_intox
     from app.services.revue.micro import ensure_micro
     from app.services.revue.photo import ensure_photo
@@ -174,8 +178,13 @@ def rubriques_now(*, period: str | None = None, now: datetime | None = None) -> 
         return {"status": "disabled"}
     target = period or period_for(now or datetime.now(UTC))
     report: dict[str, Any] = {"status": "ok", "period": target}
+    offered = offered_keys()
     for key, ensure in (("titre", ensure_titre), ("intox", ensure_intox), ("photo", ensure_photo),
                         ("micro", ensure_micro)):
+        if key not in offered:
+            # «Papier · le choix»: a parked desk is never asked (REVUE_ASSIGNMENTS_OFFERED).
+            report[key] = {"status": "parked"}
+            continue
         db = SessionLocal()
         try:
             report[key] = ensure(db, target)
@@ -225,7 +234,13 @@ def weekly_intake(refresh: bool = False) -> dict[str, Any]:
     if getattr(settings, "REVUE_PHOTOS_ENABLED", False):
         report["photos"] = photos_now(period=report.get("period"))
     if getattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False):
-        report["fil"] = fil_now(period=report.get("period"))
-        report["rubriques"] = rubriques_now(period=report.get("period"))
+        from app.services.revue.assignments import offered_keys
+
+        # «Papier · le choix» (2026-11-22): only the offered assignments' desks are built.
+        offered = offered_keys()
+        if "fil" in offered:
+            report["fil"] = fil_now(period=report.get("period"))
+        if {"titre", "intox", "photo", "micro"} & set(offered):
+            report["rubriques"] = rubriques_now(period=report.get("period"))
     report["pictures"] = _queue_painting(report.get("period"))
     return report

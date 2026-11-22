@@ -77,6 +77,8 @@ def switches(monkeypatch) -> None:
     monkeypatch.setattr(settings, "REVUE_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_COMPTOIR_ENABLED", True)
     monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_ENABLED", True)
+    # «Papier · le choix» (2026-11-22): every desk, the parked ones included, is dealt here.
+    monkeypatch.setattr(settings, "REVUE_ASSIGNMENTS_OFFERED", "comptoir,fil,titre,intox,photo,micro")
     # These tests pin the shapes they play; «La photo» and «Le micro» (2026-11-21) have their
     # own (tests/test_revue_photo_micro_loop.py) and are kept off the deal here.
     from app.services.revue import micro as _micro
