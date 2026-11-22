@@ -105,3 +105,30 @@ def test_the_walk_of_21_nov_never_offers_the_slip():
 def test_a_short_sentence_still_stands_whole():
     step = _step("Oui, je reste ici ce soir.", suggested=SCRIPTED)
     assert spoken_reply.repeat_line_for(step) == "Oui, je reste ici ce soir."
+
+
+def test_a_generated_line_of_two_sentences_is_cut_to_one():
+    """The question's example is written by a model and has no length either."""
+
+    step = _step("Je vais vendre l'appartement.", suggested="Oui. Je vends et je rentre.")
+    assert spoken_reply.repeat_line_for(step) == "Je vends et je rentre."
+
+
+def test_a_long_sentence_keeps_the_learners_date_and_reason():
+    """#379 outranks the length: a cut that would drop the date or the reason is no line,
+    so the one sentence that carries them stands whole."""
+
+    said = "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
+    scripted = "Je rentre le 19 décembre, parce que je reste pour la fête."
+    assert spoken_reply.repeat_line_for(_step(said, suggested=scripted)) == said
+
+
+def test_a_card_is_not_a_reason():
+    """«la carte de ma grand-mère» was read as «car te de ma grand-mère», a reason the learner
+    never gave, so every short line of the 20 Nov reply looked like it dropped it."""
+
+    from app.services.learner_facts import facts_of, reason_of
+
+    assert reason_of("je garde la carte de ma grand-mère") == frozenset(), "«carte» read as «car …»"
+    assert "reason" not in facts_of(WALK_20_NOV)
+    assert reason_of("Je reste, car je suis fatigué.") == frozenset({"fatig"})
