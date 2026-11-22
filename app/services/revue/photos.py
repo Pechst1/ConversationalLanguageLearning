@@ -347,13 +347,26 @@ def _pages(payload: Any) -> list[dict[str, Any]]:
     return sorted((page for page in pages if isinstance(page, dict)), key=lambda page: int(page.get("index") or 0))
 
 
+class CommonsUnavailable(RuntimeError):
+    """The search failed (network, HTTP status, JSON, budget): not the same as «nothing kept»."""
+
+
+def commons_client() -> httpx.Client:
+    """The client the search opens itself: HTTP/2. First real run (2026-11-22): over HTTP/1.1
+    every httpx request was answered 403 «Please respect our robot policy», whatever the
+    User-Agent, while the same request over HTTP/2 (httpx, curl) was served."""
+
+    return httpx.Client(http2=True, follow_redirects=True)
+
+
 def find_photos(
     dossier: EditorialDossier, *, client: httpx.Client | None = None, limit: int | None = None,
-    clock: Any = time.monotonic,
+    clock: Any = time.monotonic, raise_errors: bool = False,
 ) -> list[Photo]:
     """Up to ``limit`` (``REVUE_PHOTOS_PER_STORY``) photos for ``dossier``, one per subject, in
     subject order. One request per subject, one try, all within :data:`TIMEOUT_SECONDS`; any
-    error (network, HTTP, JSON) returns no photos at all."""
+    error (network, HTTP, JSON) returns no photos at all — or, with ``raise_errors``, raises
+    :class:`CommonsUnavailable` so the caller can tell a failed search from an empty one."""
 
     wanted = int(settings.REVUE_PHOTOS_PER_STORY if limit is None else limit)
     if wanted <= 0:
@@ -362,7 +375,7 @@ def find_photos(
     if not subjects:
         return []
     own = client is None
-    http = client or httpx.Client(follow_redirects=True)
+    http = client or commons_client()
     started = clock()
     found: list[Photo] = []
     titles: set[str] = set()
@@ -389,6 +402,8 @@ def find_photos(
             logger.bind(dossier=dossier.id, subject=subject.query, refused=reasons).debug("revue photos: searched")
     except Exception as exc:  # noqa: BLE001 - failure = no photos, never a failed dossier
         logger.bind(dossier=dossier.id).info("revue photos: Commons search failed ({}); no photos", type(exc).__name__)
+        if raise_errors:
+            raise CommonsUnavailable(type(exc).__name__) from exc
         return []
     finally:
         if own:
@@ -446,7 +461,10 @@ def store_photos(db: Session, dossier_id: str, photos: Iterable[Photo]) -> int:
 def ensure_photos(db: Session, period: str, *, client: httpx.Client | None = None) -> dict[str, int]:
     """Search Commons once for every dossier of ``period``'s kiosk not searched yet
     (``checks["photos"]`` records the count, ``0`` included, so a story is searched once).
-    Returns dossier id → photos stored. Off while ``REVUE_PHOTOS_ENABLED`` is off."""
+    Returns dossier id → photos stored. Off while ``REVUE_PHOTOS_ENABLED`` is off.
+
+    A search that FAILED (429, 403, network, budget) records nothing: the story is searched
+    again the next morning, and the morning stops searching (Commons asked us to slow down)."""
 
     from sqlalchemy import select
 
@@ -470,7 +488,10 @@ def ensure_photos(db: Session, period: str, *, client: httpx.Client | None = Non
         except Exception as exc:  # noqa: BLE001 - an unreadable row is left to the kiosk's own guard
             logger.bind(row=row.id).debug("revue photos: stored dossier unreadable ({})", exc)
             continue
-        photos = find_photos(dossier, client=client)
+        try:
+            photos = find_photos(dossier, client=client, raise_errors=True)
+        except CommonsUnavailable:
+            break
         out[dossier.id] = store_photos(db, dossier.id, photos)
         row.checks = {**(row.checks or {}), "photos": out[dossier.id]}
         db.commit()
@@ -543,6 +564,8 @@ __all__ = [
     "MIN_WIDTH",
     "TIMEOUT_SECONDS",
     "USER_AGENT",
+    "CommonsUnavailable",
+    "commons_client",
     "Photo",
     "Subject",
     "author_of",

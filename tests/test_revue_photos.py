@@ -306,6 +306,29 @@ def test_ensure_photos_searches_each_story_once_and_stores_the_credit(db: Sessio
     assert db.get(RevueDossier, f"{WEEK}:{dossier.id}").checks["photos"] == 2
 
 
+def test_a_failed_search_is_not_recorded_and_stops_the_morning(db: Session, photos_on) -> None:
+    """First real run (2026-11-22): Commons answered 429/403 and every story was recorded as
+    searched with 0 photos, never to be searched again. A failure now records nothing."""
+
+    for suffix in ("a", "b"):
+        dossier = marche().model_copy(update={"id": f"marche-{suffix}"})
+        db.add(RevueDossier(id=f"{WEEK}:{dossier.id}", week=WEEK, period=WEEK, topic=dossier.topic,
+                            payload=dossier.model_dump(mode="json"), source_hashes={}, checks={}, builder_version="t"))
+    db.commit()
+    commons = Commons(status=429)
+    with commons.client() as client:
+        assert photos.ensure_photos(db, WEEK, client=client) == {}
+    assert len(commons.requests) == 1, "the morning stops at the first refusal"
+    assert all("photos" not in (row.checks or {}) for row in db.query(RevueDossier).all())
+    with Commons().client() as client:
+        assert set(photos.ensure_photos(db, WEEK, client=client)) == {"marche-a", "marche-b"}, "searched the next morning"
+
+
+def test_the_search_opens_an_http2_client() -> None:
+    with photos.commons_client() as client:
+        assert client._transport._pool._http2 is True  # noqa: SLF001
+
+
 def test_ensure_photos_is_off_by_default(db: Session) -> None:
     commons = Commons()
     with commons.client() as client:
