@@ -109,3 +109,32 @@ def test_the_night_planner_reads_the_echo_and_the_author_only_when_someone_who_w
     assert story_split.author_payload(context, _plan(), [])["papier_echo"] == echo
     nobody_who_was_there = {**context, "papier_echo": {**echo, "present": [{"id": "romy_tremblay", "name": "Romy"}]}}
     assert "papier_echo" not in story_split.author_payload(nobody_who_was_there, _plan(), [])
+
+
+# -- what the block says -------------------------------------------------------------------
+
+
+def test_the_echo_instruction_names_what_the_regulars_remember():
+    from app.services.revue import echo
+
+    assert "regulars_remember" in echo.INSTRUCTION
+
+
+@pytest.mark.parametrize("stance", ["pour", "contre", "nuance"])
+def test_a_regular_remembers_the_learner_s_side_in_words_that_fit_every_learner(monkeypatch, stance):
+    """«Tu étais partagé» was said to every learner, whatever their gender."""
+
+    from types import SimpleNamespace
+
+    from app.services.revue import comptoir_loop, knowledge
+
+    said: list[str] = []
+    monkeypatch.setattr(knowledge, "remember", lambda db, **kw: said.append(kw["content"]))
+    loaded = SimpleNamespace(row=SimpleNamespace(user_id=1, id="s1"), dossier=SimpleNamespace(title_fr="Le Goncourt"))
+    guests = [SimpleNamespace(id="margaux_petit", stance=side) for side in ("pour", "contre", "nuance")]
+    comptoir_loop.remember_guests(
+        SimpleNamespace(db=None), loaded, SimpleNamespace(guests=guests), stance=stance, edited="…"
+    )
+    assert len(said) == 3
+    for content in said:
+        assert "partagé" not in content and "partagée" not in content
