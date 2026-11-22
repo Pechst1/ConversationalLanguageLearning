@@ -451,3 +451,42 @@ def test_every_subject_and_fact_tile_makes_a_true_headline() -> None:
     raw["build"]["subjects"] = [tile("Les produits frais"), tile("Les fruits et légumes frais")]
     made, refused, _ = titre._build(raw["build"], raw["wrong_fr"], prices, titre._Checker(prices))
     assert made is not None, refused
+
+
+# 22 Nov, a real run on the Arc story: the desk's exaggerated a2 changed more than wrong_fr.
+ARC_HONEST = "Daryz essaie de gagner la course une deuxième fois"
+ARC_EXAGGERATED = "C'est sûr, Daryz gagne la course une deuxième fois"
+ARC_WRONG = "c'est sûr"
+
+
+def test_the_exaggerated_headline_changes_nothing_outside_the_words_that_say_too_much() -> None:
+    """Real run (2026-11-22, the Arc story): wrong_fr «c'est sûr», but «essaie de gagner» also
+    became «gagne» — and a learner who tapped «gagne» was told it is what the article says."""
+
+    assert titre.changed_outside_wrong(ARC_HONEST, ARC_EXAGGERATED, ARC_WRONG)
+    # wrong_fr may replace words, be prepended (punctuation and elision do not count) or carry agreement
+    assert not titre.changed_outside_wrong("16 chevaux courent à ParisLongchamp", "30 chevaux courent à ParisLongchamp",
+                                           "30")
+    assert not titre.changed_outside_wrong(ARC_HONEST, f"C'est sûr, {ARC_HONEST}", ARC_WRONG)
+    assert not titre.changed_outside_wrong("Daryz gagne la course", "C’est sûr : Daryz gagne la course.", ARC_WRONG)
+    assert not titre.changed_outside_wrong("Le marché Beauvau rouvre", "Tous les marchés de Paris rouvrent",
+                                           "tous les marchés de Paris")
+    assert not titre.changed_outside_wrong("La fête plaît à beaucoup", "La fête plaît à tout le monde",
+                                           "tout le monde")
+    # a word changed, dropped or added outside wrong_fr
+    assert titre.changed_outside_wrong("Le marché Beauvau rouvre le 14 novembre", "Tous les marchés de Paris rouvrent",
+                                       "tous les marchés de Paris")
+    assert titre.changed_outside_wrong("16 chevaux courent à ParisLongchamp", "30 chevaux gagnent à ParisLongchamp",
+                                       "30")
+    assert titre.changed_outside_wrong("16 chevaux courent", "30 chevaux courent à ParisLongchamp", "30")
+
+
+def test_a_desk_answer_that_changes_more_than_wrong_fr_is_refused_at_every_band_the_trap_shows() -> None:
+    for band in ("a1", "a2", "b1"):
+        raw = gold_titre()
+        exaggerated = next(h for h in raw["headlines"] if h["role"] == "exaggerated")
+        exaggerated[band]["fr"] = exaggerated[band]["fr"].replace("rouvrent", "ferment")
+        made, problems = titre.repair_titre(raw, beauvau())
+        assert made is None and problems == [f"titre:exaggerated:{band}:changed_outside_wrong"], (band, problems)
+    assert "changed_outside_wrong" in rubriques.RETRY_NOTE, "the retry is told how to read it"
+    assert "changed_outside_wrong" not in " ".join(titre.repair_titre(gold_titre(), beauvau())[1])

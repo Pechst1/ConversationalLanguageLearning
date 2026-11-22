@@ -432,6 +432,31 @@ def test_the_trap_is_graded_against_the_stored_words(db: Session) -> None:
     assert view.step == "build"
 
 
+def test_the_trap_never_says_a_word_the_honest_headline_lacks_is_what_the_article_says(db: Session,
+                                                                                        monkeypatch) -> None:
+    """Real run (2026-11-22, the Arc story): «gagne · Bleibt stehen: Das sagt der Artikel» — the
+    honest headline said «essaie de gagner». Stet only for a word the honest headline of the same
+    band says; a desk that changed more than wrong_fr never makes the trap say otherwise."""
+
+    desk = evergreen_titre(FETE)
+    honest = desk.headline("honest")
+    plain = honest.a1.model_copy(update={"fr": "Une fête gratuite pour toutes les musiques"})
+    desk.headlines[0] = honest.model_copy(update={"a1": plain})
+    monkeypatch.setattr(titre_loop, "desk_of", lambda loaded: desk)
+    revue, row = start(db, "titre")
+    act(revue, row, act="open")
+    act(revue, row, act="pick", key=titre_loop.key_of(str(row.id))[0])
+    trap = act(revue, row, act="trap", words=[2]).session.titre.trap  # «plaît»: not in that honest headline
+    assert trap.words[2].fr == "plaît" and trap.fine == [] and not trap.resolved
+
+    exaggerated, arc = "C'est sûr, Daryz gagne la course une deuxième fois", "Daryz essaie de gagner la course une deuxième fois"
+    assert titre_loop.grade_trap(exaggerated, "c'est sûr", [3], honest=arc) == {"correct": False, "fine": []}
+    graded = titre_loop.grade_trap(exaggerated, "c'est sûr", [2], honest=arc)
+    assert graded == {"correct": False, "fine": [2]}, "Daryz is in the honest headline: stet"
+    graded = titre_loop.grade_trap(exaggerated, "c'est sûr", [0, 1, 3], honest=arc)
+    assert graded["correct"] is True, "the words that say too much, and one more that does too"
+
+
 def test_a1_builds_from_tiles_without_a_model_call(db: Session) -> None:
     revue, row = start(db, "titre")
     assert out_of_order(revue, row, act="build", parts=[0, 0]) == "revue_titre_out_of_order"
