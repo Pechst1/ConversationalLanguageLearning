@@ -54,7 +54,7 @@ import { frenchQuote } from '@/lib/french-typography';
 import { pulseAppHaptic } from '@/lib/haptics';
 import type { PortraitMood } from '@/lib/onboarding-portraits';
 
-import { epreuveCopy, fill, type EpreuveCopy } from './epreuve-copy';
+import { epreuveCopy, fill, speakerLabelNote, type EpreuveCopy } from './epreuve-copy';
 import { gapIsFixed, gapTyped, type RepairPart } from '@/lib/repair-parts';
 import { nextFinishState } from './finish-confirm';
 
@@ -306,6 +306,22 @@ export function EpPrompt({ children, cue, lang = 'fr' }: { children: Node; cue?:
     </div>
   );
 }
+/* #951: who says a line is ONE label, «Lila · te tutoie»: the name and what the
+   register means, inline in one element. Laid out as the name and a bare «tu» chip
+   side by side (two flex items), they read as two loose lines, «Lila / tu», that a
+   learner took for part of the question. Every speaker byline of the Épreuve (the
+   speech figure, the conversation byline) reads this one component. */
+export function EpSpeakerLabel({ name, register }: { name: string; register?: string }) {
+  const t = useEpCopy();
+  const note = speakerLabelNote(t, register);
+  return (
+    <span className="ep-speaker">
+      <b className="ep-speaker__name">{name}</b>
+      {note ? ` · ${note}` : null}
+    </span>
+  );
+}
+
 /* Owner 2026-11-13: one voice per level. A scene prompt («À la gare, ton amie te
    dit : « Le train part dans dix minutes ! » Réponds-lui…») is cut at its quote
    (lib/prompt-parts.ts): the situation and the instruction are prose in the sans,
@@ -321,7 +337,7 @@ export function EpScenePrompt({
   text: string;
   cue?: Node;
   lang?: string;
-  /** The named speaker of the quoted line, and the register tag («tu»). */
+  /** The named speaker of the quoted line and their register («tu»), set as one label. */
   speaker?: { name: string; register?: string; portrait?: Node } | null;
   split: { situation: string; quote: string; instruction: string } | null;
 }) {
@@ -333,8 +349,7 @@ export function EpScenePrompt({
         {speaker?.name && (
           <figcaption className="ep-speech__who">
             {speaker.portrait}
-            <span className="ep-speech__name">{speaker.name}</span>
-            {speaker.register && <span className="ep-speech__register" lang="fr">{speaker.register}</span>}
+            <EpSpeakerLabel name={speaker.name} register={speaker.register} />
           </figcaption>
         )}
         {/* French speech is always in guillemets with French spacing, whatever the
@@ -1354,8 +1369,8 @@ export function LEpreuveStyles() {
 .av2 .ep-instruction { color: var(--av2-ink); }
 .av2 .ep-speech { margin: 0; display: flex; flex-direction: column; gap: 6px; padding-left: 14px; border-left: 2px solid var(--av2-line); }
 .av2 .ep-speech__who { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--av2-t-label); color: var(--av2-ink-2); }
-.av2 .ep-speech__name { font-weight: 700; color: var(--av2-ink); }
-.av2 .ep-speech__register { font-weight: 700; color: var(--av2-blue); }
+.av2 .ep-speaker { min-width: 0; font-family: var(--av2-sans); font-style: normal; font-size: var(--av2-t-label); line-height: 1.3; color: var(--av2-ink-2); }
+.av2 .ep-speaker__name { font-weight: 700; color: var(--av2-ink); }
 .av2 .ep-speech__line {
   margin: 0;
   padding: 0;
@@ -1473,15 +1488,12 @@ export function LEpreuveStyles() {
 /* conversation: the character byline and the world's reply */
 .av2 .ep-character-byline {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   padding: 0;
   border: 0;
   min-width: 0;
 }
-.av2 .ep-character-byline span { font-family: var(--av2-serif); font-style: italic; font-size: var(--av2-t-rule); line-height: 1.15; color: var(--av2-ink); }
-.av2 .ep-character-byline em { font-family: var(--av2-sans); font-style: normal; font-size: var(--av2-t-meta); font-weight: 700; letter-spacing: normal; text-transform: none; color: var(--av2-blue); }
 .av2 .ep-world-reply {
   margin: 0;
   padding: 14px 16px;
