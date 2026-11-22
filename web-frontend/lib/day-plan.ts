@@ -142,26 +142,21 @@ export function ruleCheckIsFromDay(query: { testout?: unknown; from?: unknown } 
 /**
  * #175 — the rule check («Épreuve de la règle») started from the day's grammar
  * step ends here, not on a screen of its own. Passed: the rule is proven, so the
- * grammar step is done and the plan's next step follows. Not passed: La Forge
- * takes over, i.e. the day's own grammar step (the plan's address) stays open
- * and its button says so. `null` without a plan: the caller keeps its own exit.
+ * grammar step is done and the plan's next step follows. Not passed: the check
+ * leaves the grammar step as it found it, so the plan's own state decides — a
+ * grammar step still open stays the next one (La Forge takes over now); one the
+ * day already finished (the optional check on its end sheet) hands on to the
+ * words, then «Fertig» (#997: a failed extra check reopened a second séance on a
+ * forged rule while Home said «Grammatik — erledigt»). Both go through
+ * `afterExit`, so no exit picks a step without reading its state. `null` without
+ * a plan: the caller keeps its own exit.
  */
 export function handOnAfterRuleCheck(
   plan: DaySession | null | undefined,
   passed: boolean,
   language: ControlLanguage,
 ): DayHandOn | null {
-  if (!plan) return null;
-  if (passed) return afterExit(plan, 'grammar', 'finished', language)?.next ?? null;
-  const grammar = sessionStep(plan, 'grammar');
-  if (!grammar || !grammar.href) return null;
-  const copy = daySessionCopy(language);
-  return {
-    kind: 'grammar',
-    label: copy.next_grammar,
-    meta: grammar.minutes > 0 ? copy.minutes(grammar.minutes) : '',
-    href: grammar.href,
-  };
+  return afterExit(plan, 'grammar', passed ? 'finished' : 'back', language)?.next ?? null;
 }
 
 /**
