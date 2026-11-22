@@ -11,6 +11,7 @@
 import React from 'react';
 
 import { Action } from '@/components/atelier-v2/ui';
+import { frenchSpacing } from '@/lib/french-typography';
 import type { RvIntoxPage, RvMicroPage, RvPhotoPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 
 import type { ComptoirCopy } from '../comptoir/comptoir-copy';
@@ -209,10 +210,10 @@ export function MicroClipping({
     return (
       <div key={index} className="rb-qa__row">
         <dt className="rb-qa__q">
-          <span className="rb-qa__k">{MICRO_FR.q}</span> {line.questionFr}
+          <span className="rb-qa__k">{MICRO_FR.q}</span> {frenchSpacing(line.questionFr)}
         </dt>
         <dd className="rb-qa__a">
-          <span className="rb-qa__k">{MICRO_FR.a}</span> {line.answerFr}
+          <span className="rb-qa__k">{MICRO_FR.a}</span> {frenchSpacing(line.answerFr)}
           {source && <span className="rb-qa__src"> d’après {source}</span>}
         </dd>
       </div>
@@ -223,7 +224,7 @@ export function MicroClipping({
   const quote = pull ? (
     <figure className="pp-pull">
       <blockquote className="pp-pull__fr" lang="fr">
-        {pull}
+        {frenchSpacing(pull)}
       </blockquote>
       <figcaption className="pp-pull__by" lang="fr">
         {page.witness.nameFr}
