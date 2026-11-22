@@ -15,3 +15,6 @@ export type { ComptoirStepProps } from './RvComptoirParts';
 export { comptoirCopy, COMPTOIR_FR, COMPTOIR_LINES } from './comptoir-copy';
 export type { ComptoirCopy } from './comptoir-copy';
 export * from './comptoir-model';
+export { RvProofMarks } from './RvProofMarks';
+export { RvProofNotes } from './RvProofNotes';
+export * from './pourquoi';

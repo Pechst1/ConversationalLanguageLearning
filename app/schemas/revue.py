@@ -9,9 +9,9 @@ response model, so it cannot leak by construction.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 from app.schemas.revue_vignette import VignetteView
 
@@ -462,6 +462,30 @@ class RvComptoirMark(RevueModel):
     span_fr: str
     start: int = 0
     kind: ComptoirMarkKind
+    #: «Le pourquoi» (``REVUE_POURQUOI_ENABLED``): the rule in the learner's mother tongue,
+    #: without the corrected form (no solution before a retry). Omitted when absent.
+    why: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_why(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        # Additive means byte-identical with the switch off.
+        data = handler(self)
+        if isinstance(data, dict) and data.get("why") is None:
+            data.pop("why", None)
+        return data
+
+
+class RvComptoirNote(RevueModel):
+    """«Le pourquoi», once the opinion is settled: one of Romy's marks with its rule in full
+    (``why``, the learner's mother tongue; it may show the corrected form now), the same
+    pattern in today's story (``example_fr``, found by the app, never written by the model)
+    and the grammar rule La Forge brings back (``rule_id``, the Correcteur's rule names)."""
+
+    span_fr: str
+    kind: ComptoirMarkKind
+    why: str | None = None
+    example_fr: str | None = None
+    rule_id: str | None = None
 
 
 class RvComptoirReply(RevueModel):
@@ -496,6 +520,15 @@ class RvComptoirOpinion(RevueModel):
     #: A1–A2: the three comeback chips; empty from B1 (one free line).
     comebacks: list[RvComptoirText]
     comeback: RvComptoirComeback | None = None
+    #: «Le pourquoi» (``REVUE_POURQUOI_ENABLED``), once settled: the marks explained. Omitted when empty.
+    notes: list[RvComptoirNote] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_notes(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
+        data = handler(self)
+        if isinstance(data, dict) and not data.get("notes"):
+            data.pop("notes", None)
+        return data
 
 
 class RvComptoirView(RevueModel):
