@@ -8992,6 +8992,19 @@ def _director_vocabulary(db: Session, user: User) -> dict:
         return empty
 
 
+def _add_papier_echo(db: Session, user: User, context: dict, *, now: datetime | None = None) -> None:
+    """«Papier · l'écho»: ``context["papier_echo"]`` when the learner finished a Papier in the last
+    three days (``revue.echo``). Director-only; with ``REVUE_ECHO_ENABLED`` off nothing is read."""
+
+    from app.services.revue import echo
+
+    if not echo.enabled():
+        return
+    block = echo.director_context(db, user, now=now)
+    if block:
+        context[echo.CONTEXT_KEY] = block
+
+
 def _story_words(db: Session, user: User) -> list[dict]:
     """WP-115c. The hardest due words for the director; empty when unreadable."""
 
@@ -9874,6 +9887,9 @@ def _add_director_context(db: Session, user: User, context: dict, *, now: dateti
     # prompted, never stored — `_storable_context` keeps only provenance).
     context.update(_director_vocabulary(db, user))
     context[LEXICON_KEY]["rank_of"] = _rank_lookup(db, user)
+    # «Papier · l'écho» (REVUE_ECHO_ENABLED): the learner's last Papier, which one character
+    # who was there may mention once. Off (the default): no read, no key.
+    _add_papier_echo(db, user, context, now=now)
     # WP-115c: the learner's hardest due words, carried by today's story as needs.
     story_words = _story_words(db, user)
     if story_words:
@@ -10292,6 +10308,8 @@ def later_act_context(context: dict, first_draft: dict, role: str) -> dict:
 
     act_context = story_split.act_context(context, first_draft, str(role))
     act_context.pop(STORY_WORDS_KEY, None)
+    # «Papier · l'écho»: once a day at most, and the first act is where it may be said.
+    act_context.pop("papier_echo", None)
     return act_context
 
 
