@@ -11,3 +11,5 @@ live_2026-11-22_budget.json is different: RECORDED from the live API on the firs
 (2026-11-22, HTTP/2), trimmed to the first 4 pages of each search and the extmetadata keys the filter
 reads, with the run's own dossier. It shows two faults the hand-written answers never had: a stage
 landmark the story never names (the Arc de Triomphe for the budget) and an infographic saved as JPEG.
+live_2026-11-22_goncourt.json, recorded the same way: «roman» found a Roman theatre in Orange and
+«sélection» found the Auschwitz-Birkenau ramp (1944), which only the person rule refused.

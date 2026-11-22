@@ -1,0 +1,647 @@
+{
+ "recorded": "2026-11-22, live commons.wikimedia.org API (HTTP/2), first real Papier run; only the pages the test reads, extmetadata trimmed to the keys the filter reads",
+ "dossier": {
+  "id": "2026-w40-le-goncourt-retire-un-roman-de-sa-premiere-selection",
+  "week": "2026-W40",
+  "leads": {
+   "a1": {
+    "de": "Die Académie Goncourt nimmt einen Roman aus ihrer Auswahl. Das Buch ist von Thélyson Orélien. Es bleibt auf 4 weiteren Auswahllisten.",
+    "en": "The Académie Goncourt removes a novel from its selection. The book is by Thélyson Orélien. It remains on 4 other shortlists.",
+    "fr": "L’Académie Goncourt retire un roman de sa sélection. Le livre est de Thélyson Orélien. Il reste dans 4 autres sélections."
+   },
+   "a2": {
+    "de": "Am 25. September 2026 nimmt die Académie Goncourt C’était ça ou mourir von ihrer ersten Auswahlliste. Sie glaubt, dass das Buch wahrscheinlich größtenteils von künstlicher Intelligenz erstellt wurde. Thélyson Orélien widerspricht dieser Ansicht. Der Roman bleibt auf den Auswahllisten von 4 weiteren Preisen.",
+    "en": "On September 25, 2026, the Académie Goncourt removes C’était ça ou mourir from its first shortlist. It believes the book was probably largely produced by artificial intelligence. Thélyson Orélien disputes this view. The novel remains on the shortlists for 4 other prizes.",
+    "fr": "Le 25 septembre 2026, l’Académie Goncourt retire C’était ça ou mourir de sa première sélection. Elle estime que le livre est probablement largement produit par une intelligence artificielle. Thélyson Orélien conteste cette idée. Le roman reste dans les sélections de 4 autres prix."
+   },
+   "headline_fr": "Le Goncourt retire un roman"
+  },
+  "topic": "culture",
+  "angles": [
+   {
+    "fr": "Comparer la décision de l’Académie Goncourt avec le maintien du roman dans les sélections des autres prix.",
+    "id": "a1",
+    "purpose": "understand_change",
+    "guest_fit": null,
+    "participation": "none"
+   },
+   {
+    "fr": "Distinguer l’avis de l’Académie Goncourt de la réponse de l’écrivain.",
+    "id": "a2",
+    "purpose": "explain_disagreement",
+    "guest_fit": null,
+    "participation": "none"
+   }
+  ],
+  "claims": [
+   {
+    "fr": "Le 25 septembre 2026, l’Académie Goncourt retire C’était ça ou mourir de sa première sélection.",
+    "id": "c1",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "kind": "fact",
+    "quote": "L'Académie Goncourt a annoncé, vendredi 25 septembre, la \"suppression\" du roman C'était ça ou mourir de Thélyson Orélien de sa première sélection pour le prix le plus prestigieux de la littérature française.",
+    "source_id": "rt_goncourt_franceinfo",
+    "confidence": "reported",
+    "published_at": "2026-09-25",
+    "attributed_to": null
+   },
+   {
+    "fr": "L’Académie Goncourt estime que le roman est probablement largement produit par une intelligence artificielle.",
+    "id": "c2",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "kind": "interpretation",
+    "quote": "L'ouvrage \"est selon toute vraisemblance très largement le produit d'une intelligence artificielle\", justifie-t-elle après plusieurs jours de polémique",
+    "source_id": "rt_goncourt_franceinfo",
+    "confidence": "reported",
+    "published_at": "2026-09-25",
+    "attributed_to": "L’Académie Goncourt"
+   },
+   {
+    "fr": "Thélyson Orélien conteste avoir utilisé l’intelligence artificielle et dénonce une volonté de le faire taire.",
+    "id": "c3",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "kind": "fact",
+    "quote": "L'écrivain canado-haïtien conteste avoir eu recours à l'intelligence artificielle, et a dénoncé jeudi une \"volonté\" de le \"faire taire\".",
+    "source_id": "rt_goncourt_franceinfo",
+    "confidence": "reported",
+    "published_at": "2026-09-25",
+    "attributed_to": null
+   },
+   {
+    "fr": "Le roman reste dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre.",
+    "id": "c4",
+    "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+    "kind": "fact",
+    "quote": "C’était ça ou mourir figure toujours dans les premières sélections du Renaudot, du Femina, du Médicis et du Prix Décembre, sans qu’aucun de ces jurys ait annoncé son retrait.",
+    "source_id": "rt_goncourt_actualitte",
+    "confidence": "reported",
+    "published_at": "2026-09-25",
+    "attributed_to": null
+   }
+  ],
+  "places": [
+   {
+    "id": "france",
+    "geo": {
+     "lat": 48.8584,
+     "lon": 2.2945,
+     "label_fr": "Tour Eiffel",
+     "precision": "exact"
+    },
+    "brief": "France : la tour Eiffel, le château de Versailles et le Mont-Saint-Michel ; lumière douce de fin d’après-midi.",
+    "known": false,
+    "name_fr": "France"
+   }
+  ],
+  "visual": {
+   "kind": "editorial",
+   "light": "Clear late-afternoon light with sharp shadows.",
+   "words": [
+    {
+     "fr": "le roman",
+     "shows": "The oversized book being lifted from the shortlist."
+    },
+    {
+     "fr": "la sélection",
+     "shows": "A neat row of books with one empty space."
+    }
+   ],
+   "moment": "In France, a huge novel sits on a Goncourt shortlist like a book-shaped block. A clean gap in the row shows its removal; beside it, four smaller award lists still hold the same book.",
+   "symbol": "A giant novel being lifted out of the Goncourt shortlist while four smaller award lists still contain it.",
+   "look_fr": "Regarde : le roman quitte la sélection de l’Académie Goncourt. Quatre autres listes le gardent.",
+   "decoys_fr": [
+    "L’Académie Goncourt ajoute le roman à sa sélection en France.",
+    "Le jury du Renaudot retire le roman de sa sélection en France."
+   ],
+   "viewpoint": "From above the shortlist, looking down at the gap and the four smaller lists.",
+   "caption_fr": "L’Académie Goncourt retire le roman de sa sélection en France."
+  },
+  "sources": [
+   {
+    "id": "rt_goncourt_franceinfo",
+    "url": "https://www.franceinfo.fr/culture/livres/le-roman-de-thelyson-orelien-supprime-de-la-selection-du-prix-goncourt-en-raison-de-soupcons-de-recours-a-l-intelligence-artificielle-et-d-accusations-de-plagiats_8209475.html",
+    "name": "franceinfo",
+    "published_at": "2026-09-25"
+   },
+   {
+    "id": "rt_goncourt_actualitte",
+    "url": "https://actualitte.com/article/134194/prix-litteraires/plagiat-ia-le-prix-goncourt-exclut-le-roman-de-thelyson-orelien",
+    "name": "ActuaLitté",
+    "published_at": "2026-09-25"
+   }
+  ],
+  "comptoir": {
+   "bank": [
+    {
+     "de": "der Roman",
+     "en": "the novel",
+     "fr": "le roman"
+    },
+    {
+     "de": "der Preis",
+     "en": "the prize",
+     "fr": "le prix"
+    },
+    {
+     "de": "die Vorauswahl",
+     "en": "the shortlist",
+     "fr": "la sélection"
+    },
+    {
+     "de": "ein Verdacht",
+     "en": "a suspicion",
+     "fr": "un soupçon"
+    },
+    {
+     "de": "eine klare Regel",
+     "en": "a clear rule",
+     "fr": "une règle claire"
+    },
+    {
+     "de": "künstliche Intelligenz",
+     "en": "artificial intelligence",
+     "fr": "l’intelligence artificielle"
+    }
+   ],
+   "intox": {
+    "by": "augustin_de_roncourt",
+    "ask": {
+     "de": "Wie lautet der richtige Name des Autors?",
+     "en": "What is the author's real name?",
+     "fr": "Quel est le vrai nom de l’auteur ?"
+    },
+    "bands": [
+     "a1",
+     "a2",
+     "b1"
+    ],
+    "caught": {
+     "de": "Thélyson, natürlich. Mein Notizbuch hat sich vertan.",
+     "en": "Thélyson, of course. My notebook slipped up.",
+     "fr": "Thélyson, bien sûr. Mon carnet a fourché."
+    },
+    "claim_id": "c3",
+    "right_fr": "Thélyson Orélien",
+    "wrong_fr": "Théodore Orélien",
+    "distractor_fr": "l’Académie Goncourt"
+   },
+   "model": "gpt-6-luna",
+   "frames": {
+    "pour": {
+     "de": "Meiner Meinung nach sollte der Roman bleiben, weil",
+     "en": "In my opinion, the novel should stay, because",
+     "fr": "À mon avis, il faut garder le roman, parce que"
+    },
+    "contre": {
+     "de": "Meiner Meinung nach sollte der Roman nicht bleiben, weil",
+     "en": "In my opinion, the novel shouldn't stay, because",
+     "fr": "À mon avis, il ne faut pas garder le roman, parce que"
+    },
+    "nuance": {
+     "de": "Meiner Meinung nach kommt es darauf an, weil",
+     "en": "In my opinion, it depends, because",
+     "fr": "À mon avis, ça dépend, parce que"
+    }
+   },
+   "guests": [
+    {
+     "id": "romy_tremblay",
+     "take": {
+      "a1": {
+       "de": "Ich bin dafür. Am 25. September nimmt der Goncourt ihn heraus. Ach komm!",
+       "en": "I'm for it. On 25 September, the Goncourt removes it. Come on!",
+       "fr": "Je suis pour. Le 25 septembre, le Goncourt le retire. Voyons donc !"
+      },
+      "a2": {
+       "de": "Ich bin dafür: Am 25. September nimmt der Goncourt ihn heraus. Aber ein Buch verdient mehr als einen Verdacht.",
+       "en": "I'm for it: on 25 September, the Goncourt removes it. But a book deserves better than suspicion.",
+       "fr": "Je suis pour : le 25 septembre, le Goncourt le retire. Mais un livre mérite mieux qu’un soupçon."
+      },
+      "b1": {
+       "de": "Ich bin dafür, weil ein Buch es verdient, gelesen zu werden, bevor man es beurteilt. Am 25. September nahm der Goncourt es heraus, aber ach komm: Ein Verdacht ist kein Beweis.",
+       "en": "I'm for it, because a book deserves to be read before it is judged. On 25 September, the Goncourt removed it, but come on: a suspicion isn't proof.",
+       "fr": "Je suis pour, parce qu’un livre mérite qu’on le lise avant de le juger. Le 25 septembre, le Goncourt l’a retiré, mais voyons donc : un soupçon n’est pas une preuve."
+      }
+     },
+     "quote": {
+      "de": "Ein Verdacht ist kein Beweis.",
+      "en": "A suspicion isn't proof.",
+      "fr": "Un soupçon n’est pas une preuve."
+     },
+     "stance": "pour"
+    },
+    {
+     "id": "lila_bonnet",
+     "take": {
+      "a1": {
+       "de": "Ich bin dagegen. Der Roman ist noch beim Renaudot dabei. Vier Preise reichen!",
+       "en": "I'm against it. The novel is still in the running for the Renaudot. Four prizes are enough!",
+       "fr": "Je suis contre. Le roman reste au Renaudot. Quatre prix, ça suffit !"
+      },
+      "a2": {
+       "de": "Ich bin dagegen: Der Roman steht noch auf den Vorauswahllisten des Renaudot, Femina, Médicis und Prix Décembre. Vier Vorauswahlen sind schon mehr als genug!",
+       "en": "I'm against it: the novel is still on the Renaudot, Femina, Médicis and Prix Décembre shortlists. Four shortlists are plenty already!",
+       "fr": "Je suis contre : le roman reste au Renaudot, au Femina, au Médicis et au Prix Décembre. Quatre sélections, c’est déjà pas mal !"
+      },
+      "b1": {
+       "de": "Ich bin dagegen, weil vier weitere Preise den Roman auf ihrer Vorauswahlliste behalten: der Renaudot, der Femina, der Médicis und der Prix Décembre. Aber wenn wir anfangen, alle zu verdächtigen, wer liest dann noch Bücher?",
+       "en": "I'm against it, because four other prizes keep the novel on their shortlists: the Renaudot, the Femina, the Médicis and the Prix Décembre. But if we start suspecting everyone, who will read the books?",
+       "fr": "Je suis contre, parce que quatre autres prix gardent le roman dans leur sélection : le Renaudot, le Femina, le Médicis et le Prix Décembre. Mais si on commence à soupçonner tout le monde, qui va lire les livres ?"
+      }
+     },
+     "quote": {
+      "de": "Vier Vorauswahlen sind schon mehr als genug!",
+      "en": "Four shortlists are plenty already!",
+      "fr": "Quatre sélections, c’est déjà pas mal !"
+     },
+     "stance": "contre"
+    },
+    {
+     "id": "augustin_de_roncourt",
+     "take": {
+      "a1": {
+       "de": "Kommt drauf an. Théodore Orélien widerspricht. Vier Preise behalten seinen Roman.",
+       "en": "It depends. Théodore Orélien disputes it. Four prizes keep his novel.",
+       "fr": "Ça dépend. Théodore Orélien conteste. Quatre prix gardent son roman."
+      },
+      "a2": {
+       "de": "Einerseits widerspricht Théodore Orélien. Andererseits behalten vier Preise den Roman. Differenzierung steht mir hervorragend.",
+       "en": "On the one hand, Théodore Orélien disputes it. On the other, four prizes keep the novel. Nuance suits me beautifully.",
+       "fr": "D’un côté, Théodore Orélien conteste. De l’autre, quatre prix gardent le roman. La nuance me va à ravir."
+      },
+      "b1": {
+       "de": "Einerseits bestreitet Théodore Orélien, künstliche Intelligenz verwendet zu haben. Andererseits behalten vier Preise den Roman auf ihren Vorauswahllisten. Regel Nummer eins der Methode: Warten wir mit dem Urteil, bis wir gelesen haben.",
+       "en": "On the one hand, Théodore Orélien disputes having used artificial intelligence. On the other, four prizes keep the novel on their shortlists. Rule number one of The Method: let's wait to read before deciding.",
+       "fr": "D’un côté, Théodore Orélien conteste avoir utilisé l’intelligence artificielle. De l’autre, quatre prix gardent le roman dans leur sélection. Règle numéro un de La Méthode : attendons de lire avant de trancher."
+      }
+     },
+     "quote": {
+      "de": "Warten wir mit dem Urteil, bis wir gelesen haben.",
+      "en": "Let's read before deciding.",
+      "fr": "Attendons de lire avant de trancher."
+     },
+     "stance": "nuance"
+    }
+   ],
+   "phrase": {
+    "a1": {
+     "de": "Ich bin dafür… / Ich bin dagegen…",
+     "en": "I'm for… / I'm against…",
+     "fr": "Je suis pour… / Je suis contre…"
+    },
+    "a2": {
+     "de": "Meiner Meinung nach…, weil…",
+     "en": "In my opinion…, because…",
+     "fr": "À mon avis…, parce que…"
+    },
+    "b1": {
+     "de": "Ich bin nicht einverstanden mit…, weil…",
+     "en": "I don't agree with…, because…",
+     "fr": "Je ne suis pas d’accord avec…, parce que…"
+    },
+    "b2": {
+     "de": "Zwar…, aber…",
+     "en": "Admittedly…, but…",
+     "fr": "Certes…, mais…"
+    }
+   },
+   "reasons": {
+    "pour": [
+     {
+      "de": "ein Verdacht reicht nicht",
+      "en": "suspicion isn't enough",
+      "fr": "un soupçon ne suffit pas"
+     },
+     {
+      "de": "man muss das Buch lesen",
+      "en": "we need to read the book",
+      "fr": "il faut lire le livre"
+     },
+     {
+      "de": "der Autor widerspricht dem Vorwurf",
+      "en": "the author disputes the idea",
+      "fr": "l’auteur conteste l’idée"
+     }
+    ],
+    "contre": [
+     {
+      "de": "der Preis wählt seine Bücher aus",
+      "en": "the prize chooses its books",
+      "fr": "le prix choisit ses livres"
+     },
+     {
+      "de": "es braucht eine klare Regel",
+      "en": "there needs to be a clear rule",
+      "fr": "il faut une règle claire"
+     },
+     {
+      "de": "der Zweifel bleibt wichtig",
+      "en": "the doubt still matters",
+      "fr": "le doute reste important"
+     }
+    ],
+    "nuance": [
+     {
+      "de": "man muss lesen und prüfen",
+      "en": "we need to read and check",
+      "fr": "il faut lire et vérifier"
+     },
+     {
+      "de": "es ist ernst, aber ungewiss",
+      "en": "it's serious but uncertain",
+      "fr": "c’est grave mais incertain"
+     },
+     {
+      "de": "der Zweifel verdient eine Antwort",
+      "en": "doubt deserves an answer",
+      "fr": "le doute mérite une réponse"
+     }
+    ]
+   },
+   "replies": {
+    "pour": {
+     "by": "lila_bonnet",
+     "line": {
+      "de": "Du willst den Roman behalten? Was, wenn nicht für alle dieselben Regeln gelten?",
+      "en": "You want to keep the novel? What if the rules aren't the same for everyone?",
+      "fr": "Tu veux garder le roman ? Et si les règles ne sont pas les mêmes pour tout le monde ?"
+     },
+     "comeback": {
+      "de": "Dann schreiben wir eine klare Regel!",
+      "en": "Then let's write a clear rule!",
+      "fr": "Alors, écrivons une règle claire !"
+     }
+    },
+    "contre": {
+     "by": "romy_tremblay",
+     "line": {
+      "de": "Du willst ihn wegen eines Verdachts herausnehmen? Also, was ist der echte Beweis?",
+      "en": "You want to remove it based on a suspicion? So, what's the real evidence?",
+      "fr": "Tu veux le retirer sur un soupçon ? Bon, c’est quoi la vraie preuve ?"
+     },
+     "comeback": {
+      "de": "Ich will eine Regel für alle.",
+      "en": "I want one rule for everyone.",
+      "fr": "Je veux une règle pour tous."
+     }
+    },
+    "nuance": {
+     "by": "lila_bonnet",
+     "line": {
+      "de": "Du wägest ab? Na, worauf wartest du noch, um es zu lesen?",
+      "en": "You're weighing both sides? So, what are you waiting for before reading it?",
+      "fr": "Tu pèses le pour et le contre ? Bon, tu attends quoi pour lire ?"
+     },
+     "comeback": {
+      "de": "Ich lese es und entscheide dann!",
+      "en": "I'll read it, then decide!",
+      "fr": "Je lis, puis je décide !"
+     }
+    }
+   },
+   "question": {
+    "de": "Sollte dieser Roman auf der Vorauswahlliste bleiben?",
+    "en": "Should this novel stay on the shortlist?",
+    "fr": "Faut-il garder ce roman dans la sélection ?"
+   },
+   "written_at": "2026-11-22T01:43:07.861248Z",
+   "prompt_version": "comptoir-takes-v4"
+  },
+  "entities": [
+   {
+    "kind": "person",
+    "name": "Thélyson Orélien",
+    "role": "écrivain"
+   },
+   {
+    "kind": "organisation",
+    "name": "Académie Goncourt",
+    "role": null
+   },
+   {
+    "kind": "other",
+    "name": "C’était ça ou mourir",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Renaudot",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Femina",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Médicis",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Prix Décembre",
+    "role": null
+   }
+  ],
+  "title_fr": "Le Goncourt retire un roman de sa première sélection",
+  "evergreen": false,
+  "summary_fr": "Le 25 septembre 2026, l’Académie Goncourt retire C’était ça ou mourir de sa première sélection. Elle estime que le livre est probablement largement produit par une intelligence artificielle. Thélyson Orélien conteste cette idée, et le roman reste dans les premières sélections de 4 autres prix.",
+  "time_scope": {
+   "happening": "2026-09-25/2026-10-06",
+   "relevant_until": "2026-10-06"
+  },
+  "uncertainties": [
+   {
+    "fr": "Les articles ne précisent pas quels éléments ont conduit l’Académie à penser que le roman a été produit par une intelligence artificielle.",
+    "id": "u1"
+   },
+   {
+    "fr": "Les articles ne disent pas si l’un des autres jurys retirera le roman de sa sélection.",
+    "id": "u2"
+   },
+   {
+    "fr": "La sélection suivante du Goncourt doit être annoncée le 6 octobre 2026, mais son résultat n’est pas encore connu.",
+    "id": "u3"
+   }
+  ],
+  "dossier_version": "revue-v1",
+  "vignette_object_fr": "un roman"
+ },
+ "responses": {
+  "roman": {
+   "batchcomplete": true,
+   "query": {
+    "pages": [
+     {
+      "pageid": 79286001,
+      "ns": 6,
+      "title": "File:Roman Theatre in Orange 2008.jpg",
+      "index": 1,
+      "imageinfo": [
+       {
+        "width": 6546,
+        "height": 3273,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Roman_Theatre_in_Orange_2008.jpg/1280px-Roman_Theatre_in_Orange_2008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 640,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Roman_Theatre_in_Orange_2008.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Roman_Theatre_in_Orange_2008.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Roman Theatre in Orange 2008",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Roman Theatre of Orange|Featured pictures of Vaucluse|Clouds and blue sky in France|September 2008 in Provence-Alpes-Côte d'Azur|Featured pictures by Benh|France photographs taken on 2008-09-05|Files with coordinates missing SDC location of creation|Flickr images reviewed by FlickreviewR 2|Featured pictures of theaters|Featured pictures from Flickr",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Panoramic view of the roman theatre in Orange, south of France, as of 2008. This picture has a FOV of ~180°.",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Benh\" title=\"User:Benh\">Benh LIEU SONG</a> (<a rel=\"nofollow\" class=\"external text\" href=\"https://www.flickr.com/people/75729488@N03\">Flickr</a>)",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 2.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/2.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-2.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 11289959,
+      "ns": 6,
+      "title": "File:Centru roman din avion.jpg",
+      "index": 2,
+      "imageinfo": [
+       {
+        "width": 2592,
+        "height": 1944,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Centru_roman_din_avion.jpg/1280px-Centru_roman_din_avion.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 960,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/5/51/Centru_roman_din_avion.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Centru_roman_din_avion.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Centru roman din avion",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Roman, Romania|Self-published work|PD-self",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "vista de arriba del centro de la ciudad de Roman",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Bogdan29roman\" title=\"User:Bogdan29roman\">Bogdan29roman</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "Public domain",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "pd",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "sélection": {
+   "batchcomplete": true,
+   "query": {
+    "pages": [
+     {
+      "pageid": 39226962,
+      "ns": 6,
+      "title": "File:Selection on the ramp at Auschwitz-Birkenau, 1944 (Auschwitz Album) 1b.jpg",
+      "index": 5,
+      "imageinfo": [
+       {
+        "width": 4205,
+        "height": 2814,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Selection_on_the_ramp_at_Auschwitz-Birkenau%2C_1944_%28Auschwitz_Album%29_1b.jpg/1280px-Selection_on_the_ramp_at_Auschwitz-Birkenau%2C_1944_%28Auschwitz_Album%29_1b.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 857,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/1/13/Selection_on_the_ramp_at_Auschwitz-Birkenau%2C_1944_%28Auschwitz_Album%29_1b.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Selection_on_the_ramp_at_Auschwitz-Birkenau,_1944_(Auschwitz_Album)_1b.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Selection on the ramp at Auschwitz-Birkenau, 1944 (Auschwitz Album) 1b",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Retouched pictures|Child Holocaust victims|Featured pictures by others nominated by Yann Forget|Featured pictures on Wikipedia, English|Featured pictures of people of Poland|PD Old auto: author died less than 50 years ago|PD US alien property|Featured black and white photographs|Featured pictures restored by Yann Forget|Trains in Poland|Featured photographs in the public domain|Featured pictures of the Holocaust|Children of Hungary in World War II|Jewish children in World War II|Featured analogue photographs|Photographs of the selection ramp in the Auschwitz Album|Historical photographs of Auschwitz II (Birkenau) gatehouse",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Photographie d'une sélection des prisonniers pour les travaux forcés ou les chambres à gaz. Auschwitz-II (Birkenau), mai/juin 1944.",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<bdi><a href=\"https://en.wikipedia.org/wiki/en:Bernhard_Walter\" class=\"extiw\" title=\"w:en:Bernhard Walter\"><span title=\"garde SS et photographe du camp de concentration d'Auschwitz\">Bernhard Walter</span></a></bdi>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "Public domain",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "pd",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

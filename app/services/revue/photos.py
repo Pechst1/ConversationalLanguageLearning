@@ -137,11 +137,15 @@ def subjects_for(dossier: EditorialDossier, limit: int | None = None) -> list[Su
             add(place.geo.label_fr, "place", place.geo.label_fr)
     for name in named:
         add(name, "place", name)
-    if dossier.vignette_object_fr:
+    # An object is searched only as a phrase of two words or more: on the multilingual Commons a
+    # single French noun is an English homograph (first real run: «roman» → a Roman theatre,
+    # «pensions» → a Czech guesthouse, «sélection» → the Auschwitz ramp).
+    if dossier.vignette_object_fr and len(_fold(_bare(dossier.vignette_object_fr))) >= 2:
         add(_bare(dossier.vignette_object_fr), "object")
     if dossier.visual is not None:
         for word in dossier.visual.words:
-            add(_bare(word.fr), "object")
+            if len(_fold(_bare(word.fr))) >= 2:
+                add(_bare(word.fr), "object")
     return subjects if limit is None else subjects[: max(0, limit)]
 
 
@@ -279,12 +283,23 @@ _GRAPHICS = re.compile(
 )
 
 
+#: What a news photo for a learner's game never shows, whatever the search word (first real run:
+#: «sélection» brought «Selection on the ramp at Auschwitz-Birkenau, 1944»; it fell to the person
+#: rule only because people stand in it). Title, description and categories, English or French.
+_GRIEF = re.compile(
+    r"(?<!\w)(?:auschwitz|birkenau|holocaust|shoah|concentration camps?|camps? de concentration|"
+    r"extermination|genocides?|génocides?|massacres?|nazis?|war crimes?|crimes? de guerre|corpses?|cadavres?|"
+    r"executions?|exécutions?|military|militaire|defen[cs]e budget|weapons?|armes?|bombings?|bombardements?)(?!\w)",
+    re.IGNORECASE,
+)
+
+
 def photo_from_page(
     page: dict[str, Any], subject: Subject, dossier: EditorialDossier | None = None,
 ) -> tuple[Photo | None, str]:
     """The page as a :class:`Photo`, or ``None`` and the reason it was refused (``no_info``,
     ``not_a_photo``, ``portrait_orientation``, ``too_small``, ``licence``, ``no_author``,
-    ``person``)."""
+    ``person``, ``sensitive``)."""
 
     infos = page.get("imageinfo") or []
     info = infos[0] if infos else None
@@ -311,6 +326,8 @@ def photo_from_page(
         return None, "person"
     if _GRAPHICS.search(_described(page, info)):
         return None, "not_a_photo"
+    if _GRIEF.search(_described(page, info)):
+        return None, "sensitive"
     thumb_w = int(info.get("thumbwidth") or width)
     thumb_h = int(info.get("thumbheight") or height)
     caption = None

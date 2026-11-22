@@ -17,6 +17,7 @@ is ``plates._call`` replaced by the fake of ``test_revue_plates``. Under test:
 
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Generator
 from pathlib import Path
@@ -512,7 +513,7 @@ def test_recorded_live_answers_a_landmark_the_story_never_names_and_an_infograph
     dossier = EditorialDossier.model_validate(recorded["dossier"])
     queries = [subject.query for subject in photos.subjects_for(dossier)]
     assert "Arc de Triomphe, place Charles-de-Gaulle" not in queries
-    assert queries[:2] == ["budget", "pensions"]
+    assert "budget" not in queries and "pensions" not in queries, "single nouns are homographs on Commons"
     pages = recorded["responses"]["budget"]["query"]["pages"]
     ukraine = next(page for page in pages if "2024" in page["title"])
     subject = photos.Subject(query="budget", kind="object")
@@ -522,3 +523,22 @@ def test_recorded_live_answers_a_landmark_the_story_never_names_and_an_infograph
     arc = recorded["responses"]["Arc de Triomphe, place Charles-de-Gaulle"]["query"]["pages"]
     kept = [photos.photo_from_page(page, photos.Subject(query="Arc de Triomphe", kind="place"))[0] for page in arc]
     assert any(photo is not None and photo.licence in {"CC0", "CC BY-SA 3.0"} for photo in kept)
+
+
+def test_recorded_live_answers_single_nouns_are_not_searched_and_grief_is_refused() -> None:
+    """Recorded live (2026-11-22): the Goncourt story searched «roman» (Commons: a Roman theatre in
+    Orange) and «sélection» (Commons: the Auschwitz-Birkenau ramp, 1944, refused then only because
+    people stand in it)."""
+
+    recorded = json.loads((FIXTURES / "live_2026-11-22_goncourt.json").read_text(encoding="utf-8"))
+    dossier = EditorialDossier.model_validate(recorded["dossier"])
+    queries = [subject.query for subject in photos.subjects_for(dossier)]
+    assert "roman" not in queries and "sélection" not in queries
+    ramp = recorded["responses"]["sélection"]["query"]["pages"][0]
+    page = copy.deepcopy(ramp)
+    meta = page["imageinfo"][0]["extmetadata"]
+    for key in ("ImageDescription", "ObjectName"):
+        meta.pop(key, None)
+    page["title"] = "File:Selection ramp Auschwitz-Birkenau 1944.jpg"
+    meta["Categories"] = {"value": "Auschwitz-Birkenau"}
+    assert photos.photo_from_page(page, photos.Subject(query="sélection", kind="object"), dossier) == (None, "sensitive")
