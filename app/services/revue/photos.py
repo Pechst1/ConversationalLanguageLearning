@@ -119,11 +119,21 @@ def subjects_for(dossier: EditorialDossier, limit: int | None = None) -> list[Su
     def named_in(text: str) -> list[str]:
         return [name for name in named if f" {' '.join(_fold(name))} " in f" {text} "]
 
+    story = f" {' '.join(_fold(' '.join([dossier.title_fr, dossier.summary_fr, *(c.fr for c in dossier.claims)])))} "
+
+    def told(label: str) -> bool:
+        """The story itself names the place (first real run: the budget story's stage was the Arc
+        de Triomphe, and Commons gave a night view of the Arc for a story about pensions)."""
+
+        head = " ".join(_fold(label.split(",")[0]))
+        return bool(head) and f" {head} " in story
+
     for place, text in zip(dossier.places, places_text, strict=True):
         hits = named_in(text)
         for name in hits:
             add(name, "place", name)
-        if not hits and place.geo is not None and place.geo.precision in {"exact", "city"}:
+        if (not hits and place.geo is not None and place.geo.precision in {"exact", "city"}
+                and told(place.geo.label_fr)):
             add(place.geo.label_fr, "place", place.geo.label_fr)
     for name in named:
         add(name, "place", name)
@@ -260,6 +270,15 @@ def is_person_picture(page: dict[str, Any], info: dict[str, Any], dossier: Edito
     return False
 
 
+#: A chart, a diagram, a map or a logo saved as a JPEG is not a photo (first real run: «budget» kept
+#: the Ukrainian defence budget's infographic for a story on the French budget).
+_GRAPHICS = re.compile(
+    r"(?<![\w-])(?:infographics?|information graphics|diagrams?|charts?|pie charts?|logos?|maps?|"
+    r"infographies?|diagrammes?|graphiques?)(?![\w-])",
+    re.IGNORECASE,
+)
+
+
 def photo_from_page(
     page: dict[str, Any], subject: Subject, dossier: EditorialDossier | None = None,
 ) -> tuple[Photo | None, str]:
@@ -290,6 +309,8 @@ def photo_from_page(
         return None, "no_author"
     if is_person_picture(page, info, dossier):
         return None, "person"
+    if _GRAPHICS.search(_described(page, info)):
+        return None, "not_a_photo"
     thumb_w = int(info.get("thumbwidth") or width)
     thumb_h = int(info.get("thumbheight") or height)
     caption = None

@@ -6,3 +6,8 @@ pages with `index` (search rank), `imageinfo[0]` with size, mime, thumburl, desc
 extmetadata entries the filter keeps. The files, authors and URLs are made up for the tests (each
 page exercises one rule of app/services/revue/photos.py); they were written by hand in the API's
 format, not recorded from the live API.
+
+live_2026-11-22_budget.json is different: RECORDED from the live API on the first real Papier run
+(2026-11-22, HTTP/2), trimmed to the first 4 pages of each search and the extmetadata keys the filter
+reads, with the run's own dossier. It shows two faults the hand-written answers never had: a stage
+landmark the story never names (the Arc de Triomphe for the budget) and an infographic saved as JPEG.

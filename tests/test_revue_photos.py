@@ -501,3 +501,24 @@ def test_the_rss_parser_records_the_press_photo_and_its_credit_only() -> None:
         ("yes", "Photo Agence Exemple"), ("yes", None), (None, None),
     ]
     assert not any("photo.jpg" in value or "b.jpg" in value for item in items for value in item.values()), "no URL kept"
+
+
+def test_recorded_live_answers_a_landmark_the_story_never_names_and_an_infographic_are_refused() -> None:
+    """Recorded from the live Commons API on the first real run (2026-11-22), trimmed. The budget
+    story's stage was the Arc de Triomphe (the story never names it) and «budget» found the
+    Ukrainian defence budget's infographic (a JPEG): neither is a photo of the story."""
+
+    recorded = json.loads((FIXTURES / "live_2026-11-22_budget.json").read_text(encoding="utf-8"))
+    dossier = EditorialDossier.model_validate(recorded["dossier"])
+    queries = [subject.query for subject in photos.subjects_for(dossier)]
+    assert "Arc de Triomphe, place Charles-de-Gaulle" not in queries
+    assert queries[:2] == ["budget", "pensions"]
+    pages = recorded["responses"]["budget"]["query"]["pages"]
+    ukraine = next(page for page in pages if "2024" in page["title"])
+    subject = photos.Subject(query="budget", kind="object")
+    assert photos.photo_from_page(ukraine, subject, dossier) == (None, "not_a_photo")
+    assert all(photos.photo_from_page(page, subject, dossier)[0] is None for page in pages)
+    # The landmark's own answer still yields a credited photo when a story names the place.
+    arc = recorded["responses"]["Arc de Triomphe, place Charles-de-Gaulle"]["query"]["pages"]
+    kept = [photos.photo_from_page(page, photos.Subject(query="Arc de Triomphe", kind="place"))[0] for page in arc]
+    assert any(photo is not None and photo.licence in {"CC0", "CC BY-SA 3.0"} for photo in kept)
