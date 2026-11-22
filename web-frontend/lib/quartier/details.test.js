@@ -297,3 +297,27 @@ test("Odile's bank card, beside Margaux's lease letter on the zinc: laid once a 
   const gap = Math.abs(card.at[2] - letter.at[2]);
   assert.ok(gap > 0.105 + 0.045 && gap < 0.45, 'the card beside the letter, close by');
 });
+
+test("Odile's card, her name in Lila's hand, pinned on the wall by the corner booth: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'carte_nom_odile').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: "la carte d'Odile", location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "La carte d'Odile", location_id: 'le_mistral' }]), ['carte_nom_odile']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "la carte d'Odile", location_id: 'odile_flat' }]), []);
+  // not her bank card on the zinc: another order, another thing
+  assert.notEqual(foldName(spec.mark.name_fr), foldName(details.find(({ spec: d }) => d.id === 'carte_odile').spec.mark.name_fr));
+  const [card] = spec.things;
+  assert.equal(card.kind, 'pinned');
+  assert.equal(card.text[0], 'Odile', 'her name on it');
+  const [w, h] = card.size;
+  assert.ok(w <= 0.2 && h <= 0.15, 'a small card');
+  // on the north wall's face, facing the room, behind the booth
+  assert.equal(card.rot, 0);
+  assert.ok(card.at[2] - ROOM.z0 > 0 && card.at[2] - ROOM.z0 < 0.03, "on the wall's face");
+  // above the booth's back (its rail at 1.38 m off the floor) and under the old poster's frame
+  // (1.06 m tall, centred at 2.5 m: mistral.ts), by Gus's corner seat, short of the east wall
+  assert.ok(card.at[1] - h / 2 > ROOM.floor + 1.45, "above the booth's back");
+  assert.ok(card.at[1] + h / 2 < 2.5 - 0.53 - 0.05, "under the poster's frame");
+  assert.ok(Math.abs(card.at[0] - MARKS.boothCorner.x) < 0.8 && card.at[0] + w / 2 < ROOM.x1 - 0.2, 'beside the corner seat, off the corner');
+});

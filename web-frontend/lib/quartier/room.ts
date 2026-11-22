@@ -212,7 +212,8 @@ export type ThingKind =
   | 'towel'
   | 'tuque'
   | 'recommande'
-  | 'carte';
+  | 'carte'
+  | 'pinned';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2153,6 +2154,22 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.signs.push({ key, center: new Vector3(x, y + 0.0013, zz), normal: n, width: 0.0846, height: 0.053, density: 6000, draw: bankCardArt(t.text?.[0] ?? ''), indoor: (z ?? 'room') === 'room' });
       return;
     }
+    case 'pinned': {
+      // a small card pinned to a wall by a drawing pin through its top: on it a name written
+      // large in a painter's hand, in ochre ink with a stroke under it (`text[0]` the words, `size`
+      // [width, height], `at` the wall's face at the card's centre, facing local +z)
+      const [w, h] = t.size ?? [0.11, 0.075];
+      const stock = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const pin = zoned(INKS.vermilion, z, { wet: 0.7 });
+      const steel = zoned(mix(INKS.ink, INKS.paper, 0.45), z, { wet: 0.8 });
+      D.at(x, y, zz, rot, () => {
+        D.box(0, 0, 0.005, w, h, 0.002, stock);
+        D.cylinder(0, h / 2 - 0.014, 0.006, 0.0015, 0.0015, 0.008, 4, steel, { flat: true });
+        D.ball(0, h / 2 - 0.014, 0.02, 0.011, 0.011, 0.008, pin, 1);
+      });
+      card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, handCardArt(t.text?.[0] ?? ''), 2600);
+      return;
+    }
     case 'rug': {
       // a rug on the floor: a red field, a dark border with its stripes, a medallion in the
       // middle, the fringe at both ends (`size` [width, depth])
@@ -3292,6 +3309,42 @@ function envelopeArt(lines: string[]) {
     const name = lines[0] ?? '';
     while (sz > 6 && ctx.measureText(name).width > w * 0.6) ctx.font = SERIF(--sz, 500);
     ctx.fillText(name, w * 0.45, h * 0.62);
+  };
+}
+
+/** A small card with a name written large in a painter's hand: ochre ink, a stroke under it. */
+function handCardArt(name: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.ochre, 0.1));
+    ctx.fillRect(0, 0, w, h);
+    // the pin's hole and a little shadow under the pin's head
+    ctx.fillStyle = css(mix(INKS.card, INKS.ink, 0.25));
+    ctx.beginPath();
+    ctx.arc(w / 2, h * 0.13, h * 0.03, 0, Math.PI * 2);
+    ctx.fill();
+    const ink = css(mix(mix(INKS.ochre, INKS.vermilion, 0.2), INKS.ink, 0.42));
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    let s = Math.round(h * 0.52);
+    ctx.font = SERIF(s, 600);
+    while (s > 6 && ctx.measureText(name).width > w * 0.8) ctx.font = SERIF(--s, 600);
+    ctx.save();
+    ctx.translate(w / 2, h * 0.66);
+    ctx.rotate(-0.06);
+    ctx.fillText(name, 0, 0);
+    ctx.restore();
+    // the stroke under it, quick, thicker where the brush came down
+    ctx.strokeStyle = ink;
+    ctx.lineCap = 'round';
+    const tw = Math.min(w * 0.8, ctx.measureText(name).width);
+    for (const [lw, dy] of [[h * 0.035, 0], [h * 0.018, h * 0.012]]) {
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      ctx.moveTo(w / 2 - tw / 2, h * 0.79 + dy);
+      ctx.quadraticCurveTo(w / 2, h * 0.75 + dy, w / 2 + tw / 2 + w * 0.04, h * 0.76 + dy);
+      ctx.stroke();
+    }
   };
 }
 

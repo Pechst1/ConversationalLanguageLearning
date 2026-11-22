@@ -1,0 +1,19 @@
+{
+  "id": "carte_nom_odile",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "La carte d'Odile", "en": "Odile's card", "de": "Odiles Karte" },
+  "moment": "a page of the learner's own story left «la carte d'Odile» at Le Mistral: a small card with Odile's name in Lila's hand, pinned on the wall beside the corner booth",
+  "mark": { "name_fr": "la carte d'Odile", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "pinned", "at": [-27.74, 1.8, -18.74], "rot": 0, "size": [0.15, 0.1], "text": ["Odile"] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «la carte d'Odile» at le_mistral (1 life): «A small card with Odile's name in Lila's hand, pinned on the wall beside the corner booth.»",
+      "T4 party: the Polaroid wall above the booth, rows of white-bordered squares, each with a small handwritten card beneath; Gus's corner seat in the booth (10-lieux-et-images.md)"
+    ]
+  }
+}
