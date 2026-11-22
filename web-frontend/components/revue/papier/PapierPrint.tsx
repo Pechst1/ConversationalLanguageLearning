@@ -25,6 +25,7 @@
 
 import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
+import { frenchSpacing } from '@/lib/french-typography';
 import { resolveMediaUrl } from '@/lib/media-url';
 
 import { knownTranslation, translateOnce } from '../revue-translate';
@@ -554,7 +555,7 @@ export function PpFrontPage({ edition, kicker, headline, deck = null, children, 
         {kicker}
       </p>
       <h2 className="ct-clip__hl pp-front__hl" lang="fr">
-        {headline}
+        {typeof headline === 'string' ? frenchSpacing(headline) : headline}
       </h2>
       {/* Never a deck that repeats the headline's own words. */}
       {(typeof headline === 'string' ? standfirstFor(headline, deck) : deck) && (
