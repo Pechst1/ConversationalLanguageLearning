@@ -12,7 +12,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Action } from '@/components/atelier-v2/ui';
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 import type { VxDicteeResult } from '@/lib/revue-voix';
 
@@ -152,9 +151,11 @@ export function VxDictee() {
             onChange: setText,
           })}
           {failed && <p className="vx-dictee__say">{copy.dictee_failed}</p>}
-          <Action tone="quiet" pending={pending} pendingLabel={copy.dictee_check} disabled={!text.trim() || pending} onClick={() => void submit()}>
-            {copy.dictee_check}
-          </Action>
+          <p className="vx-dictee__tools">
+            <button type="submit" className="vx-link vx-link--submit" aria-busy={pending || undefined} disabled={!text.trim() || pending}>
+              {copy.dictee_check}
+            </button>
+          </p>
         </form>
       )}
       {resolved && (
