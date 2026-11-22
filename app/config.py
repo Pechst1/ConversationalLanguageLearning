@@ -1036,6 +1036,24 @@ class Settings(BaseSettings):
             "Relevé. Pure reads, no model call. Off: both routes are a 404."
         ),
     )
+    REVUE_WORDS_IN_DECK_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · l'écho»: words kept in a Papier (provenance kept_from_revue) count as words kept "
+            "from the story: they open the next deck, the scene director may bring them back, and they "
+            "are recent kept words for the planner. Off: only kept_from_story words do, as before."
+        ),
+    )
+    REVUE_ECHO_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · l'écho»: the learner's last finished Papier of the last three days (the story's "
+            "headline, the desk, what they did there, who was there, the words kept, and at most two "
+            "things the regulars remember of it) reaches the next day scene's director as one short "
+            "block that a character who was there may mention once. Needs REVUE_ENABLED. Off: the "
+            "scene context and prompt are exactly as before."
+        ),
+    )
     VOCAB_TARGET_RETENTION: float = Field(
         0.87,
         ge=0.7,
