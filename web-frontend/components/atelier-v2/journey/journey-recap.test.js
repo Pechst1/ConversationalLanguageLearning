@@ -244,8 +244,27 @@ test('a mood line only when the ledger moved today; the face still reacts', () =
 });
 
 test('a «jour de relâche» is said in the learner language', () => {
-  const html = render(day({}, { streak: { days: 8, today_done: true, freeze_available: false, freeze_used_on: '2026-09-20' } }));
+  // The fixture's day is 5 Sep: the relâche covered the day before it.
+  const html = render(day({}, { streak: { days: 8, today_done: true, freeze_available: false, freeze_used_on: '2026-09-04' } }));
   assert.match(textOf(html), /A day off kept your streak\./);
+});
+
+test('#950: a played day after an old relâche says no «day off» line', () => {
+  // Live walk 20–22 Nov: the streak's `freeze_used_on` is the last day a freeze ever
+  // covered, so it stays set for weeks; the scene's end said «A day off kept your
+  // streak.» on every played day since.
+  const weeksAgo = { days: 38, today_done: true, freeze_available: false, freeze_used_on: '2026-08-10' };
+  const text = textOf(render(day({}, { local_date: '2026-09-05', streak: weeksAgo })));
+  assert.doesNotMatch(text, /A day off kept your streak/, `the played day said: «${text.slice(0, 160)}»`);
+  // Nor on the day the relâche itself covered (no journey is played on a missed day,
+  // but a stale snapshot must not claim it either), nor without the day's date.
+  const sameDay = { ...weeksAgo, freeze_used_on: '2026-09-05' };
+  assert.doesNotMatch(textOf(render(day({}, { local_date: '2026-09-05', streak: sameDay }))), /A day off/);
+  const noDate = { ...weeksAgo, freeze_used_on: '2026-09-04' };
+  assert.doesNotMatch(textOf(render(day({}, { local_date: null, streak: noDate }))), /A day off/);
+  // German too.
+  const de = textOf(render(day({}, { local_date: '2026-09-05', streak: weeksAgo }), { language: 'de' }));
+  assert.doesNotMatch(de, /Ruhetag/);
 });
 
 test('the level move: once, honest, with its evidence', () => {
