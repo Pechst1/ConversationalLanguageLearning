@@ -40,3 +40,34 @@ test('a manifest whose services disagree on a story flag is refused', () => {
   assert.throws(() => productionStoryFlags(two), /STORY_X/);
   assert.deepEqual(productionStoryFlags('  - key: STORY_Y\n    value: medium\n'), { STORY_Y: 'medium' });
 });
+
+// Integration 2026-11-22: a walk made one real speech call — the environment's proxy injects a
+// real credential even when the stack sets a fake key. The walk API speaks to a local fake and
+// has no proxy to reach a provider through.
+test('the walk API synthesises speech on a local fake and has no proxy to a provider', () => {
+  const base = { HTTPS_PROXY: 'http://proxy:1', https_proxy: 'http://proxy:1', HTTP_PROXY: 'http://proxy:1', http_proxy: 'x', ALL_PROXY: 'x', all_proxy: 'x', NO_PROXY: 'example.org', TTS_PROVIDER: 'elevenlabs' };
+  const env = walkApiEnv({ dbUrl: 'x', web: 'http://localhost:1', base, speech: 'http://127.0.0.1:23456' });
+  assert.equal(env.OPENAI_API_BASE, 'http://127.0.0.1:23456/v1');
+  assert.equal(env.TTS_PROVIDER, 'openai');
+  assert.equal(env.ELEVENLABS_API_KEY, '');
+  for (const key of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy']) assert.ok(!(key in env), key);
+  assert.match(env.NO_PROXY, /127\.0\.0\.1/);
+  assert.match(env.no_proxy, /localhost/);
+});
+
+test('the fake speech server answers a line with a short MP3 and nothing else', async () => {
+  const { startFakeSpeech } = await import('./stack.mjs');
+  const fake = await startFakeSpeech();
+  try {
+    const spoken = await fetch(`${fake.url}/v1/audio/speech`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ input: 'Bonjour.', voice: 'nova', model: 'x' }) });
+    assert.equal(spoken.status, 200);
+    assert.equal(spoken.headers.get('content-type'), 'audio/mpeg');
+    const bytes = new Uint8Array(await spoken.arrayBuffer());
+    assert.ok(bytes.length > 100 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0, 'an MPEG audio frame');
+    const other = await fetch(`${fake.url}/v1/chat/completions`, { method: 'POST', body: '{}' });
+    assert.equal(other.status, 404);
+    assert.equal(fake.calls(), 1);
+  } finally {
+    await fake.stop();
+  }
+});

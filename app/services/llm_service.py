@@ -907,7 +907,7 @@ class LLMService:
                 OpenAIProvider(
                     api_key=settings.OPENAI_API_KEY,
                     model=settings.OPENAI_MODEL,
-                    base_url=settings.OPENAI_API_BASE or "https://api.openai.com/v1",
+                    base_url=str(settings.OPENAI_API_BASE or "https://api.openai.com/v1").rstrip("/"),
                     request_timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
                     max_retries=settings.LLM_MAX_RETRIES,
                 )
@@ -917,7 +917,7 @@ class LLMService:
                 AnthropicProvider(
                     api_key=settings.ANTHROPIC_API_KEY,
                     model=settings.ANTHROPIC_MODEL,
-                    base_url=settings.ANTHROPIC_API_BASE or "https://api.anthropic.com/v1",
+                    base_url=str(settings.ANTHROPIC_API_BASE or "https://api.anthropic.com/v1").rstrip("/"),
                     request_timeout=settings.LLM_REQUEST_TIMEOUT_SECONDS,
                     max_retries=settings.LLM_MAX_RETRIES,
                 )

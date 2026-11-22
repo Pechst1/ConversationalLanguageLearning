@@ -179,3 +179,19 @@ def test_a_claude_model_without_an_anthropic_key_fails_plainly(sample_result):
     service = LLMService(providers=[StubProvider("openai", response=sample_result)], primary="openai")
     with pytest.raises(LLMProviderError, match="ANTHROPIC_API_KEY"):
         service.generate_chat_completion([{"role": "user", "content": "x"}], model="claude-haiku-5-5")
+
+
+def test_a_configured_api_base_reaches_the_client_as_text(monkeypatch) -> None:
+    """Integration 2026-11-22: the walk points ``OPENAI_API_BASE`` at a local fake speech
+    server; the setting is a URL object, which httpx refused («Invalid type for url»)."""
+
+    from app.config import Settings
+    from app.services import llm_service as module
+
+    configured = Settings(OPENAI_API_KEY="dev-fake", OPENAI_API_BASE="http://127.0.0.1:23456/v1",
+                          ANTHROPIC_API_KEY="dev-fake", ANTHROPIC_API_BASE="http://127.0.0.1:23457/v1")
+    monkeypatch.setattr(module, "settings", configured)
+    providers = module.LLMService()._build_default_providers()
+    bases = {provider.name: provider.base_url for provider in providers if hasattr(provider, "base_url")}
+    assert bases["openai"] == "http://127.0.0.1:23456/v1"
+    assert bases["anthropic"] == "http://127.0.0.1:23457/v1"
