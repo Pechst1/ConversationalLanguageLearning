@@ -7,7 +7,7 @@
  * answer. Both play through ONE act route (`POST …/rubrique`).
  */
 
-import { parseComptoirNotes, type RvClaim, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
+import { parseComptoirNotes, parseMarkRule, type RvClaim, type RvComptoirMark, type RvComptoirMarkKind, type RvComptoirNote, type RvComptoirProof, type RvComptoirText, type RvSource } from './revue-types';
 
 type Json = Record<string, any>;
 
@@ -215,6 +215,7 @@ function marks(value: unknown): RvComptoirMark[] {
     kind: oneOf(row.kind, MARK_KINDS, 'mot') as RvComptoirMarkKind,
     // «Le pourquoi»: the hint (the rule, never the answer), when the switch is on.
     ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
+    ...parseMarkRule(row),
   })).filter(
     (mark) => mark.spanFr,
   );

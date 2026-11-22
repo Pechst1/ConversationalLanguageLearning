@@ -147,6 +147,8 @@ export type FilContext = {
   sources: Json[];
   fail: (status: number, detail: unknown) => Error;
   pourquoi?: boolean;
+  /** «La règle» (`&regle=1`): the marks name their grammar concept. */
+  regle?: boolean;
 };
 
 const bandKey = (band: Band) => (band === 'A1' ? 'a1' : band === 'A2' ? 'a2' : 'b1') as 'a1' | 'a2' | 'b1';
@@ -279,12 +281,12 @@ export function filView(s: MockFilState, ctx: FilContext): Json {
       learner_fr: s.tell ? s.tell.learner_fr : null,
       draft_fr: proof ? proof.draft : null,
       proof: proof ? proof.proof : null,
-      marks: proof ? marksWire(proof.marks, language, Boolean(ctx.pourquoi)) : [],
+      marks: proof ? marksWire(proof.marks, language, Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [],
       tries: proof ? proof.tries : 0,
       max_tries: FIX_TRIES,
       printed_fr: proof ? proof.printed : null,
     };
-    const notes = proof ? notesWire(rounds(s), proof.proof, language, STRIPS.map((strip) => strip[k].fr).join(' '), Boolean(ctx.pourquoi)) : [];
+    const notes = proof ? notesWire(rounds(s), proof.proof, language, STRIPS.map((strip) => strip[k].fr).join(' '), Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [];
     if (notes.length) tell.notes = notes;
   }
   return {

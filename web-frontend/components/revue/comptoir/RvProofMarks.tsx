@@ -8,13 +8,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
-import { hairlineX } from '../papier/papier-model';
+import { hairlineX, stampTilt } from '../papier/papier-model';
 
-import type { RvComptoirMark, RvComptoirMarkKind, RvLanguage } from '@/lib/revue-types';
+import type { RvComptoirMark, RvComptoirMarkKind, RvLanguage, RvMarkRule } from '@/lib/revue-types';
 
 import { fill } from '../revue-copy';
 import { markSegments } from './comptoir-model';
-import { hasWhy, openWhy, toggleWhy, whySegments, type PourquoiCopy } from './pourquoi';
+import { hasWhy, openWhy, ruleStamp, toggleWhy, whySegments, type PourquoiCopy } from './pourquoi';
 
 export type RvProofMarksProps = {
   draftFr: string;
@@ -28,6 +28,31 @@ export type RvProofMarksProps = {
   /** Ids stay unique when two players share a page. */
   idPrefix?: string;
 };
+
+/**
+ * «La règle» (2026-11-22): a small rubber stamp on a mark under the day's rule («règle du
+ * jour») or a recent one — the Papier's own stamp (`pp-stamp`, small, still), in ink.
+ */
+export function RvRuleStamp({ mark, copy }: { mark: RvMarkRule & { spanFr?: string }; copy: PourquoiCopy }) {
+  const stamp = ruleStamp(mark, copy);
+  if (!stamp) return null;
+  const style = { '--pp-tilt': `${stampTilt(`${mark.conceptId}${mark.spanFr ?? ''}`)}deg` } as React.CSSProperties;
+  return (
+    <span className="pp-stamp ct-rule-stamp" data-ink="regle" data-rule={stamp.kind} data-size="sm" data-still="" style={style}>
+      <span className="pp-stamp__ink">{stamp.label}</span>
+    </span>
+  );
+}
+
+/** The concept's name, as the scene and the grammar pages name it (in the learner's correction language). */
+export function RvRuleName({ mark, lang }: { mark: RvMarkRule; lang: RvLanguage | string }) {
+  if (!mark.conceptName) return null;
+  return (
+    <span className="ct-rule-name" lang={lang}>
+      {mark.conceptName}
+    </span>
+  );
+}
 
 export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, initialOpen = null, idPrefix = 'ct' }: RvProofMarksProps) {
   const [open, setOpen] = useState<number | null>(initialOpen);
@@ -64,6 +89,7 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
           {marks.map((mark, index) => (
             <li key={index} className="ct-why">
               <b lang="fr">{mark.spanFr}</b> · {kindLabels[mark.kind]}
+              <RvRuleStamp mark={mark} copy={copy} />
             </li>
           ))}
         </ul>
@@ -109,6 +135,7 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
           <span className="ct-why-open__k">
             <b lang="fr">{shown.mark.spanFr}</b> · {kindLabels[shown.mark.kind]}
           </span>
+          <RvRuleName mark={shown.mark} lang={whyLanguage} />
           <span className="ct-why-open__t" lang={whyLanguage}>
             {shown.mark.why}
           </span>
@@ -119,12 +146,16 @@ export function RvProofMarks({ draftFr, marks, kindLabels, copy, whyLanguage, in
           mark.why ? (
             <li key={index} className="ct-why">
               <button type="button" className="ct-why__b" aria-expanded={open === index} aria-controls={panelId} onClick={() => tap(index)}>
-                <b lang="fr">{mark.spanFr}</b> · {kindLabels[mark.kind]}
+                <span>
+                  <b lang="fr">{mark.spanFr}</b> · {kindLabels[mark.kind]}
+                </span>
+                <RvRuleStamp mark={mark} copy={copy} />
               </button>
             </li>
           ) : (
             <li key={index} className="ct-why">
               <b lang="fr">{mark.spanFr}</b> · {kindLabels[mark.kind]}
+              <RvRuleStamp mark={mark} copy={copy} />
             </li>
           ),
         )}

@@ -228,6 +228,8 @@ export type ComptoirContext = {
   fail: (status: number, detail: unknown) => Error;
   /** «Le pourquoi» on (`&pourquoi=1`): the marks carry their rule, the settled opinion its notes. */
   pourquoi?: boolean;
+  /** «La règle» on (`&regle=1`): each mark names its grammar concept, the day's rule stamped. */
+  regle?: boolean;
 };
 
 const key = (band: Band) => (band === 'A1' ? 'a1' : band === 'A2' ? 'a2' : 'b1') as 'a1' | 'a2' | 'b1';
@@ -357,7 +359,7 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
       learner_fr: state.opinion.learner_fr,
       draft_fr: state.opinion.draft_fr,
       proof: state.opinion.proof,
-      marks: settled ? [] : marksWire(state.opinion.marks, language, Boolean(ctx.pourquoi)),
+      marks: settled ? [] : marksWire(state.opinion.marks, language, Boolean(ctx.pourquoi), Boolean(ctx.regle)),
       tries: state.opinion.tries,
       max_tries: FIX_TRIES,
       printed_fr: printedOf(state.opinion),
@@ -367,7 +369,7 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
         ? { text_fr: state.comeback.text_fr, index: state.comeback.index ?? null, last_word: tr(state.comeback.last_word, language) }
         : null,
     };
-    const notes = notesWire(state.opinion.rounds ?? [], String(state.opinion.proof), language, ctx.lead.fr, Boolean(ctx.pourquoi));
+    const notes = notesWire(state.opinion.rounds ?? [], String(state.opinion.proof), language, ctx.lead.fr, Boolean(ctx.pourquoi), Boolean(ctx.regle));
     if (notes.length) opinion.notes = notes;
   }
   return {
@@ -439,23 +441,79 @@ const WHYS: Record<string, Record<Lang, [string, string]>> = {
 };
 const RULES: Record<string, string> = { accord: 'plural_s', genre: 'adj_gender', orthographe: 'accent' };
 
+/**
+ * «La règle» (`&regle=1`, `REVUE_TUTOR_MARKS_ENABLED`): the grammar concept of each mark, as
+ * the catalogue names it (`french_core_grammar_v2.tsv`), with the mock learner's day's rule
+ * (adjective agreement) and a recent one (the -er verbs' spelling); a mark under one of them
+ * explains itself with the rule card's own line.
+ */
+type MockConcept = { id: string; name: Record<Lang, string>; rule: Record<Lang, string>; day?: boolean; recent?: boolean };
+const CONCEPTS: Record<string, MockConcept> = {
+  adjective: {
+    id: 'FR2_A11_ADJ_AGREEMENT',
+    day: true,
+    name: { fr: 'Les adjectifs : accord et place', en: 'Adjectives: agreement and position', de: 'Adjektive: Angleichung und Stellung' },
+    rule: {
+      fr: "L'adjectif s'accorde avec le nom (+e au féminin, +s au pluriel) et se place souvent après.",
+      en: 'Adjectives match the noun (+e for feminine, +s for plural) and usually come after it.',
+      de: 'Adjektive passen sich an (+e weiblich, +s Plural), auch nach être, und stehen meist nach dem Nomen.',
+    },
+  },
+  plural: {
+    id: 'FR2_A11_NOUN_PLURALS',
+    name: { fr: 'Le pluriel des noms : -s, -x, -aux', en: 'Plural nouns: -s, -x, -aux', de: 'Plural der Nomen: -s, -x, -aux' },
+    rule: { fr: '', en: '', de: '' },
+  },
+  spelling: {
+    id: 'FR2_A12_ER_SPELLING',
+    recent: true,
+    name: {
+      fr: 'Les verbes en -er qui changent : nous mangeons, j’achète, j’appelle',
+      en: '-er verbs that change spelling: nous mangeons, j’achète, j’appelle',
+      de: '-er-Verben mit Schreibänderung: nous mangeons, j’achète, j’appelle',
+    },
+    rule: {
+      fr: 'Certains verbes en -er changent pour garder leur son : nous mangeons, j’achète, j’appelle, je paie.',
+      en: 'Some -er verbs change spelling to keep their sound: nous mangeons, j’achète, j’appelle, je paie.',
+      de: 'Manche -er-Verben ändern die Schreibung für den Klang: nous mangeons, j’achète, j’appelle, je paie.',
+    },
+  },
+};
+const DETERMINERS = new Set('le la les un une des du ce cette ces mon ma mes son sa ses'.split(' '));
+
+function conceptOf(mark: Json): MockConcept | null {
+  if (mark.kind === 'orthographe') return CONCEPTS.spelling;
+  if (mark.kind === 'accord' || mark.kind === 'genre') return DETERMINERS.has(fold(String(mark.span_fr))) ? CONCEPTS.plural : CONCEPTS.adjective;
+  return null;
+}
+
+/** The concept fields of a mark (`&regle=1`), and the day's rule's own line for its why. */
+function ruleWire(mark: Json, language: Lang): { fields: Json; line: string | null } {
+  const concept = conceptOf(mark);
+  if (!concept) return { fields: {}, line: null };
+  const fields = { concept_id: concept.id, concept_name: concept.name[language], is_day_rule: Boolean(concept.day), is_recent_rule: Boolean(concept.recent) };
+  return { fields, line: concept.day || concept.recent ? concept.rule[language] || null : null };
+}
+
 /** The marks as the fix step shows them: never `fix_fr`; the hint only with «Le pourquoi» on. */
-export function marksWire(marks: Json[], language: Lang, pourquoi: boolean): Json[] {
+export function marksWire(marks: Json[], language: Lang, pourquoi: boolean, regle = false): Json[] {
   return marks.map((mark) => {
-    const why = pourquoi ? WHYS[String(mark.kind)]?.[language]?.[0] : undefined;
-    return { span_fr: mark.span_fr, start: mark.start, kind: mark.kind, ...(why ? { why } : {}) };
+    const rule = regle ? ruleWire(mark, language) : { fields: {}, line: null };
+    const why = pourquoi ? (rule.line ?? WHYS[String(mark.kind)]?.[language]?.[0]) : undefined;
+    return { span_fr: mark.span_fr, start: mark.start, kind: mark.kind, ...(why ? { why } : {}), ...rule.fields };
   });
 }
 
 /** Once settled (`fixed` / `corrected`): each mark the learner saw, once, with its full why,
  * «Dans l'article : …» when `story` has a sentence with the fix, and its rule. */
-export function notesWire(rounds: Json[][], proof: string, language: Lang, story: string, pourquoi: boolean): Json[] {
+export function notesWire(rounds: Json[][], proof: string, language: Lang, story: string, pourquoi: boolean, regle = false): Json[] {
   if (!pourquoi || (proof !== 'fixed' && proof !== 'corrected')) return [];
   const seen = new Map<string, Json>();
   for (const marks of rounds) for (const mark of marks) seen.set(`${fold(String(mark.span_fr))}|${mark.kind}`, mark);
   return Array.from(seen.values()).map((mark) => {
     const fix = String(mark.fix_fr || '');
-    const full = WHYS[String(mark.kind)]?.[language]?.[1];
+    const rule = regle ? ruleWire(mark, language) : { fields: {}, line: null };
+    const full = rule.line ?? WHYS[String(mark.kind)]?.[language]?.[1];
     const example = fix ? sentences(story).find((row) => new RegExp(`(^|[^\\p{L}])${fix}([^\\p{L}]|$)`, 'iu').test(row)) : undefined;
     return {
       span_fr: mark.span_fr,
@@ -463,6 +521,7 @@ export function notesWire(rounds: Json[][], proof: string, language: Lang, story
       why: full ? full.replace('{fix}', fix) : null,
       example_fr: example ?? null,
       rule_id: RULES[String(mark.kind)] ?? null,
+      ...rule.fields,
     };
   });
 }

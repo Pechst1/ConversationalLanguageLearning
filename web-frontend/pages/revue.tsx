@@ -20,7 +20,8 @@
                      «Le titre» / «L'intox express»; ?photo=1 / ?micro=1: «La photo» /
                      «Le micro» (WIRE §12);
                      ?une=1 shows Home's Une card instead of the chooser;
-                     ?pourquoi=1 gives Romy's marks their rule; ?photos=1 gives every
+                     ?pourquoi=1 gives Romy's marks their rule; ?regle=1 names their grammar
+                     concept, the day's rule stamped; ?photos=1 gives every
                      story a `pictures` list of three (placeholders, no network).
 
    A session in «Au comptoir» mode (WP-119-AU-COMPTOIR) mounts RvComptoir in place
@@ -97,6 +98,7 @@ export default function RevuePage() {
           photo: router.query.photo === '1',
           micro: router.query.micro === '1',
           pourquoi: router.query.pourquoi === '1',
+          regle: router.query.regle === '1',
           photos: router.query.photos === '1',
         }), { enabled: router.query.rdv === '1' });
         const next = { ...createRevueClient(transport), reset: transport.reset };

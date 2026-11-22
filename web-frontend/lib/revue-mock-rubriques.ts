@@ -168,6 +168,8 @@ export type RubriqueContext = {
   claimsFr: string[];
   fail: (status: number, detail: unknown) => Error;
   pourquoi?: boolean;
+  /** «La règle» (`&regle=1`): the marks name their grammar concept. */
+  regle?: boolean;
 };
 
 const read = (ctx: RubriqueContext) => ({ dateline_fr: ctx.datelineFr, lead: ctx.lead, sources: ctx.sources.slice(0, 1) });
@@ -282,12 +284,12 @@ export function titreView(s: MockTitreState, ctx: RubriqueContext): Json {
       learner_fr: s.build ? s.build.learner_fr : null,
       draft_fr: proof ? proof.draft : null,
       proof: proof ? proof.proof : null,
-      marks: proof ? marksWire(proof.marks, language, Boolean(ctx.pourquoi)) : [],
+      marks: proof ? marksWire(proof.marks, language, Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [],
       tries: proof ? proof.tries : 0,
       max_tries: FIX_TRIES,
       printed_fr: proof ? proof.printed : null,
     };
-    const notes = proof ? notesWire(titreRounds(s), proof.proof, language, ctx.lead.fr, Boolean(ctx.pourquoi)) : [];
+    const notes = proof ? notesWire(titreRounds(s), proof.proof, language, ctx.lead.fr, Boolean(ctx.pourquoi), Boolean(ctx.regle)) : [];
     if (notes.length) build.notes = notes;
   }
   return { step, steps: [...TITRE_STEPS], band: k, title_fr: ctx.titleFr, read: read(ctx), three, trap, build };
