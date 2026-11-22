@@ -971,6 +971,21 @@ def _noun_gender(word: str) -> str | None:
     return gender if gender in {"m", "f"} else None
 
 
+def _phrase_gender(det: str, noun: str) -> str | None:
+    """The gender ``det`` + ``noun`` has once written.
+
+    :data:`_TWO_GENDER_NOUNS` says which determiner a noun takes is not the rules' to
+    correct («le notaire» and «la notaire» are both right). Once the determiner is
+    there it is what sets the gender (#996: «à le notaire» was left as it was, since
+    «notaire» was read as a noun of no known gender). Any other noun keeps the
+    lexicon's gender; a determiner that shows none («l'», «les») leaves it ``None``.
+    """
+
+    if noun in _TWO_GENDER_NOUNS:
+        return _DET_GENDER.get(det)
+    return _noun_gender(noun)
+
+
 @lru_cache(maxsize=1)
 def _cast_first_names() -> frozenset[str]:
     return frozenset(known_people())
@@ -2630,7 +2645,7 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
             and _space(source, tok, nxt)
             and _space(source, nxt, after)
             and source[after.start : after.end] == after.low
-            and after.low not in _TWO_GENDER_NOUNS
+            and after.low not in _TWO_GENDER_NOUNS  # «une petit chose»: «le Petit Chose»
             and _noun_gender(after.low) == "f"
             and not (nxt.low == "grand" and after.low in _AFTER_THE_OLD_GRAND)
         ):
@@ -2721,8 +2736,8 @@ def _phrase_edits(source: str, tokens: list[Tok], add) -> None:
                 gender = _noun_gender(lemma) if lemma and lemma not in _TWO_GENDER_NOUNS else None
                 if tok.low == "tout" and gender in {"m", "f"}:
                     want = "tous" if gender == "m" else "toutes"
-            elif after.low not in _TWO_GENDER_NOUNS:
-                gender = _noun_gender(after.low)
+            else:
+                gender = _phrase_gender(nxt.low, after.low)
                 article_fits = (gender == "f" and nxt.low in {"la", "l", "une"}) or (
                     gender == "m" and nxt.low in {"le", "l", "un"}
                 )
@@ -2753,12 +2768,39 @@ def deterministic_edits(
     (#318: «la appartement» became «le appartement», which the pass itself would flag
     as a missing elision). A replacement the rules flag again is completed by them
     («d'ecole» -> «d'école»), or dropped when it does not settle.
+
+    Then the whole line is read again (#996): each edit settles alone, so two fixes can
+    together make what neither makes on its own. «a le cafe» took «a» -> «à» and
+    «cafe» -> «café», and only the line with both holds «à le café», which contracts.
+    An edit the second reading finds is folded into the fixes it touches («a le» ->
+    «au»), so the line printed is one a further pass leaves as it is.
     """
 
     source = "" if text is None else str(text)
     if not source.strip():
         return []
     cast = known_people() if people is None else {k.casefold(): v for k, v in people.items()}
+    settled = _settled_edits(source, cast)
+    for _ in range(_LINE_READINGS):
+        if not settled:
+            break
+        line = apply_edits(source, settled)
+        further = _settled_edits(line, cast)
+        if not further:
+            break
+        settled = _fold_into_source(source, settled, further)
+    return _found_by_their_words(source, settled)
+
+
+#: How many times the line with every fix in it is read again (#996). One is what the
+#: walks needed; the second is a margin, and a line that still moves after it keeps
+#: the fixes of the last reading.
+_LINE_READINGS = 2
+
+
+def _settled_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
+    """One reading of ``source``: every raw edit, settled, in reading order, none overlapping."""
+
     settled: list[Edit] = []
     for edit in _raw_edits(source, cast):
         final = _settle(source, edit, cast)
@@ -2768,7 +2810,75 @@ def deterministic_edits(
             continue
         settled.append(final)
     settled.sort(key=lambda e: e.start)
-    return _found_by_their_words(source, settled)
+    return settled
+
+
+def _spans_touch(a: tuple[int, int], b: tuple[int, int]) -> bool:
+    if a[0] == a[1]:
+        return b[0] <= a[0] <= b[1]
+    if b[0] == b[1]:
+        return a[0] <= b[0] <= a[1]
+    return a[0] < b[1] and b[0] < a[1]
+
+
+def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> list[Edit]:
+    """``first`` (edits on ``source``) with ``further`` (edits on the line ``first``
+    makes) folded in, as edits on ``source``.
+
+    A further edit in words no fix touched is moved back to the learner's offsets. One
+    that touches a fix («à le» over the «à» of «a» -> «à») becomes one edit over both,
+    from the learner's words to the twice-fixed ones, with the further edit's rule and
+    note: «a le» -> «au», «« à le » contracts to « au »». A fold that gives back the
+    learner's own words is dropped with the fixes in it.
+    """
+
+    # Where each fix sits in the fixed line, and how far it moves what follows it.
+    regions: list[tuple[int, int, Edit]] = []
+    shift = 0
+    for edit in sorted(first, key=lambda e: e.start):
+        start = edit.start + shift
+        regions.append((start, start + len(edit.replacement), edit))
+        shift += len(edit.replacement) - (edit.end - edit.start)
+
+    def to_source(pos: int, *, past_deletions: bool) -> int:
+        # ``pos`` is outside every fix or on its edge: undo the moves of the fixes before
+        # it. A deletion right at ``pos`` is before it only for the end of a fold.
+        return pos - sum(
+            len(e.replacement) - (e.end - e.start)
+            for start, end, e in regions
+            if end <= pos and (start < pos or past_deletions)
+        )
+
+    # Group the further edits with the fixes they touch, transitively.
+    items: list[tuple[int, int, str, Edit]] = [(s, e, "first", edit) for s, e, edit in regions]
+    items += [(edit.start, edit.end, "further", edit) for edit in further]
+    items.sort(key=lambda item: (item[0], item[1]))
+    groups: list[list[tuple[int, int, str, Edit]]] = []
+    for item in items:
+        if groups and any(_spans_touch((item[0], item[1]), (other[0], other[1])) for other in groups[-1]):
+            groups[-1].append(item)
+        else:
+            groups.append([item])
+
+    line = apply_edits(source, first)
+    out: list[Edit] = []
+    for group in groups:
+        moves = [edit for _s, _e, kind, edit in group if kind == "further"]
+        if not moves:
+            out.extend(edit for _s, _e, _kind, edit in group)
+            continue
+        low = min(item[0] for item in group)
+        high = max(item[1] for item in group)
+        piece = line[low:high]
+        for edit in sorted(moves, key=lambda e: e.start, reverse=True):
+            piece = piece[: edit.start - low] + edit.replacement + piece[edit.end - low :]
+        start, end = to_source(low, past_deletions=False), to_source(high, past_deletions=True)
+        span = source[start:end]
+        if _norm(span) == _norm(piece) or is_variant_edit(span, piece):
+            continue
+        out.append(replace(moves[0], span=span, replacement=piece, start=start, end=end))
+    out.sort(key=lambda e: e.start)
+    return out
 
 
 def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
@@ -3169,8 +3279,7 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
                     and _joined(source, nxt, after)
                     and not _is_verb(after.low)  # «de le vendre»: «le» is a pronoun
                     and not _vowel_sound(after.low)  # «à le hôtel» is «à l'hôtel», elided
-                    and after.low not in _TWO_GENDER_NOUNS
-                    and _noun_gender(after.low) == "m"
+                    and _phrase_gender("le", after.low) == "m"  # «à le notaire»: «le» sets it (#996)
                 )
                 right = "du" if tok.low == "de" else "au"
             else:

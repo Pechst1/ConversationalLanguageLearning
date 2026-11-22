@@ -42,6 +42,11 @@ COURRIER_825 = "Merci Margaux ! Oui, je passe demain. Je suis tres fatigue, je n
 #: #810 (walk 15 Nov, a2-en, Courrier days 1 and 2).
 COURRIER_810_DAY1 = "Salut Margaux ! Mais je n ai pas d echarpe, ce n est pas a moi. Peut-être c est a Gus ?"
 COURRIER_810_DAY2 = "Mais je suis pas a la maison, je dors a l hotel !"
+#: #996 (walk 22 Nov, a1-de-fresh, Courrier day 1, reply to Gus).
+COURRIER_996 = (
+    "Bonjour Gus. Je pense que le Mistral est tres bien. Demain je vais a le notaire. "
+    "Je suis pas sur pour le appartement. Jonas"
+)
 
 EXPECTED = [
     pytest.param(
@@ -63,6 +68,18 @@ EXPECTED = [
         id="810a",
     ),
     pytest.param(COURRIER_810_DAY2, "Mais je suis pas à la maison, je dors à l'hôtel !", id="810b"),
+    # #996: «le» sets the gender of a two-gender noun, and an «a» -> «à» fix that makes
+    # «à le» is read again with the other fixes in the line.
+    pytest.param("Demain je vais a le notaire.", "Demain je vais au notaire.", id="996a"),
+    pytest.param("Je vais à le médecin.", "Je vais au médecin.", id="996b"),
+    pytest.param("Je parle de le professeur.", "Je parle du professeur.", id="996c"),
+    pytest.param("Je vais a le cafe.", "Je vais au café.", id="996d"),
+    pytest.param(
+        COURRIER_996,
+        "Bonjour Gus. Je pense que le Mistral est très bien. Demain je vais au notaire. "
+        "Je suis pas sur pour l'appartement. Jonas",
+        id="996",
+    ),
 ]
 
 
@@ -83,6 +100,30 @@ def test_courrier_856():
     assert again == [] and corrected_again == corrected, again
 
 
+def test_courrier_996():
+    """#996 done-when, through the Courrier's own model-free pass: «au notaire» is printed,
+    the fix list names it, and a second pass makes no edit."""
+    from app.services.missions import MissionCorrectionService
+
+    service = MissionCorrectionService.__new__(MissionCorrectionService)
+    errata, corrected = service._deterministic_errata(COURRIER_996, language="de")
+    assert "Demain je vais au notaire." in corrected, corrected
+    assert "à le" not in corrected, corrected
+    assert any(str(item.get("corrected_target") or "").strip().endswith("au") for item in errata), errata
+    again, corrected_again = service._deterministic_errata(corrected, language="de")
+    assert again == [] and corrected_again == corrected, again
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    ["Il essaie de le vendre.", "Je vais de le hôtel à la gare.", "Je dors à le hôtel."],
+    ids=["de-le-vendre", "de-le-hotel", "a-le-hotel"],
+)
+def test_996_no_contraction(sentence):
+    """«de le vendre» (a pronoun) and «à le hôtel» (an elision) are never contracted."""
+    assert not [e for e in cc.deterministic_edits(sentence) if e.rule_id == "FR_CONTRACTION"]
+
+
 #: Learner lines the walks of 11-17 Nov wrote in the Courrier, La Forge and the Journal,
 #: word for word. A line here may still hold a slip no rule knows (a participle); what it
 #: may not hold is a slip the check fixes elsewhere.
@@ -91,6 +132,11 @@ CORPUS = [
     COURRIER_825,
     COURRIER_810_DAY1,
     COURRIER_810_DAY2,
+    COURRIER_996,
+    "Demain je vais a le notaire.",
+    "Je vais à le médecin.",
+    "Je parle de le professeur.",
+    "Je vais a le cafe.",
     "Je m appelle Sam, je suis le petit fils de Odile. Mais je ne suis pas ici pour vendre… Et vous, vous etes qui ?",
     "Je suis Jonas, le petit-fils de Odile. Je suis ici pour la appartement.",
     "Non, je ne vend pas. C est pas simple pour moi, la appartement est de Odile.",
@@ -248,3 +294,10 @@ def test_floor_corpora_settle():
         if again or doubled:
             wrong.append(f"{sentence!r} -> {fixed!r} {again}")
     assert not wrong, f"{len(wrong)} printed lines the check would still correct: {wrong}"
+
+
+def test_996_fix_list_names_the_contraction():
+    """«a» -> «à» and «cafe» -> «café» each settle alone; the line with both holds «à le
+    café». The fix list the learner reads names «a le» -> «au», not «a» -> «à»."""
+    edits = [(e.span, e.replacement) for e in cc.deterministic_edits("Je vais a le cafe.")]
+    assert edits == [("a le", "au"), ("cafe", "café")], edits
