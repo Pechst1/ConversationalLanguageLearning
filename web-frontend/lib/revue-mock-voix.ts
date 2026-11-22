@@ -6,7 +6,8 @@
  *    word once said; the dictée: the lead's shortest whole sentence of 4–14 words);
  *  * a line answers a clip id, and the clip is SILENCE as long as the line would take to say
  *    (no network, no voice: the screens behave as with a real clip — the words come after it);
- *    `audio: false` (`&voixaudio=0`) answers `disabled`, as a deployment without speech;
+ *    `audio: false` (`&voixaudio=0`) answers `disabled`, as a deployment without speech; `fail`
+ *    (`&voixfail=1`) fails every clip, as a provider that is down;
  *  * the dictée: the grader's three verdicts and word marks, the sentence only after two tries.
  */
 
@@ -103,7 +104,10 @@ function marksOf(answer: string, expected: string): Json[] {
 }
 
 /** The mock transport with the voice's routes; `enabled: false` answers them 404 as the switch off does. */
-export function withVoixMock<T extends VoixTransport>(inner: T, { enabled = true, audio = true }: { enabled?: boolean; audio?: boolean } = {}): T {
+export function withVoixMock<T extends VoixTransport>(
+  inner: T,
+  { enabled = true, audio = true, fail = false }: { enabled?: boolean; audio?: boolean; fail?: boolean } = {},
+): T {
   const clips = new Map<string, number>();
   const route = (url: string) => /^\/revue\/sessions\/([^/]+)\/voix(?:\/(line|dictee))?$/.exec(url);
   const notFound = (): never => {
@@ -129,6 +133,8 @@ export function withVoixMock<T extends VoixTransport>(inner: T, { enabled = true
         const known = [...manifest.lines.map((l: Json) => l.text_fr), manifest.dictee?.text_fr].some((t) => t && fold(t) === fold(text));
         if (!known) notFound();
         if (!audio) return { status: 'disabled' };
+        // `&voixfail=1`: a clip that cannot be had (the screens then show every text at once).
+        if (fail) throw Object.assign(new Error('clip failed'), { response: { status: 502, data: { detail: 'clip failed' } } });
         const id = `mock-voix-${clips.size + 1}`;
         clips.set(id, Math.max(1.2, text.length * 0.055));
         return { status: 'ready', clip_id: id, content_type: 'audio/wav', voice: 'mock', cached: false };

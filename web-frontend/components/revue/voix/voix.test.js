@@ -276,3 +276,11 @@ test('the dictée never leaves the lead covered once it cannot be offered', () =
   assert.match(css, /\.rv-body\[data-vx-dictee\] \.ct-lead \.rv-line__tools, \.av2 \.rv-body\[data-vx-dictee\] \.ct-lead \.rv-translation \{ display: none; \}/,
     'the covered lead keeps no gap where its tools were');
 });
+
+test('a line to be heard first that the manifest read before it came is asked for again', () => {
+  const reply = model.heardKey('augustin_de_roncourt', 'Tu rêves !');
+  const take = model.heardKey('romy_tremblay', TAKE);
+  assert.deepEqual(model.unknownPending(MANIFEST, [take, reply]), [reply]);
+  assert.deepEqual(model.unknownPending(MANIFEST, [take]), []);
+  assert.deepEqual(model.unknownPending(null, [reply]), []);
+});

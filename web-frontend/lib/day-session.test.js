@@ -337,9 +337,11 @@ test('no Papier step in the plan: no planned Papier (the switch off reads as bef
 
 test('the planned Papier is its own row after the scene, with its minutes and its true state', () => {
   const before = ds.plannedPapier(papierJourney(['active', 'pending', 'pending', 'pending']));
-  assert.deepEqual(before, { state: 'todo', minutes: 6, started: false });
+  assert.deepEqual(before, { state: 'todo', minutes: 6, started: false, share: 0.5 });
   const day = session(['next', 'todo', 'todo', 'todo']);
-  day.steps[0].minutes = 14; // the scene's minutes on the server hold the Papier's
+  // the scene's minutes on the server are the whole journey's at the learner's pace: the
+  // Papier's half of the planned seconds is its own row now
+  day.steps[0].minutes = 16;
   const rows = ds.sessionRows(day, 'de', { papier: true, planned: before });
   assert.deepEqual(rows.map((row) => [row.kind, row.label, row.state, row.meta]), [
     ['scene', 'Szene', 'next', '8 Min.'],
@@ -351,7 +353,7 @@ test('the planned Papier is its own row after the scene, with its minutes and it
 
   // The story played, the Papier not opened: the scene is done, the Papier is next, alone.
   const next = ds.plannedPapier(papierJourney(['completed', 'completed', 'completed', 'active']));
-  assert.deepEqual(next, { state: 'next', minutes: 6, started: false });
+  assert.deepEqual(next, { state: 'next', minutes: 6, started: false, share: 0.5 });
   const after = ds.sessionRows(session(['done', 'next', 'todo', 'todo']), 'de', { planned: next });
   assert.deepEqual(after.map((row) => [row.kind, row.state]), [
     ['scene', 'done'], ['papier', 'next'], ['grammar', 'todo'], ['words', 'todo'], ['finish', 'todo'],

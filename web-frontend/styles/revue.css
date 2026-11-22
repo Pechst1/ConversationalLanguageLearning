@@ -177,7 +177,12 @@
 .av2 .rv-composer { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .av2 .rv-composer .av2-field { flex: 1 1 auto; min-width: 0; }
 .av2 .rv-composer .av2-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.av2 .rv-composer .av2-field__control { min-height: var(--av2-tap); max-height: 6.5rem; max-height: calc(4lh + 1rem + 4px); padding-block: 0.5rem; resize: none; } /* whole lines, then it scrolls (integration 2026-11-22) */
+/* Integration 2026-11-22: the field grows to six whole lines (the whole sentence, as a rule), then
+   scrolls cleanly: its vertical air is a border in the field's own colour, which scrolled text never
+   enters (padding does), so no line is ever cut at an edge. The focus ring is an outline. */
+.av2 .rv-composer .av2-field__control { min-height: var(--av2-tap); max-height: 6.5rem; max-height: calc(6lh + 1rem + 4px); padding-block: 0;
+  border-block: calc(0.5rem + 2px) solid var(--av2-card); resize: none; }
+.av2 .rv-composer .av2-field__control:focus { border-block-color: var(--av2-card); border-inline-color: transparent; outline: 2px solid var(--av2-blue); outline-offset: -2px; }
 
 /* RvMakePicker: ChoiceList with a sub-line and Romy's pick */
 .av2 .rv-make .av2-choice { flex-wrap: wrap; row-gap: 2px; align-items: flex-start; cursor: pointer; }

@@ -22,7 +22,7 @@ import type { VoixClient, VxManifest } from '@/lib/revue-voix';
 import type { RvLanguage } from '@/lib/revue-types';
 
 import { voixCopy, type VoixCopy } from './voix-copy';
-import { anyVeiled, findLine, heardKey, isVeiled, mayAutoplay, readRevealed, writeRevealed, type VeilState } from './voix-model';
+import { anyVeiled, findLine, heardKey, isVeiled, mayAutoplay, readRevealed, unknownPending, writeRevealed, type VeilState } from './voix-model';
 
 const ClientContext = createContext<VoixClient | null>(null);
 
@@ -65,6 +65,8 @@ export type VoixSession = {
   manifest: VxManifest | null;
   failed: boolean;
   resolve: (line: VoiceLine) => Promise<ResolvedClip | null>;
+  /** Read the manifest again: a line the session gained since (the regular's reply). */
+  refresh?: () => void;
 };
 
 export function useVoixSession(sessionId: string): VoixSession {
@@ -78,9 +80,13 @@ export function useVoixSession(sessionId: string): VoixSession {
     watchGestures();
   }, []);
 
+  const [reads, setReads] = useState(0);
+  const refresh = useCallback(() => setReads((n) => n + 1), []);
   useEffect(() => {
     setManifest(null);
     setFailed(false);
+  }, [client, sessionId]);
+  useEffect(() => {
     if (!client) return undefined;
     let alive = true;
     client
@@ -94,7 +100,7 @@ export function useVoixSession(sessionId: string): VoixSession {
     return () => {
       alive = false;
     };
-  }, [client, sessionId]);
+  }, [client, sessionId, reads]);
 
   const resolve = useCallback(
     async (line: VoiceLine): Promise<ResolvedClip | null> => {
@@ -109,7 +115,7 @@ export function useVoixSession(sessionId: string): VoixSession {
     [client, sessionId],
   );
 
-  return { manifest, failed, resolve };
+  return { manifest, failed, resolve, refresh };
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +192,19 @@ export function VoixScope({
   }, [reveal, voice.speakingKey]);
 
   const pendingKey = pending.join('\n');
+  // A line to be heard first that the manifest does not know yet (the regular's reply comes after
+  // the opinion is printed): read the manifest again, once per new set of lines. Without this the
+  // reply showed at once, then was veiled after a reload while its answers were on screen.
+  const asked = useRef<string | null>(null);
+  const known = session.manifest;
+  const refreshManifest = session.refresh;
+  useEffect(() => {
+    if (!known || !refreshManifest || !pendingKey || asked.current === pendingKey) return;
+    if (unknownPending(known, pendingKey.split('\n')).length) {
+      asked.current = pendingKey;
+      refreshManifest();
+    }
+  }, [known, pendingKey, refreshManifest]);
   const value = useMemo<VoixScopeValue | null>(() => {
     if (!client || !session.manifest) return null;
     return {

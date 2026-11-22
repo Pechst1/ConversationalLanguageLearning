@@ -110,7 +110,7 @@ export default function RevuePage() {
           regle: router.query.regle === '1',
           photos: router.query.photos === '1',
           choix: router.query.choix === '1',
-        }), { enabled: router.query.rdv === '1' }), { enabled: router.query.voix === '1', audio: router.query.voixaudio !== '0' });
+        }), { enabled: router.query.rdv === '1' }), { enabled: router.query.voix === '1', audio: router.query.voixaudio !== '0', fail: router.query.voixfail === '1' });
         const next = { ...createRevueClient(transport), reset: transport.reset };
         if (router.query.reset === '1') next.reset();
         setClient(next);

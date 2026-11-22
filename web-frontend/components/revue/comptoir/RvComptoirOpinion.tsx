@@ -37,6 +37,12 @@ import { useVoixScope, useVxListening } from '../voix/VoixContext';
 
 const SIDES: RvStance[] = ['pour', 'contre', 'nuance'];
 
+/** The same sentence, spaces and the final stop aside. */
+function sameSentence(a: string, b: string): boolean {
+  const form = (text: string) => text.replace(/\s+/g, ' ').replace(/[\s.!?…]+$/, '').trim();
+  return Boolean(form(a)) && form(a) === form(b);
+}
+
 export function RvComptoirOpinion(props: ComptoirStepProps) {
   const { view, copy, ccopy, glossLanguage, glosses, voice, pending, readOnly, onAct, onContinue, wordFor, notice, footRef } = props;
   const kit = view.kit;
@@ -194,6 +200,7 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
   // --- after the opinion: Romy's marks, the print, the answer, the comeback -------
   let suite: React.ReactNode = null;
   const marked = opinion?.proof === 'marked';
+  const printsAsWritten = Boolean(opinion) && !marked && sameSentence(opinion?.printedFr ?? opinion?.draftFr ?? '', opinion?.learnerFr ?? '');
   if (opinion && marked) {
     suite = (
       <>
@@ -379,8 +386,9 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
     <>
       <div className="rv-body ct-body" data-step="opinion" data-input={input}>
         <RomyLine line={COMPTOIR_LINES.opinion_ask} props={props} past={Boolean(opinion)} />
-        {/* Romy's corrections card is the sentence while it is shown: the learner's bubble steps aside. */}
-        {opinion && !marked && <MineLine textFr={opinion.learnerFr} copy={copy} />}
+        {/* Romy's corrections card is the sentence while it is shown, and the printed card when it
+            prints the learner's words unchanged: the learner's bubble steps aside for them. */}
+        {opinion && !marked && !printsAsWritten && <MineLine textFr={opinion.learnerFr} copy={copy} />}
         {composer}
         {suite}
         {notice}

@@ -193,12 +193,15 @@ test('an opened why is brought into the band above the fixed foot', () => {
 
 test('while Romy’s corrections card is shown, the learner’s own bubble is not repeated', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'RvComptoirOpinion.tsx'), 'utf8');
-  assert.match(src, /\{opinion && !marked && <MineLine textFr=\{opinion\.learnerFr\}/);
+  assert.match(src, /\{opinion && !marked && !printsAsWritten && <MineLine textFr=\{opinion\.learnerFr\}/);
 });
 
 test('the fix field shows whole lines: its cap is a whole number of lines plus its padding and border', () => {
   const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../../styles/revue.css'), 'utf8');
-  const rule = css.split('\n').find((line) => line.includes('.rv-composer .av2-field__control'));
-  assert.ok(rule, 'the composer control rule');
-  assert.match(rule, /max-height: calc\(4lh \+ 1rem \+ 4px\)/);
+  const start = css.indexOf('.av2 .rv-composer .av2-field__control {');
+  assert.ok(start >= 0, 'the composer control rule');
+  const rule = css.slice(start, css.indexOf('}', start));
+  assert.match(rule, /max-height: calc\(6lh \+ 1rem \+ 4px\)/, 'six whole lines');
+  assert.match(rule, /padding-block: 0;/, 'no padding for scrolled text to show through');
+  assert.match(rule, /border-block: calc\(0\.5rem \+ 2px\) solid var\(--av2-card\)/, 'the air is a border in the field’s colour');
 });

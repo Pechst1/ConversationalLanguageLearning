@@ -247,7 +247,14 @@ export type SessionRow = {
  * once every step before it is behind; `todo` otherwise. `started`: opened, not filed.
  * `null` when the plan holds no Papier step (the switch off): Home reads as it did.
  */
-export type PlannedPapier = { state: DaySessionStep['state']; minutes: number; started: boolean };
+export type PlannedPapier = {
+  state: DaySessionStep['state'];
+  minutes: number;
+  started: boolean;
+  /** The Papier's part of the journey's planned seconds: the scene row's minutes (the server's,
+   *  at the learner's pace, for the whole journey) keep the story's part only. */
+  share: number;
+};
 
 type PapierJourneyLike = {
   steps?: readonly { kind?: unknown; status?: unknown; estimated_seconds?: unknown; prompt?: unknown }[] | null;
@@ -265,14 +272,17 @@ export function plannedPapier(
   );
   if (index < 0) return null;
   const step = steps[index];
-  const minutes = Math.max(1, Math.ceil(Number(step.estimated_seconds || 0) / 60));
+  const seconds = Number(step.estimated_seconds || 0);
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  const total = steps.reduce((sum, each) => sum + Math.max(0, Number(each.estimated_seconds || 0)), 0);
+  const share = total > 0 ? Math.min(1, seconds / total) : 0;
   const done = STEP_BEHIND.has(step.status) || Boolean(options.filed);
   const state: DaySessionStep['state'] = done
     ? 'done'
     : steps.slice(0, index).every((earlier) => STEP_BEHIND.has(earlier.status))
       ? 'next'
       : 'todo';
-  return { state, minutes, started: !done && Boolean(options.started) };
+  return { state, minutes, started: !done && Boolean(options.started), share };
 }
 
 
@@ -314,8 +324,8 @@ export function sessionRows(
             ? copy.grammar
             : copy.finish;
     const minutes =
-      step.kind === 'scene' && planned && planned.state !== 'done'
-        ? Math.max(0, step.minutes - planned.minutes)
+      step.kind === 'scene' && planned && planned.state !== 'done' && step.minutes > 0
+        ? Math.max(1, Math.round(step.minutes * (1 - planned.share)))
         : step.minutes;
     // One step is next: the planned Papier, while it is, holds that place.
     const state = planned?.state === 'next' && step.state === 'next' && step.kind !== 'scene' ? 'todo' : step.state;

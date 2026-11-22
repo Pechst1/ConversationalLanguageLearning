@@ -118,3 +118,10 @@ export function writeRevealed(storage: StorageLike | null | undefined, sessionId
     // A private window: the line is revealed for this visit only.
   }
 }
+
+/** Lines to be heard first that the manifest does not know yet (it was read before they came). */
+export function unknownPending(manifest: VxManifest | null, pending: readonly string[]): string[] {
+  if (!manifest) return [];
+  const known = new Set(manifest.lines.map((line) => heardKey(line.speakerId, line.textFr)));
+  return pending.filter((key) => !known.has(key));
+}
