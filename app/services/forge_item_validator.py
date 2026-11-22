@@ -207,7 +207,48 @@ def label_problems(prompt: object) -> list[Problem]:
     return found
 
 
+# --------------------------------------------------------------------------- #
+# A message to answer is on screen
+# --------------------------------------------------------------------------- #
+
+#: The task promises a French line the learner answers: someone asks or writes «in French»,
+#: or the learner answers «the text», «the message», «the French question».
+_PROMISED_MESSAGE = re.compile(
+    r"\b(?:asks|says|replies|tells\s+you)\s+(?:you\s+)?(?:\w+\s+)?in\s+French\b"
+    r"|\b(?:texts|messages|writes|sends)\s+you(?:\s+[\w']+){0,4}?\s+in\s+French\b"
+    r"|\b(?:answer(?:ing)?|reply(?:ing)?|respond(?:ing)?)\s+(?:to\s+)?(?:the|this|that|his|her|their|your\s+\w+'s)\s+"
+    r"(?:French\s+)?(?:text|message|note|French\s+question)\b"
+    r"|\bthe\s+French\s+(?:text|message|question|note|line)\b"
+    r"|\b(?:réponds?|répondez|répondre|en\s+répondant)\s+(?:au|à\s+ce|à\s+son|à\s+sa)\s+(?:texto|message|texte|mot)\b",
+    re.IGNORECASE,
+)
+#: A line quoted on screen («…», "…", “…”, „…“) with at least one word in it.
+_ANY_QUOTED_LINE = re.compile(r"«\s*[^»\s][^»]*»|\"\s*[^\"\s][^\"]*\"|“\s*[^”\s][^”]*”|„\s*[^“”\s][^“”]*[“”]")
+
+
+def message_problems(prompt: object, instruction: object = None) -> list[Problem]:
+    """ROOT CAUSE #146 (#993): a task that answers a message holds the message.
+
+    «Your friend asks in French what you want for breakfast.» / «Write one sentence
+    answering the text» put a text to answer on the card and none on the screen: the
+    learner answers nothing. Whatever promises a French line (the situation or the
+    instruction) needs that line quoted in the situation; a task that only *tells* the
+    learner what someone wants («A friend asks what you will do …. Say …») promises none.
+    """
+
+    promise = " ".join(_plain(part) for part in (prompt, instruction) if part)
+    if not _PROMISED_MESSAGE.search(promise):
+        return []
+    if _ANY_QUOTED_LINE.search(_plain(prompt)):
+        return []
+    return [Problem("no_message", f"the task answers a French message the screen does not show: {promise}")]
+
+
 _ADVICE = {
+    "no_message": (
+        "asks the learner to answer a French message (a text, a question asked in French) that it does not "
+        "show: quote the message in « » in the prompt, or ask the learner to say it themselves"
+    ),
     "roles": "has the shop assistant who asks the customer the price the customer must give (who asks whom?)",
     "price_basis": "gives a price for several things without saying per item or in total",
     "role_label": "has an English role label speaking inside the scene",
@@ -229,14 +270,15 @@ def situation_problems(prompt: object) -> list[Problem]:
     return [*role_problems(prompt), *price_basis_problems(prompt), *label_problems(prompt)]
 
 
-def scenario_problems(prompt: object) -> list[Problem]:
-    """What a *model-written* scenario can get wrong: its situation, and how it addresses the learner.
+def scenario_problems(prompt: object, instruction: object = None) -> list[Problem]:
+    """What a *model-written* scenario can get wrong: its situation, how it addresses the
+    learner, and a message it promises but does not show (#993, with the item's ``instruction``).
 
     The generated sets are checked with this, never with the badge: the cast puts its badge
     on a prompt later (:func:`item_problems`), and a character who says «vous» does it in « ».
     """
 
-    return [*situation_problems(prompt), *address_problems(prompt)]
+    return [*situation_problems(prompt), *address_problems(prompt), *message_problems(prompt, instruction)]
 
 
 def item_problems(prompt: object, *, register: object = None) -> list[Problem]:
@@ -416,6 +458,7 @@ __all__ = [
     "french_of",
     "item_problems",
     "label_problems",
+    "message_problems",
     "price_basis_problems",
     "prompt_register",
     "reaction_problems",

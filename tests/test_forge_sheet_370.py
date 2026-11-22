@@ -199,3 +199,44 @@ def test_a_gap_line_prints_no_english_and_no_cue(prompt, verdict, answer):
         "Tu es malade ? Tu devrais rester au lit.",
         verdict != "correct",
     )
+
+
+#: #927 (walk of 19 Nov): the spot item, its key, and the right variant the learner wrote.
+SPOT_927 = {
+    "id": "t927",
+    "type": "spot",
+    "instruction": "Fix the mistake.",
+    "source": "Vous avez chercher les clés hier.",
+    "source_fr": "Vous avez chercher les clés hier.",
+    "expected_answer": "Vous avez cherché les clés hier.",
+    "accepted_answers": ["Tu as cherché les clés hier."],
+}
+
+
+@pytest.mark.parametrize(
+    ("verdict", "answer", "line"),
+    [
+        ("correct", "Tu as cherché les clés hier.", "Tu as cherché les clés hier."),
+        ("correct", "tu as cherché les clés hier", "Tu as cherché les clés hier."),
+        ("correct", "Vous avez cherché les clés hier.", "Vous avez cherché les clés hier."),
+        ("correct", "cherché", "Vous avez cherché les clés hier."),
+        ("incorrect", "Tu as cherchée les clés hier.", "Vous avez cherché les clés hier."),
+    ],
+    ids=["right-variant", "right-variant-typography", "right-key", "right-part", "miss-shows-key"],
+)
+def test_a_right_transform_is_listed_in_the_learners_words(verdict, answer, line):
+    """#927: «Tu as cherché les clés hier.» was right; the sheet listed «Vous avez cherché
+    les clés hier.», a sentence the learner never wrote. A right answer is the accepted line
+    it was read as (the learner's sentence in its authored spelling); a miss shows the key."""
+
+    attempt = SimpleNamespace(
+        correction_payload={"assessment_status": "checked"},
+        verdict=verdict,
+        prompt_payload={"items": [dict(SPOT_927)]},
+        answer_payload={"answers": {"t927": answer}},
+        round="transform",
+        mode="transform",
+    )
+    assert AtelierSRSService._forge_proof_line(attempt) == (line, verdict != "correct"), (
+        f"the end sheet's line for «{answer}» ({verdict})"
+    )

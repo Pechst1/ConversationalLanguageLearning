@@ -3300,7 +3300,7 @@ class AtelierExerciseGenerator:
                 # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
                 errors.extend(
                     f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
-                    for problem in scenario_problems(item.get("prompt"))
+                    for problem in scenario_problems(item.get("prompt"), item.get("instruction"))
                 )
         return errors
 
@@ -7428,6 +7428,9 @@ class AtelierCorrectionService:
             verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")], source=source)
             if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
+                # #927: a right rewrite stands as the accepted line it was read as (the
+                # learner's own variant), not as the item's key.
+                corrected[item_id] = (verdict.expected if verdict.correct else "") or target
                 if verdict.correct and verdict.accent_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
@@ -8945,6 +8948,28 @@ class AtelierSRSService:
                     return True
         return False
 
+    @staticmethod
+    def _accepted_rewrite(item: dict[str, Any], learner: str) -> str:
+        """The accepted line a right rewrite was read as (#927): the key or the listed
+        alternative the learner's answer matches, in its authored spelling — the whole
+        sentence when only the corrected part was typed. ``""`` when none matches (an
+        answer the key did not decide: it is listed in the learner's own words)."""
+
+        from app.services.answer_acceptance import judge_repair
+
+        keys = [
+            str(value)
+            for value in (item.get("expected_answer"), *(item.get("accepted_answers") or []))
+            if str(value or "").strip()
+        ]
+        if not keys or not learner.strip():
+            return ""
+        source = item.get("source_fr") or item.get("source") or ""
+        verdict = judge_repair(learner, source, keys, accents="lenient", typo=False)
+        if verdict.correct:
+            return str(verdict.expected or "")
+        return learner if len(learner.split()) >= 2 else ""
+
     @classmethod
     def _forge_proof_line(cls, attempt: AtelierAttempt) -> tuple[str, bool] | None:
         """One line of the end sheet (WP-S6, #370): ``(French line, fixed)``.
@@ -8987,7 +9012,9 @@ class AtelierSRSService:
         else:
             key = ""
             if attempt.round == "transform":
-                key = str(item.get("expected_answer") or "")
+                # #927: a right rewrite is listed as the accepted line it was read as
+                # (the learner's own variant, in its authored spelling), never the key.
+                key = (cls._accepted_rewrite(item, learner) if right else "") or str(item.get("expected_answer") or "")
             elif attempt.mode == "fill":
                 blank = _without_asides(str(item.get("prompt") or ""))
                 answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")

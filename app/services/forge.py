@@ -65,6 +65,7 @@ from app.services.forge_coaches import (
     recast_scene,
     story_state_of,
 )
+from app.services.forge_item_validator import message_problems
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -346,6 +347,10 @@ class PayloadItemProvider:
                 if fingerprint in exclude or not check(drill, item):
                     continue
                 if self.keep is not None and not self.keep(int(concept_id), item):
+                    continue
+                if message_problems(item.get("prompt"), item.get("instruction")):
+                    # #993: a set stored before the generator's guard can still hold a
+                    # task that answers a French message it never shows.
                     continue
                 yield ForgeItem(
                     concept_id=int(concept_id),

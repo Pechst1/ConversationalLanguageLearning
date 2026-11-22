@@ -1073,7 +1073,7 @@ def validate_atelier_generation_payload(payload: dict[str, Any]) -> list[str]:
             # #267: the situation must make sense, not only exist.
             errors.extend(
                 f"output_ladder.{round_name} prompt {advice(problem)}"
-                for problem in scenario_problems(item.get("prompt"))
+                for problem in scenario_problems(item.get("prompt"), item.get("instruction"))
             )
     return errors
 
