@@ -193,12 +193,13 @@ def kiosk_periods(period: str) -> list[str]:
 
 def ensure_leads(db: Any, period: str, *, provider: Any = None) -> list[str]:
     """Give every dossier in ``period``'s kiosk that has no leads a try at the lead desk, once
-    (``checks["leads"]`` records a refusal so a refused row is not asked again). Returns the
-    ids that got leads."""
+    (``checks["leads"]`` records a refusal so a refused row is not asked again; a failed call
+    is not recorded and is asked again tomorrow). Returns the ids that got leads."""
 
     from sqlalchemy import select
 
     from app.db.models.revue_session import RevueDossier
+    from app.services.revue.comptoir import refusal_recorded  # noqa: PLC0415
 
     done: list[str] = []
     changed = False
@@ -208,7 +209,7 @@ def ensure_leads(db: Any, period: str, *, provider: Any = None) -> list[str]:
         .order_by(RevueDossier.period.desc(), RevueDossier.id.asc())  # today's first
     ))
     for row in rows:
-        if (row.payload or {}).get("leads") or (row.checks or {}).get("leads"):
+        if (row.payload or {}).get("leads") or refusal_recorded(row.checks, "leads"):
             continue
         try:
             dossier = EditorialDossier.model_validate(row.payload)
@@ -216,12 +217,15 @@ def ensure_leads(db: Any, period: str, *, provider: Any = None) -> list[str]:
             logger.bind(row=row.id).debug("revue leads: stored dossier unreadable ({})", exc)
             continue
         leads, repairs = write_leads(dossier, provider)
+        if repairs == ["leads:desk_failed"]:
+            continue  # asked again tomorrow
         if leads is None:
             row.checks = {**(row.checks or {}), "leads": ",".join(repairs) or "refused"}
             changed = True
             logger.bind(dossier=dossier.id, repairs=repairs).info("revue leads: refused; the summary stays")
             continue
         row.payload = {**row.payload, "leads": leads.model_dump(mode="json")}
+        row.checks = {k: v for k, v in (row.checks or {}).items() if k != "leads"}
         done.append(dossier.id)
         changed = True
     if changed:
