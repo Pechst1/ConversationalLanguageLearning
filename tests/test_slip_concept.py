@@ -33,6 +33,12 @@ _UNITS = {
     "ER_SPELLING": ("FR2_A12_ER_SPELLING", "-er verbs that change spelling", "Verbs", "present_er_spelling_change", 295),
     "PC_AVOIR": ("FR2_A21_PC_AVOIR", "Passé composé with avoir, regular and irregular participles", "Tenses", "passe_compose_avoir", 350),
     "PC_ETRE": ("FR2_A21_PC_ETRE", "Passé composé with être, and agreement", "Tenses", "passe_compose_etre", 360),
+    "RELATIVE_OU": ("FR2_A22_RELATIVE_OU", "Relative où: the place where, the day when", "Pronouns", "relative_ou", 420),
+    "CONNECTORS": ("FR2_A12_CONNECTORS", "Et, mais, ou, parce que", "Connectors", "connectors", 240),
+    "POSSESSIVE_PRONOUNS": ("FR2_B11_POSSESSIVE_PRONOUNS", "Le mien, la tienne", "Pronouns", "possessive_pronouns", 520),
+    "QUEL_QUE_SOIT": ("FR2_C11_QUEL_QUE_SOIT", "Quel que soit", "Clauses", "quel_que_soit", 820),
+    "SUBJ_IMPARFAIT": ("FR2_C12_SUBJ_IMPARFAIT", "Subjonctif imparfait", "Moods", "subj_imparfait", 880),
+    "DAYS_DATES": ("FR2_A12_DAYS_DATES", "Days, months, dates", "Time", "days_dates", 260),
 }
 
 #: The issue's pairs: (learner span, corrected span, the sentence it sat in, the rule it is filed under).
@@ -101,12 +107,16 @@ def _letters(text: str) -> str:
 
 
 def _through_courrier(db_session, user, units, span, fixed, context):
+    _through_courrier_lent(db_session, user, units["PC_AVOIR"].id, span, fixed, context)
+
+
+def _through_courrier_lent(db_session, user, lent_id, span, fixed, context):
     from app.services.missions import MissionCorrectionService
     from tests.test_missions import _ExplodingMissionLLM, _mission_for_correction
 
     mission = _mission_for_correction()
     mission.user_id = user.id
-    mission.selected_concept_ids = [units["PC_AVOIR"].id]  # the letter's rule
+    mission.selected_concept_ids = [lent_id]  # the letter's rule
     service = MissionCorrectionService(db_session, llm_service=_ExplodingMissionLLM())
     # The basic check files an accent or apostrophe fix as spelling, with no rule id.
     accent_only = _letters(span) == _letters(fixed)
@@ -257,6 +267,118 @@ def test_own_form_kept(db_session):
         concept_id=er_spelling,
     )
     assert {row.concept_id for row in _stored(db_session, user)} == {er_spelling}
+
+
+#: Review of #978: an accent, apostrophe, space or capital that is the lent rule's
+#: own form keeps that rule (lent unit, learner span, corrected span, sentence).
+OWN_FORM_PAIRS = [
+    ("RELATIVE_OU", "le bar ou on", "le bar où on", "C'est le bar ou on s'est vus."),
+    ("ER_SPELLING", "nous commencons", "nous commençons", "Demain nous commencons à huit heures."),
+    ("ER_SPELLING", "nous achètons", "nous achetons", "Le samedi, nous achètons du pain."),
+    ("CONNECTORS", "du thé où du café", "du thé ou du café", "Tu veux du thé où du café ?"),
+    ("POSSESSIVE_PRONOUNS", "la votre", "la vôtre", "C'est notre voiture, pas la votre."),
+    ("QUEL_QUE_SOIT", "Quelque soit", "Quel que soit", "Quelque soit le prix, je l'achète."),
+    ("SUBJ_IMPARFAIT", "qu'il fut", "qu'il fût", "Il fallait qu'il fut là."),
+    ("DAYS_DATES", "Lundi 3 Mars", "lundi 3 mars", "Le rendez-vous est Lundi 3 Mars."),
+]
+
+
+@pytest.mark.parametrize(
+    "lent, span, fixed, context", OWN_FORM_PAIRS, ids=[f"{pair[0]}:{pair[1]}" for pair in OWN_FORM_PAIRS]
+)
+def test_own_form_lent(db_session, lent, span, fixed, context):
+    """An accent-only slip in the lent rule's own form keeps that rule, on every record path."""
+    from app.services.answer_acceptance import is_real_correction
+    from app.services.journey_contracts import Correction, InputMode
+    from app.services.journey_learning import (
+        _record_correction_erratum,
+        ensure_journey_learning_session,
+    )
+
+    units = _units(db_session)
+    memory = ErrorMemoryService(db_session)
+    lent_id = units[lent].id
+    if not is_real_correction(span, fixed):
+        # A capital alone is never saved as an error (#93); the decision still holds.
+        got = memory.concept_for_slip(span, fixed, lent_concept_id=lent_id, context=context)
+        assert got == lent_id, f"«{span} → {fixed}» with {lent} lent: filed under {got}"
+        return
+
+    # The scene: the step's rule is lent through ``concept_id_hint``.
+    user = _user(db_session)
+    session = ensure_journey_learning_session(db_session, user=user, journey_id=uuid4(), scenario_key="meet_family")
+    _record_correction_erratum(
+        db_session, user=user, session=session,
+        correction=Correction(span_fr=span, corrected_fr=fixed, note_native="", context_fr=context),
+        modality=InputMode.TEXT, source_key="scene-own-form", foreground=True, concept_id_hint=lent_id,
+    )
+    db_session.flush()
+    assert {row.concept_id for row in _stored(db_session, user)} == {lent_id}, f"scene: «{span} → {fixed}»"
+
+    # La Forge / the Feuilleton: a free-text erratum lent the séance's rule.
+    user = _user(db_session)
+    memory.record_erratum(
+        user=user,
+        erratum={"learner_text": span, "corrected_target": fixed, "why_wrong": "x", "context_fr": context},
+        source_type="graphic_novel",
+        concept_id=lent_id,
+    )
+    assert {row.concept_id for row in _stored(db_session, user)} == {lent_id}, f"forge: «{span} → {fixed}»"
+
+
+def test_own_form_courrier(db_session):
+    """A letter lent the relative où keeps «le bar ou → où» under it."""
+    units = _units(db_session)
+    user = _user(db_session)
+    _through_courrier_lent(
+        db_session, user, units["RELATIVE_OU"].id, "le bar ou on", "le bar où on", "C'est le bar ou on s'est vus."
+    )
+    db_session.flush()
+    assert {row.concept_id for row in _stored(db_session, user)} == {units["RELATIVE_OU"].id}
+
+
+def test_accent_outside_lent_form(db_session):
+    """The same rules lent, an accent that is not their form still carries no rule."""
+    units = _units(db_session)
+    memory = ErrorMemoryService(db_session)
+    for lent, span, fixed, context in (
+        ("RELATIVE_OU", "cafe", "café", "On boit un cafe au bar où on s'est vus."),
+        ("ER_SPELLING", "les eleves", "les élèves", "Nous achetons des livres pour les eleves."),
+        ("PC_AVOIR", "a", "à", "J'ai mangé a la maison."),
+        ("PC_AVOIR", "cafe", "café", "J'ai bu un cafe."),
+        ("DAYS_DATES", "tres", "très", "Lundi 3 mars, il fait tres froid."),
+    ):
+        user = _user(db_session)
+        memory.record_erratum(
+            user=user,
+            erratum={"learner_text": span, "corrected_target": fixed, "why_wrong": "x", "context_fr": context},
+            source_type="graphic_novel",
+            concept_id=units[lent].id,
+        )
+        filed = {row.concept_id for row in _stored(db_session, user)}
+        assert filed == {None}, f"«{span} → {fixed}» with {lent} lent: filed under {filed}"
+
+
+def test_journal_slip(db_session):
+    """A journal erratum (no rule lent) is filed under what its correction changed."""
+    units = _units(db_session)
+    memory = ErrorMemoryService(db_session)
+    for span, fixed, expected in (
+        ("sa amie", "son amie", units["POSSESSIVES"].id),
+        ("ai mange", "ai mangé", units["PC_AVOIR"].id),
+        ("cafe", "café", None),
+    ):
+        user = _user(db_session)
+        memory.record_erratum(
+            user=user,
+            erratum={
+                "display_label": "Correction", "learner_text": span, "corrected_target": fixed,
+                "why_wrong": "", "severity": 2, "recurring": True, "task_error_type": "grammar_target",
+            },
+            source_type="journal",
+            source_payload={"surface": "journal"},
+        )
+        assert {row.concept_id for row in _stored(db_session, user)} == {expected}, span
 
 
 def test_accent_no_rule(db_session):

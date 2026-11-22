@@ -185,6 +185,17 @@ def _severity_to_int(value: Any) -> int:
     return 2
 
 
+def _lent_form(concept: GrammarConcept) -> slip_concept.LentForm:
+    """#973: the lent rule's own form, from its catalogue entry (detectors and traps)."""
+
+    from app.services.grammar_units import contrast_pairs, regex_patterns, unit_detectors
+
+    return slip_concept.LentForm(
+        patterns=tuple(regex_patterns(unit_detectors(concept))),
+        traps=tuple((pair["wrong"], pair["right"]) for pair in contrast_pairs(concept)),
+    )
+
+
 class ErrorMemoryService:
     """Persist, deduplicate, schedule, and retrieve learner mistakes across modes."""
 
@@ -416,7 +427,7 @@ class ErrorMemoryService:
             # whichever rule the entrance or the corrector named.
             concept_id = self.elision_concept_id(
                 erratum.get("learner_text"), erratum.get("corrected_target"), context=erratum.get("context_fr")
-            ) or named or concept_id
+            ) or concept_id or named
         else:
             # #973: ``concept_id`` is the rule the surface lends (the letter's, the
             # step's, the séance's). The change decides whether the slip is that rule's.
@@ -1025,8 +1036,10 @@ class ErrorMemoryService:
         - a swap among determiners is the unit of the determiner the correction wrote:
           «sa → son» the possessives, «le → la» the definite article (#974);
         - a participle or an auxiliary is the passé composé of its auxiliary;
-        - an accent, an apostrophe or a space is no rule (#697), unless it is the lent
-          rule's own form («j'achete → j'achète» for the -er verbs that change spelling);
+        - an accent, an apostrophe, a space or a capital is no rule (#697), unless the
+          lent rule's own detector or ✗/✓ traps recognise the changed word as its form
+          («le bar où» for the relative où, «nous commençons» for the -er verbs that
+          change spelling, «qu'il fût» for the imperfect subjunctive);
         - anything else keeps ``lent_concept_id``; with ``infer`` and nothing lent, the
           note's family words decide (WP-L1).
         """
@@ -1035,10 +1048,15 @@ class ErrorMemoryService:
         if elision is not None:
             return elision
         lent_unit = None
+        lent_form = None
         if lent_concept_id:
             lent = self.db.get(GrammarConcept, lent_concept_id)
             lent_unit = str(lent.external_id) if lent is not None and lent.external_id else None
-        unit = slip_concept.unit_for_change(learner_text, corrected_text, lent_unit=lent_unit, context=context)
+            if lent_unit is not None:
+                lent_form = _lent_form(lent)
+        unit = slip_concept.unit_for_change(
+            learner_text, corrected_text, lent_unit=lent_unit, lent_form=lent_form, context=context
+        )
         if unit == slip_concept.NO_RULE:
             return None
         if unit is not None:
