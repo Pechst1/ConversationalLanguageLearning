@@ -941,25 +941,28 @@ export function bench(B: Build, x: number, z: number, rot: number, y = KERB) {
 }
 
 /** A Morris column: dark green drum, posters, a dome with a crown. */
-export function morrisColumn(B: Build, x: number, z: number, posters: Array<{ key: string; draw: SignSpec['draw'] }>, y = KERB) {
+export function morrisColumn(B: Build, x: number, z: number, posters: Array<{ key: string; draw: SignSpec['draw']; density?: number }>, y = KERB) {
   const D = B.dry;
   const green: Paint = { color: mix(INKS.green, INKS.ink, 0.35), id: nextId() };
   D.lathe(x, y, z, [[0.78, 0], [0.78, 0.25], [0.68, 0.35], [0.68, 3.0], [0.8, 3.1], [0.82, 3.3], [0.74, 3.36], [0.7, 3.5], [0.52, 3.9], [0.24, 4.15], [0.1, 4.3], [0, 4.4]], 12, green);
   D.ball(x, y + 4.45, z, 0.1, 0.12, 0.1, green, 0);
-  posters.forEach((p, i) => {
+  const hung = posters.map((p, i) => {
     const a = (i / posters.length) * Math.PI * 2 + 0.3;
     const n = new Vector3(Math.cos(a), 0, Math.sin(a));
+    const center = new Vector3(x + n.x * 0.7, y + 1.75, z + n.z * 0.7);
     B.signs.push({
       key: p.key,
-      center: new Vector3(x + n.x * 0.7, y + 1.75, z + n.z * 0.7),
+      center,
       normal: n,
       width: 0.62,
       height: 1.6,
-      density: 220,
+      density: p.density ?? 220,
       draw: p.draw,
     });
+    return { key: p.key, center, normal: n };
   });
   B.blocks.push(circle(x, z, 0.9));
+  return hung;
 }
 
 /** A bollard of the Paris kind: a slim post with a ring. */

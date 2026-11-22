@@ -77,6 +77,8 @@ import { fontsReady, neonTexture, printAtlas } from './signs';
 import { buildRoom } from './room';
 import type { RoomBuilt, RoomSpec } from './room';
 import { buildSite } from './site';
+import { AFFICHE_SPOT, afficheOpens, openingNear } from './affiche-model';
+import type { Affiche, Opens } from './affiche-model';
 import type { SiteBuilt, SiteSpec } from './site';
 
 export const EYE = 1.62;
@@ -90,11 +92,13 @@ export interface Spot {
   /** how close a tap must land, in metres round the point */
   radius: number;
   enabled: boolean;
+  /** this object opens a route of the app (today's Papier on the column): the screen follows it */
+  opens?: Opens;
 }
 
 export type Hit =
   | { kind: 'person'; key: string }
-  | { kind: 'spot'; id: string }
+  | { kind: 'spot'; id: string; opens?: string }
   | { kind: 'ground'; point: Vector3 }
   | { kind: 'none' };
 
@@ -128,6 +132,8 @@ export interface QuartierOptions {
   cast?: 'round' | 'paper';
   /** the details to lay in this place (`details.ts`), each with its flag's value */
   details?: Array<{ spec: DetailSpec; value?: string }>;
+  /** today's Papier on the quai's Morris column (`affiche.ts`); none: the column's own posters */
+  affiche?: Affiche | null;
 }
 
 type Listener = (hit: Hit) => void;
@@ -356,8 +362,12 @@ export class Quartier {
       const [x0, z0, x1, z1] = this.room.dry;
       this.rainRoom.set(x0, z0, x1, z1);
     } else {
-      const quai = buildQuai(B);
+      const quai = buildQuai(B, this.opts.affiche ?? null);
       this.quai = quai;
+      const poster = quai.affiche;
+      if (poster && this.opts.affiche) {
+        this.addSpot({ id: AFFICHE_SPOT, pos: poster.center.clone(), radius: 0.75, enabled: true, opens: afficheOpens(this.opts.affiche) });
+      }
       await step(0.3, 'Le Mistral');
       this.parts = buildMistral(B, quai.mistral);
     }
@@ -834,6 +844,11 @@ export class Quartier {
     this.spots = this.spots.filter((x) => x.id !== s.id).concat(s);
   }
 
+  /** The nearest spot within `reach` metres of your feet that opens a route of the app, else null. */
+  openingNear(reach: number): Spot | null {
+    return openingNear(this.spots, this.feet, reach);
+  }
+
   enableSpot(id: string, on: boolean) {
     const s = this.spots.find((x) => x.id === id);
     if (s) s.enabled = on;
@@ -926,7 +941,7 @@ export class Quartier {
       if (p.z > 1) continue;
       const d = this.camera.position.distanceTo(s.pos);
       const r = (s.radius / Math.max(d, 0.5)) / Math.tan((this.camera.fov * Math.PI) / 360);
-      if (Math.hypot((p.x - x) * aspect, p.y - y) < Math.max(r, 0.09)) return { kind: 'spot', id: s.id };
+      if (Math.hypot((p.x - x) * aspect, p.y - y) < Math.max(r, 0.09)) return s.opens ? { kind: 'spot', id: s.id, opens: s.opens.route } : { kind: 'spot', id: s.id };
     }
     // then the ground
     const ray = new Raycaster();

@@ -32,6 +32,7 @@ from app.core.rate_limit import paid_route_guard
 from app.db.models.user import User
 from app.schemas.revue import (
     WEEK_PATTERN,
+    RvAffiche,
     RvCloseResult,
     RvComptoirRequest,
     RvComptoirResult,
@@ -97,9 +98,28 @@ def read_week(
     """The week's recommended story, two alternatives, and any session to resume or already filed."""
 
     try:
-        return encounter.week_offer(current_user, week)
+        offer = encounter.week_offer(current_user, week)
     except RevueError as error:
         raise _http(error) from error
+    if settings.REVUE_QUARTIER_AFFICHE_ENABLED:
+        offer = offer.model_copy(update={"affiche": affiche_of(offer)})
+    return offer
+
+
+def affiche_of(offer: RvOffer) -> RvAffiche | None:
+    """Today's edition on the Quartier's Morris column: the story filed, else the one in
+    progress, else the recommendation; ``None`` when there is none."""
+
+    cards = {card.dossier_id: card for card in [offer.recommended, *offer.alternatives] if card is not None}
+    for held, done in ((offer.filed, True), (offer.resume, False)):
+        if held is not None:
+            card = cards.get(held.dossier_id)
+            headline = (card.headline_fr if card is not None else None) or held.title_fr
+            return RvAffiche(dossier_id=held.dossier_id, headline_fr=headline.strip(), done=done)
+    card = offer.recommended
+    if card is None:
+        return None
+    return RvAffiche(dossier_id=card.dossier_id, headline_fr=(card.headline_fr or card.title_fr).strip(), done=False)
 
 
 @router.post("/match", response_model=RvMatchResult)

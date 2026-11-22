@@ -240,7 +240,11 @@ export type RvOffer = {
   evergreenOnly: boolean;
   resume: RvResume | null;
   filed: RvFiled | null;
+  /** `REVUE_QUARTIER_AFFICHE_ENABLED`: today's edition on the Quartier's Morris column. */
+  affiche?: RvAffiche | null;
 };
+/** Today's edition as the quai's poster shows it: the headline (our French) and its «lu». */
+export type RvAffiche = { dossierId: string; headlineFr: string; done: boolean };
 /** `GET /revue/week`: a 404 (the flag is off) is `{ enabled: false }`, never an error. */
 export type RvWeekResult = { enabled: false } | { enabled: true; offer: RvOffer };
 
@@ -793,10 +797,17 @@ export function parseThread(value: unknown): RvThreadItem[] {
   return list(value, parseThreadItem).filter((item): item is RvThreadItem => item !== null);
 }
 
+export function parseAffiche(value: unknown): RvAffiche | null {
+  if (!isObject(value)) return null;
+  const headlineFr = str(value.headline_fr).trim();
+  return headlineFr ? { dossierId: str(value.dossier_id), headlineFr, done: value.done === true } : null;
+}
+
 export function parseOffer(raw: Json): RvOffer {
   const resume = isObject(raw.resume) ? raw.resume : null;
   const filed = isObject(raw.filed) ? raw.filed : null;
   return {
+    affiche: parseAffiche(raw.affiche),
     week: parseWeek(isObject(raw.week) ? raw.week : {}),
     recommended: isObject(raw.recommended) ? parseStoryCard(raw.recommended) : null,
     recommendedReason: oneOf(raw.recommended_reason, ['topic_least_recent', 'interests', 'first'] as const, 'first'),

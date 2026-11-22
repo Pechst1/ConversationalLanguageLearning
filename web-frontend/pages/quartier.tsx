@@ -27,6 +27,7 @@ import { JOURNEY_RESUME_HREF } from '@/lib/journey-resume';
 import { QUARTIER_VISIBLE } from '@/lib/launch-flags';
 import { levelBand } from '@/lib/language-rule';
 import { quartierNative, readLearnerLanguage, readLearnerLevel, useLearnerLanguage } from '@/lib/learner-language';
+import { afficheOf } from '@/lib/quartier/affiche-today';
 import type { CarnetStory } from '@/lib/quartier/carnet-model';
 import { JourneyStory, episodeLabel, stagedPageOf, todayOf } from '@/lib/quartier/journey-story';
 import type { Today } from '@/lib/quartier/journey-story';
@@ -278,6 +279,14 @@ export default function QuartierPage() {
     return { cast, days, news };
   }, [session]);
 
+  // REVUE_QUARTIER_AFFICHE_ENABLED: today's Papier on the Morris column (the server sends none while it is off)
+  const afficheToday = React.useCallback(async () => {
+    if (!(await session.signed)) return null;
+    const week = await revueClient().week();
+    return week.enabled ? afficheOf(week.offer, new Date()) : null;
+  }, [session]);
+  const open = React.useCallback((route: string) => void router.push(route), [router]);
+
   // today's story, once its page is known: one per journey. Its scene plays here while the day
   // stands before it, and the people talk through it whatever the day's state
   const journeyRef = React.useRef(journey);
@@ -344,7 +353,7 @@ export default function QuartierPage() {
       <Head>
         <title>Le Quartier</title>
       </Head>
-      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} world={learnerWorld} carnet={carnetStory} />
+      <QuartierScreen day={day} native={who.native} level={who.level} onExit={leave} hidden={practice} world={learnerWorld} carnet={carnetStory} affiche={afficheToday} onOpen={open} />
       {practice && journey ? (
         <div style={{ position: 'fixed', inset: 0, zIndex: 40, overflowY: 'auto', WebkitOverflowScrolling: 'touch', background: '#f4efe4' }}>
           <JourneySession
