@@ -23,6 +23,7 @@ from app.db.models.user import User
 from app.schemas.daily_journey import LineAudioRequest, LineAudioResult
 from app.schemas.revue_voix import RvVoixDicteeRequest, RvVoixDicteeResult, RvVoixManifest
 from app.services import line_audio
+from app.services.chrome_language import user_mother_tongue
 from app.services.revue import voix
 from app.services.revue.encounter import Loaded, RevueError, load, owned_session
 
@@ -87,8 +88,7 @@ def grade_voix_dictee(
 ) -> RvVoixDicteeResult:
     loaded = _loaded(db, current_user, session_id)
     # The grader's note is an explanation: always in the mother tongue.
-    native = str(getattr(current_user, "native_language", "") or "en")[:2].lower()
-    result = voix.grade(loaded, payload.text, payload.attempt, native)
+    result = voix.grade(loaded, payload.text, payload.attempt, user_mother_tongue(current_user))
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="revue_voix_no_dictee")
     return RvVoixDicteeResult.model_validate(result)

@@ -57,6 +57,7 @@ from app.schemas.revue import (
     RvRubriqueError,
     RvRubriqueRequest,
 )
+from app.services import sentence_line
 from app.services.revue import comptoir, comptoir_loop, photo, rubrique_proof, voice
 from app.services.revue.dossier import ComptoirText, PhotoDesk, PhotoPicture, comptoir_band
 from app.services.revue.encounter import (
@@ -245,7 +246,7 @@ def a1_caption(picture: PhotoPicture, seen: str, fact: str) -> str:
 
 
 def _sentences(text: str) -> list[str]:
-    return [s.strip() for s in re.split(r"(?<=[.!?…])\s+", text.strip()) if s.strip()]
+    return sentence_line.typed_sentences(text)
 
 
 def caption_problem(desk: PhotoDesk, picture: PhotoPicture, dossier: Any, text: str, kind: str) -> RvRubriqueError | None:

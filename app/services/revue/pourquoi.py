@@ -41,6 +41,7 @@ from typing import Any
 from loguru import logger
 
 from app.config import settings
+from app.services import sentence_line
 
 POURQUOI_PROMPT_VERSION = "comptoir-edit-v4"
 #: The context key that turns the extended prompt on (absent: today's prompt and payload).
@@ -320,11 +321,10 @@ def rule_for(kind: str, span: str, fix: str) -> str | None:
 _GRAMMAR = frozenset("""le la les l un une des du de d au aux ce cet cette ces mon ton son ma ta sa mes tes ses
     notre votre nos vos leur leurs à a en et ou mais je j tu il elle on nous vous ils elles me m te t se s y ne n pas
     que qu qui est sont""".split())
-_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*")
 
 
 def _sentences(text: str) -> list[str]:
-    return [part.strip() for part in _SENTENCE.findall(str(text or "")) if part.strip()]
+    return sentence_line.sentences(text)
 
 
 def _needles(fix: str, before: str, after: str) -> list[str]:

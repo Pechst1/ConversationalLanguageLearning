@@ -615,6 +615,29 @@ def test_marks_on_several_questions_stay_inside_their_own_question() -> None:
         {"span_fr": "bon", "start": 30, "kind": "mot"}]
 
 
+def test_marks_stay_inside_their_question_when_the_learner_writes_in_small_letters() -> None:
+    """The shared splitter (#896) opens a sentence only on a capital; a learner's own typing
+    may not have one, and its questions must still line up with Romy's, one by one."""
+
+    learner = "combien de chevaux est-ce que courent ? quand la course commence ?"
+    target = "Combien de chevaux courent ? Quand est-ce que la course commence ?"
+    spans = [m["span_fr"] for m in comptoir_loop.proof_marks(learner, target)]
+    assert "est-ce que" in spans and "quand" in spans
+    assert all("?" not in span for span in spans)
+    # The pieces put back together are the text as it was typed: marks keep their places.
+    assert "".join(piece for _, piece in comptoir_loop._sentences_at("Oui.  non\nmerci !")) == "Oui.  non\nmerci !"
+    # A title's stop ends no sentence («M. Dupont»), with or without a capital after it.
+    assert len(comptoir_loop._sentences_at("Je pense que M. dupont a raison. et toi ?")) == 2
+
+
+def test_a_photo_caption_in_small_letters_still_counts_two_sentences() -> None:
+    from app.services.revue import photo_loop
+
+    assert photo_loop._sentences("je vois un cheval. la course est dimanche.") == [
+        "je vois un cheval.", "la course est dimanche."]
+    assert photo_loop._sentences("Je vois M. Dupont. Il court.") == ["Je vois M. Dupont.", "Il court."]
+
+
 def test_an_elision_written_in_full_is_spelling_every_time_it_stands() -> None:
     """A real A2 opinion (2026-11-22): «parce que il … a dit que il» — the first «que il» was
     marked Rechtschreibung (the model's hint), the second Wortwahl (guessed)."""

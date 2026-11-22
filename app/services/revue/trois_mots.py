@@ -44,12 +44,12 @@ from app.schemas.revue_rendez_vous import (
     RvTroisMotsRequest,
     RvTroisMotsResult,
 )
+from app.services import sentence_line
 
 WORD_KEYS: tuple[str, str, str] = ("a", "b", "c")
 CUE_KEYS: tuple[str, str, str] = ("1", "2", "3")
 MAX_TRIES = 2
 EVENT = "trois_mots"
-_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*\s*")
 
 
 @dataclass(frozen=True)
@@ -107,7 +107,7 @@ def find_word(text: str, word_bare: str) -> tuple[int, int] | None:
 
 
 def sentences(text: str) -> list[str]:
-    return [chunk.strip() for chunk in _SENTENCE.findall(text or "") if chunk.strip()]
+    return sentence_line.sentences(text)
 
 
 # ---------------------------------------------------------------------------

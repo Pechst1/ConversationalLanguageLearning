@@ -14,6 +14,7 @@
 
 import { marksWire, notesWire, proofread } from './revue-mock-comptoir';
 import type { RubriqueContext } from './revue-mock-rubriques';
+import { splitSentences } from './sentence-split';
 
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
@@ -332,7 +333,7 @@ function captionProblem(text: string, picture: (typeof PICTURES)[number], input:
   if (count > max) return { code: 'too_long', count: max };
   const known = numbers(ctx.claimsFr.join(' '));
   if (Array.from(numbers(text)).some((n) => !known.has(n))) return { code: 'number_not_in_claims' };
-  const sentences = text.split(/(?<=[.!?…])\s+/).filter(Boolean);
+  const sentences = splitSentences(text);
   if (input === 'free' && sentences.length < 2) return { code: 'two_sentences', count: 2 };
   if (!mentions(input === 'free' ? sentences[0] : text, picture.seen)) return { code: 'name_what_you_see' };
   if (input === 'free' && !/f[eê]te|musique|juin|gratuit|1982/i.test(sentences.slice(1).join(' '))) return { code: 'say_the_news' };

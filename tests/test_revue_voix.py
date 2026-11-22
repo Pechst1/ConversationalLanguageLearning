@@ -177,6 +177,14 @@ def test_the_dictee_sentence_is_a_whole_short_sentence_of_the_lead() -> None:
     assert voix.dictee_sentence(long, "A1") is None and voix.dictee_sentence(long, "B1") == long
 
 
+def test_the_dictee_is_never_a_sentence_cut_at_a_title_or_a_number() -> None:
+    """The shared splitter (#896): «M.» and «9.9» end no sentence, so the dictée is never the
+    tail of one («Dupont, la course aura lieu demain.»)."""
+
+    lead = "Selon M. Dupont, la course aura lieu demain. Le prix monte de 9.9 % cette année."
+    assert voix.dictee_sentence(lead, "A2") == "Selon M. Dupont, la course aura lieu demain."
+
+
 # ---------------------------------------------------------------------------
 # The line route
 # ---------------------------------------------------------------------------

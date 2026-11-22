@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.config import settings
-from app.services import cast_voices
+from app.services import cast_voices, sentence_line
 from app.services.line_audio import StepLine
 from app.services.revue import comptoir_loop, radio
 from app.services.revue.encounter import Loaded
@@ -46,7 +46,6 @@ DICTEE_MIN_WORDS = 4
 #: The longest sentence a band is asked to write from one hearing.
 DICTEE_MAX_WORDS: dict[str, int] = {"A1": 10, "A2": 14, "B1": 18, "B2": 22}
 
-_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*")
 _WORD = re.compile(r"[^\W_]+(?:['’][^\W_]+)*", re.UNICODE)
 
 
@@ -85,7 +84,7 @@ def dictee_sentence(lead_fr: str, band: str) -> str | None:
     limit = DICTEE_MAX_WORDS.get(band, DICTEE_MAX_WORDS["B2"])
     fits = [
         sentence.strip()
-        for sentence in _SENTENCE.findall(lead_fr or "")
+        for sentence in sentence_line.sentences(lead_fr)
         if DICTEE_MIN_WORDS <= _words(sentence) <= limit and sentence.strip()[-1:] in ".!?…"
     ]
     return min(fits, key=_words) if fits else None

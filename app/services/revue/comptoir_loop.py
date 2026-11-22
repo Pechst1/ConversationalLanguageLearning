@@ -59,6 +59,7 @@ from app.schemas.revue import (
     RvDispatch,
     RvKept,
 )
+from app.services import sentence_line
 from app.services.revue import comptoir, pourquoi, regle, voice
 from app.services.revue.dossier import (
     COMPTOIR_STANCES,
@@ -876,11 +877,20 @@ def _common_prefix(a: str, b: str) -> str:
     return a[:size]
 
 
-_SENTENCE = re.compile(r"[^?!.…]+(?:[?!.…]+|$)")
-
-
 def _sentences_at(text: str) -> list[tuple[int, str]]:
-    return [(m.start(), m.group(0)) for m in _SENTENCE.finditer(text or "") if _TOKEN.search(m.group(0))]
+    """The learner's (or Romy's) sentences as the shared splitter reads them, each at its
+    place in ``text`` with the space before it: put back together they are ``text``."""
+
+    found: list[tuple[int, str]] = []
+    cursor = 0
+    for sentence in sentence_line.typed_sentences(text):
+        at = re.compile(r"\s+".join(map(re.escape, sentence.split()))).search(text, cursor)
+        if at is None:
+            return []
+        if _TOKEN.search(at.group(0)):
+            found.append((cursor, text[cursor:at.end()]))
+        cursor = at.end()
+    return found
 
 
 def proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:

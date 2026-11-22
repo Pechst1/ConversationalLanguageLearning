@@ -12,10 +12,10 @@
  */
 
 import type { VoixTransport } from './revue-voix';
+import { splitSentences } from './sentence-split';
 
 type Json = Record<string, any>;
 
-const SENTENCE = /[^.!?…]+[.!?…]*/g;
 const LETTERS = "A-Za-z0-9À-ÖØ-öø-ÿŒœ";
 const WORD = new RegExp(`[${LETTERS}'’-]+`, 'g');
 const words = (text: string) => (text.match(new RegExp(`[${LETTERS}]+(?:['’][${LETTERS}]+)*`, 'g')) ?? []).length;
@@ -35,7 +35,7 @@ function leadOf(session: Json): string {
 }
 
 function dicteeOf(lead: string): string | null {
-  const fits = (lead.match(SENTENCE) ?? []).map((s) => s.trim()).filter((s) => words(s) >= 4 && words(s) <= 14 && /[.!?…]$/.test(s));
+  const fits = splitSentences(lead).filter((s) => words(s) >= 4 && words(s) <= 14 && /[.!?…]$/.test(s));
   return fits.length ? fits.reduce((best, s) => (words(s) < words(best) ? s : best)) : null;
 }
 

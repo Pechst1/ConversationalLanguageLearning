@@ -10,6 +10,7 @@
 
 import { castDisplayName } from './cast-faces';
 import type { RevueTransport } from './revue-api';
+import { splitSentences } from './sentence-split';
 
 type Json = Record<string, any>;
 type Mode = 'comptoir' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro' | 'chat';
@@ -141,7 +142,7 @@ function build(session: Json): Round | null {
   if (pool.length < 3) return null;
   const words = pool.slice(0, 3);
   let gap: Json | null = null;
-  const sentences: string[] = String(session.dossier?.summary_fr ?? '').match(/[^.!?…]+[.!?…]*\s*/g) ?? [];
+  const sentences: string[] = splitSentences(session.dossier?.summary_fr);
   for (const sentence of sentences.map((s) => s.trim())) {
     for (let i = 0; i < 3 && !gap; i += 1) {
       const span = find(sentence, bare(words[i].fr));
