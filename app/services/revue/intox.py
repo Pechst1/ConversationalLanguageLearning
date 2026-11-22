@@ -41,6 +41,7 @@ from app.services.revue.comptoir import (
     in_story,
     numbers,
     numeric,
+    value_kind,
     word_count,
 )
 from app.services.revue.dossier import (
@@ -260,7 +261,7 @@ def _statement(index: int, row: Any, dossier: EditorialDossier, check: _Checker)
             return None, [f"{tag}:right_number"], []
         if (not distractor or word_count(distractor) > VALUE_MAX_WORDS + 2 or not in_story(check.story, distractor)
                 or ci(distractor) in {ci(right), ci(wrong)} or contains(right, distractor) or contains(distractor, right)
-                or numeric(right) != numeric(distractor)):
+                or value_kind(right) != value_kind(distractor)):
             return None, [f"{tag}:distractor"], []
     texts, whys = _bands(check, row, STATEMENT_MAX_WORDS, allow=wrong)
     refusals = [f"{tag}:{why}" for why in whys]

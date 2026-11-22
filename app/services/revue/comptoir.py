@@ -251,8 +251,10 @@ COMPTOIR_RULES = """RULES
   take. right_fr: the true value, copied from the French of claim claim_id (2 to 6 words, the same kind:
   «plus de 500 000 personnes»). distractor_fr: another TRUE value of the same kind copied from another claim
   (a number for a number, a place for a place), for the learner to choose between it and right_fr: when right_fr
-  holds a number or a year («dès l'été 2027»), the distractor holds a number too («cent voiles»), never a month
-  or a season alone («dès juin»); change another claim's detail when no second number exists. ask: the
+  holds a number, the distractor holds the same kind of value — a date for a date («le 6 octobre»), a sum for a
+  sum («100 euros»), a percentage for a percentage, a count for a count («16 chevaux»): the learner picks
+  between the two after your ask, so a value of another kind gives the answer away; change another claim's
+  detail when no second value of that kind exists. ask: the
   question that sends the learner back to the facts («Combien de spectateurs, en vrai ?»). caught: what the liar
   says when he is caught, in character, 14 words at most. null when no claim has a number, a date, a place or a
   name to change.
@@ -437,6 +439,28 @@ def numeric(text: str | None) -> bool:
     moins un mois»): the intox's kind (a number for a number, a place for a place)."""
 
     return bool(numbers(text)) or bool(set(re.findall(r"[a-z]+", ci(text))) & _NUMBER_WORDS)
+
+
+_MONTHS_AND_DAYS = frozenset("""janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre
+    lundi mardi mercredi jeudi vendredi samedi dimanche jour annee semaine mois ete hiver printemps automne
+    siecle""".split())
+_MONEY = frozenset({"euro", "euros", "centime", "centimes", "dollar", "dollars"})
+
+
+def value_kind(text: str | None) -> str:
+    """What kind of value ``text`` is, for a distractor of the same kind: ``money``, ``percent``,
+    ``date`` (a month, a weekday or a year), ``number``, else ``other``. First real run (2026-11-22):
+    «25 septembre 2026» got «4 autres prix» as its distractor and «plus de 2,8 millions
+    d'euros» got «16 chevaux» — both «numeric», both guessable without reading."""
+
+    words = set(re.findall(r"[a-z]+", ci(text)))
+    if words & _MONEY or "€" in str(text or ""):
+        return "money"
+    if "%" in str(text or "") or "pour cent" in ci(text):
+        return "percent"
+    if words & _MONTHS_AND_DAYS or re.search(r"(?<!\d\s)(?<![\d,])(?:1[5-9]|20)\d\d(?![\d,]|\s\d)", str(text or "")):
+        return "date"  # a day, a month or a year: a time for a time («en 1982» for «le 21 juin»)
+    return "number" if numeric(text) else "other"
 
 
 #: What a value may start with that the story need not repeat («à Montmartre» ← «de Montmartre»).

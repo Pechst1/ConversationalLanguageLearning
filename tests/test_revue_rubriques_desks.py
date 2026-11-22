@@ -368,3 +368,23 @@ def test_the_morning_task_runs_both_desks_only_while_the_switch_is_on(monkeypatc
     monkeypatch.undo()
     monkeypatch.setattr(settings, "REVUE_ENABLED", False)
     assert task.rubriques_now(period="2026-03-10") == {"status": "disabled"}
+
+
+def test_a_distractor_is_the_same_kind_of_value_as_the_truth() -> None:
+    """First real run (2026-11-22): «25 septembre 2026» had «4 autres prix» as its distractor and
+    «plus de 2,8 millions d'euros» had «16 chevaux»: the odd one out was guessable."""
+
+    from app.services.revue.comptoir import value_kind
+
+    assert value_kind("25 septembre 2026") == value_kind("le 6 octobre") == value_kind("en 1982") == "date"
+    assert value_kind("2 400 mètres") == "number"
+    assert value_kind("plus de 2,8 millions d'euros") == value_kind("100 euros") == "money"
+    assert value_kind("9,9 %") == "percent" and value_kind("16 chevaux") == "number"
+    assert value_kind("4 autres prix") != value_kind("25 septembre 2026")
+    raw = gold_intox()
+    false = next(s for s in raw["statements"] if not s["true"])
+    kind = value_kind(false["right_fr"])
+    other = next(c for c in ("seize chevaux", "le 3 mars", "100 euros") if value_kind(c) != kind)
+    false["distractor_fr"] = other
+    express, problems = intox.repair_intox(raw, beauvau())
+    assert express is None and any(p.endswith(":distractor") for p in problems)
