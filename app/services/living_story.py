@@ -6274,11 +6274,70 @@ _GENDERED_FUNCTION_WORDS = frozenset(
 )
 
 
-def gender_only_change(span: str | None, corrected: str | None) -> bool:
+#: Who an agreement is about, read backwards from the changed word: the speaker (first
+#: person: their gender is theirs to give) or a noun, another person (a real slip).
+_SPEAKER_WORDS = frozenset({"je", "j", "me", "m", "moi", "nous", "on"})
+_OTHER_SUBJECTS = frozenset(
+    """tu t te toi il elle ils elles vous lui eux ce c ça cela le la l les un une des
+    mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs cet cette ces""".split()
+)
+#: A preposition (or one contracted with its article): the noun after it is never the subject.
+_COMPLEMENT_PREPOSITIONS = frozenset("à de d en pour avec dans par sur sous chez sans vers contre entre".split())
+_CONTRACTED = frozenset({"au", "aux", "du"})
+#: Determiners inside an adverb, never a subject: «je suis un peu perdu», «le plus content».
+_ADVERB_PAIRS = frozenset({("un", "peu"), ("le", "plus"), ("la", "plus"), ("les", "plus"),
+                           ("le", "moins"), ("la", "moins"), ("les", "moins")})
+_APOSTROPHES = re.compile(r"['’ʼ‘]")
+
+
+def _about_the_speaker(context: str) -> bool:
+    """True when the last subject before the end of ``context`` is the speaker («je suis
+    un peu perdu», «il me trouve fatigué», «nous sommes contents»); False when it is a
+    noun or another person («les tomates sont devenu», «tu es perdu») or nobody is found."""
+
+    words = _folded(re.split(r"[.!?;:]", context)[-1]).split()
+    i = len(words) - 1
+    while i >= 0:
+        word = words[i]
+        if i > 0 and (words[i - 1], word) in _ADVERB_PAIRS:
+            i -= 2
+            continue
+        if word in _SPEAKER_WORDS:
+            return True
+        if word in _CONTRACTED or word in _COMPLEMENT_PREPOSITIONS:
+            i -= 1
+            continue
+        if word in _OTHER_SUBJECTS:
+            if i > 0 and words[i - 1] in _COMPLEMENT_PREPOSITIONS:
+                i -= 2  # «au marché», «de la viande»: a complement, not the subject
+                continue
+            return False
+        i -= 1
+    return False
+
+
+def _folded_find(text: str, span: str) -> int:
+    """Where ``span`` starts in ``text``, ignoring case and the apostrophe's form; -1 if absent."""
+
+    def norm(value: str) -> str:
+        return _APOSTROPHES.sub("'", value).casefold()
+
+    return norm(text).find(norm(span).strip()) if span.strip() else -1
+
+
+def gender_only_change(span: str | None, corrected: str | None, *, text: str | None = None) -> bool:
     """True when a correction only changes the gender agreement of the learner's own
     words («perdu» → «perdu(e)» / «perdue»): the learner's gender is theirs to give,
-    never a correction's to impose."""
+    never a correction's to impose.
 
+    Only the speaker's own gender: the changed word must agree with a first person
+    (``text``, the learner's sentence, places a short span; without it the span alone is
+    read). «les tomates sont devenu» → «devenues» is a real slip (Papier real-model run,
+    2026-11-22), and so is an elision («que un» → «qu'un», «je ai» → «j'ai»), which
+    folding the apostrophe away would otherwise read as the same words."""
+
+    if len(_APOSTROPHES.findall(span or "")) != len(_APOSTROPHES.findall(corrected or "")):
+        return False  # an elision made or undone is spelling, never a gender
     wrong = _folded(_scrub_paren_gender(span or "")).split()
     right = _folded(_scrub_paren_gender(corrected or "")).split()
     if not wrong or len(wrong) != len(right):
@@ -6289,10 +6348,16 @@ def gender_only_change(span: str | None, corrected: str | None) -> bool:
     genders = dict(zip(_MASCULINE_AGREEMENT, _FEMININE_AGREEMENT, strict=True))
     if any(a in _GENDERED_FUNCTION_WORDS or b in _GENDERED_FUNCTION_WORDS for a, b in pairs):
         return False  # «une café» → «un café» is a real correction
-    return all(
+    if not all(
         genders.get(a) == b or genders.get(b) == a or b in (a + "e", a + "es") or a in (b + "e", b + "es")
+        or (a.endswith("s") and b == a[:-1] + "es") or (b.endswith("s") and a == b[:-1] + "es")
         for a, b in pairs
-    )
+    ):
+        return False
+    first = next(i for i, (a, b) in enumerate(zip(wrong, right, strict=True)) if a != b)
+    at = _folded_find(text, span or "") if text else -1
+    before = text[:at] if text and at >= 0 else ""
+    return _about_the_speaker(f"{before} {' '.join(wrong[:first])}")
 
 
 def _check_address(texts: list[str], address: str | None, *, own: frozenset[str] = frozenset()) -> None:
@@ -11622,7 +11687,7 @@ def _validate_turn(turn: SemanticTurn, payload: dict, *, lexical=None, reply_che
         turn.understood_intent = _scrub_inclusive_dot(turn.understood_intent)
     if turn.correction_fr:
         turn.correction_fr = _scrub_paren_gender(turn.correction_fr)
-        if gender_only_change(turn.correction_span_fr, turn.correction_fr):
+        if gender_only_change(turn.correction_span_fr, turn.correction_fr, text=payload.get("learner_text")):
             # The learner's gender is theirs to give (live read 2026-09-30).
             turn.correction_span_fr = turn.correction_fr = turn.correction_note_native = None
         elif is_preference_swap(turn.correction_span_fr, turn.correction_fr):
