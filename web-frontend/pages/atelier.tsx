@@ -4621,6 +4621,9 @@ export function ExerciseFeedbackMoment({
     )
     : <ForgeCorrectedLine fr={repairOf.correctedFr} />;
 
+  const slipNote = typeof correction?.slip_note_native === 'string' ? correction.slip_note_native.trim() : '';
+  const accentNote = slipNote || (feedback.accented && feedback.why ? feedback.why : '');
+
   if (feedback.correct) {
     // #213 / #553: one verdict per card. A right judgement stays right; nothing is
     // shown while the repair is open, and the repair has its own line.
@@ -4629,14 +4632,13 @@ export function ExerciseFeedbackMoment({
     return (
       <div className="ep-feedback" data-verdict={verdict === 'wrong' ? 'wrong' : 'correct'} ref={feedbackRef}>
         {/* Text diet: a picked answer is already marked right on its card. */}
-        {/* …and a typed line is green where it was written; only a model line that differs is set under it. */}
-        {!picked && !(lineEchoed && (!feedback.target || normalizeClient(feedback.target) === normalizeClient(feedback.learner))) && (
+        {/* …and a typed line is green where it was written; only a model line that differs (an accent put back, #562) is set under it. */}
+        {!picked && !(lineEchoed && !feedback.accented && (!feedback.target || normalizeClient(feedback.target) === normalizeClient(feedback.learner))) && (
           <EpCorrect said={display(feedback.target || feedback.learner || t.line_set)} struck />
         )}
-        {/* #954: a hit whose accent was forgiven names it, in one line (the rule check). */}
-        {typeof correction?.slip_note_native === 'string' && correction.slip_note_native.trim() && (
-          <p className="ep-why" lang={noteLang}>{correction.slip_note_native}</p>
-        )}
+        {/* #954 / #562: a hit whose accent was forgiven names it, in one line: the free
+            sentence's `slip_note_native`, else a gap's accent note. */}
+        {accentNote && <p className="ep-why" lang={noteLang} data-accent-note role="note">{accentNote}</p>}
         {relecture}
         {followUpBlock}
         {/* The design's mint footer: badge + Garamond verdict, then the primary. */}
@@ -4910,7 +4912,7 @@ function RecognizePanel({
                 verdict={declicVerdict}
               />
             ) : (
-              <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={answers[item.id]} />
+              <EpreuveBlankPrompt prompt={String(item.prompt || '')} answer={feedback?.accented && feedback.target ? feedback.target : answers[item.id]} />
             )}
           </EpPrompt>
           {drill === 'typed' ? (
@@ -5165,11 +5167,15 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
     assessment === 'needs_work' && correction.errata?.some((error: AtelierErratum) => error.item_id && error.item_id !== item.id) && typeof corrected === 'object' && !!targetText &&
     normalizeClient(learnerText).replace(/['’]\s+/g, "'") === normalizeClient(targetText).replace(/['’]\s+/g, "'")
   ));
+  // #562: a right answer that lacked an accent is named, once, where the miss would be.
+  const accented = correct && Array.isArray(correction.accent_notes)
+    && correction.accent_notes.some((note: any) => String(note?.item_id || '') === String(item.id || ''));
   return {
     correct,
+    accented,
     learner: learnerText,
     target: targetText,
-    why: printableWhy(matchingErrata[0]?.why_wrong) || undefined,
+    why: printableWhy(matchingErrata[0]?.why_wrong) || (accented ? forgeCorrectionNotes(correction).join(' ') : '') || undefined,
     repair: matchingErrata[0]?.repair_hint ?? undefined,
     issues: matchingErrata,
     unscored: assessment === 'pending' || assessment === 'unavailable',
@@ -5178,6 +5184,8 @@ function itemFeedback(item: any, learner: any, correction: Record<string, any> |
 
 type InlineFeedbackModel = {
   correct: boolean;
+  /** #562: right up to an accent; `why` names it and `target` is the line with its accent. */
+  accented?: boolean;
   unscored?: boolean;
   learner?: string;
   target?: string;
@@ -5242,6 +5250,7 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   }
   return {
     correct,
+    accented: correct && Array.isArray(correction.accent_notes) && correction.accent_notes.length > 0,
     unscored: assessment === 'unavailable' || assessment === 'pending',
     learner,
     target: shownTarget,
