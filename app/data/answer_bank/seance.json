@@ -1,0 +1,1487 @@
+{
+ "_about": "Answer bank (#174), written by scripts/build_answer_bank.py. Do not edit by hand: regenerate.",
+ "source": "seance",
+ "model": "claude-sonnet-5-5",
+ "generated": "2026-11-21",
+ "items": 54,
+ "covered": 54,
+ "entries": {
+  "FR_A1_ADJ_001": {
+   "hash": "653df3c586a70478",
+   "kind": "fix_the_mistake",
+   "key": "De petites maisons blanches bordent la rue.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "De petites maisons blanc bordent la rue.",
+     "why_en": "This is the original; the colour adjective does not agree.",
+     "why_de": "Das ist das Original; das Farbadjektiv stimmt nicht überein."
+    },
+    {
+     "form": "De petites maisons blancs bordent la rue.",
+     "why_en": "The adjective must be feminine as well as plural.",
+     "why_de": "Das Adjektiv muss auch feminin sein, nicht nur Plural."
+    },
+    {
+     "form": "De petites maisons blanche bordent la rue.",
+     "why_en": "The adjective is feminine but not plural.",
+     "why_de": "Das Adjektiv ist feminin, aber nicht im Plural."
+    },
+    {
+     "form": "De petits maisons blanches bordent la rue.",
+     "why_en": "Petit must also agree with a feminine noun.",
+     "why_de": "Petit muss auch mit dem femininen Nomen übereinstimmen."
+    }
+   ]
+  },
+  "FR_A1_ART_001": {
+   "hash": "898ab3913b0d6faf",
+   "kind": "fix_the_mistake",
+   "key": "J'aime la musique en général.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "J'aime une musique en général.",
+     "why_en": "This is the original; an indefinite article does not fit a general category.",
+     "why_de": "Das ist das Original; ein unbestimmter Artikel passt nicht zu einer allgemeinen Kategorie."
+    },
+    {
+     "form": "J'aime de la musique en général.",
+     "why_en": "The partizip article is for an amount, not a general preference.",
+     "why_de": "Der Teilungsartikel steht für eine Menge, nicht für eine allgemeine Vorliebe."
+    },
+    {
+     "form": "J'aime le musique en général.",
+     "why_en": "The article does not match the gender of the noun.",
+     "why_de": "Der Artikel passt nicht zum Genus des Nomens."
+    },
+    {
+     "form": "J'aime musique en général.",
+     "why_en": "An article is needed before the noun.",
+     "why_de": "Vor dem Nomen fehlt ein Artikel."
+    }
+   ]
+  },
+  "FR_A1_ART_002": {
+   "hash": "39a4ae47affb8bf4",
+   "kind": "fix_the_mistake",
+   "key": "J'ai une question.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "J'ai un question.",
+     "why_en": "This is the original; the article does not match the noun's gender.",
+     "why_de": "Das ist das Original; der Artikel passt nicht zum Genus des Nomens."
+    },
+    {
+     "form": "J'ai des question.",
+     "why_en": "You want one question, so the article and noun must be singular.",
+     "why_de": "Es geht um eine Frage, also müssen Artikel und Nomen Singular sein."
+    },
+    {
+     "form": "J'ai la question.",
+     "why_en": "A definite article suggests a specific known question, not a new one.",
+     "why_de": "Ein bestimmter Artikel meint eine bekannte Frage, nicht eine neue."
+    },
+    {
+     "form": "J'ai une questions.",
+     "why_en": "The noun should be singular.",
+     "why_de": "Das Nomen muss im Singular stehen."
+    }
+   ]
+  },
+  "FR_A1_ART_003": {
+   "hash": "cf150e725fbc85d5",
+   "kind": "fix_the_mistake",
+   "key": "Je voudrais du pain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je voudrais de le pain.",
+     "why_en": "This is the original; de and le must be contracted into one form.",
+     "why_de": "Das ist das Original; de und le müssen zu einer Form verschmelzen."
+    },
+    {
+     "form": "Je voudrais de pain.",
+     "why_en": "Plain de is not used after an affirmative verb here.",
+     "why_de": "Einfaches de steht hier nach dem bejahten Verb nicht."
+    },
+    {
+     "form": "Je voudrais le pain.",
+     "why_en": "This asks for a specific bread, not an unspecified amount.",
+     "why_de": "Das meint ein bestimmtes Brot, nicht eine unbestimmte Menge."
+    },
+    {
+     "form": "Je voudrais de la pain.",
+     "why_en": "The article does not match the gender of pain.",
+     "why_de": "Der Artikel passt nicht zum Genus von pain."
+    }
+   ]
+  },
+  "FR_A1_DET_001": {
+   "hash": "ed2b7667c5d2743a",
+   "kind": "fix_the_mistake",
+   "key": "Mon amie arrive avec mes clés.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Ma amie arrive avec mes clés.",
+     "why_en": "This is the original; the possessive before a vowel is incorrect.",
+     "why_de": "Das ist das Original; das Possessivum vor Vokal ist falsch."
+    },
+    {
+     "form": "Mes amie arrive avec mes clés.",
+     "why_en": "The possessive is plural but the noun and verb are singular.",
+     "why_de": "Das Possessivum ist Plural, Nomen und Verb sind aber Singular."
+    },
+    {
+     "form": "Ta amie arrive avec mes clés.",
+     "why_en": "The owner is the speaker, and the form before a vowel is still wrong.",
+     "why_de": "Das Possessivum ist falsch und die Form vor Vokal stimmt auch nicht."
+    },
+    {
+     "form": "Son amie arrive avec mes clés.",
+     "why_en": "This changes the owner to someone else.",
+     "why_de": "Das ändert den Besitzer auf eine andere Person."
+    }
+   ]
+  },
+  "FR_A1_DET_002": {
+   "hash": "7f2dfde73153510f",
+   "kind": "fix_the_mistake",
+   "key": "Cet hôtel est près de cette gare.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Ce hôtel est près de cette gare.",
+     "why_en": "This is the original; the form before a vowel sound is wrong.",
+     "why_de": "Das ist das Original; die Form vor Vokallaut ist falsch."
+    },
+    {
+     "form": "Cette hôtel est près de cette gare.",
+     "why_en": "Hôtel is masculine, so the feminine form is wrong.",
+     "why_de": "Hôtel ist maskulin, die feminine Form ist falsch."
+    },
+    {
+     "form": "Ces hôtel est près de cette gare.",
+     "why_en": "The plural demonstrative does not match the singular noun and verb.",
+     "why_de": "Das Pluralpronomen passt nicht zu Nomen und Verb im Singular."
+    },
+    {
+     "form": "Cet hôtel est près de ce gare.",
+     "why_en": "Gare is feminine, so the second demonstrative is wrong.",
+     "why_de": "Gare ist feminin, das zweite Demonstrativum ist falsch."
+    }
+   ]
+  },
+  "FR_A1_NEG_001": {
+   "hash": "a84987e0ad29c78f",
+   "kind": "fix_the_mistake",
+   "key": "Elle n'aime pas le café.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Elle ne aime pas le café.",
+     "why_en": "This is the original; ne must be shortened before a vowel.",
+     "why_de": "Das ist das Original; ne muss vor einem Vokal verkürzt werden."
+    },
+    {
+     "form": "Elle n'aime le café.",
+     "why_en": "The second part of the negation is missing.",
+     "why_de": "Der zweite Teil der Verneinung fehlt."
+    },
+    {
+     "form": "Elle n'aime pas du café.",
+     "why_en": "After a negation, the article changes and here the meaning shifts.",
+     "why_de": "Nach der Verneinung ändert sich der Artikel, und die Bedeutung verschiebt sich."
+    },
+    {
+     "form": "Elle naime pas le café.",
+     "why_en": "The elision needs an apostrophe to be correct.",
+     "why_de": "Die Elision braucht einen Apostroph."
+    }
+   ]
+  },
+  "FR_A1_NOUN_001": {
+   "hash": "c30caa42b4835437",
+   "kind": "fix_the_mistake",
+   "key": "Une petite table blanche est dans la cuisine.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Une petit table blanche est dans la cuisine.",
+     "why_en": "The sentence is unchanged; the adjective still does not agree with the feminine noun.",
+     "why_de": "Der Satz ist unverändert; das Adjektiv passt noch nicht zum weiblichen Nomen."
+    },
+    {
+     "form": "Une petite table blanc est dans la cuisine.",
+     "why_en": "The wrong adjective was not fixed, and another one now lacks agreement.",
+     "why_de": "Das falsche Adjektiv wurde nicht korrigiert, und ein anderes stimmt nun nicht überein."
+    },
+    {
+     "form": "Une petites table blanche est dans la cuisine.",
+     "why_en": "The adjective is plural but the noun is singular.",
+     "why_de": "Das Adjektiv steht im Plural, das Nomen aber im Singular."
+    },
+    {
+     "form": "Un petit table blanche est dans la cuisine.",
+     "why_en": "The article has been changed to masculine but the noun is feminine.",
+     "why_de": "Der Artikel wurde männlich gemacht, das Nomen ist aber weiblich."
+    }
+   ]
+  },
+  "FR_A1_PRON_001": {
+   "hash": "3a7ceecede71ff14",
+   "kind": "fix_the_mistake",
+   "key": "Nous allons au marché.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je allons au marché.",
+     "why_en": "The sentence is unchanged; the subject pronoun does not match the verb.",
+     "why_de": "Der Satz ist unverändert; das Subjektpronomen passt nicht zum Verb."
+    },
+    {
+     "form": "Nous vais au marché.",
+     "why_en": "The verb form does not match the pronoun nous.",
+     "why_de": "Die Verbform passt nicht zum Pronomen nous."
+    },
+    {
+     "form": "Vous allons au marché.",
+     "why_en": "This pronoun does not match the verb and the scene asks for we.",
+     "why_de": "Dieses Pronomen passt nicht zum Verb, und die Szene verlangt wir."
+    },
+    {
+     "form": "Nous allez au marché.",
+     "why_en": "The verb ending belongs to another person.",
+     "why_de": "Die Verbendung gehört zu einer anderen Person."
+    }
+   ]
+  },
+  "FR_A1_SYN_001": {
+   "hash": "57c6ce992d4a242f",
+   "kind": "fix_the_mistake",
+   "key": "Est-ce que tu viens demain ?",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Est-ce qui tu viens demain ?",
+     "why_en": "The sentence is unchanged; the question word is wrong.",
+     "why_de": "Der Satz ist unverändert; das Fragewort ist falsch."
+    },
+    {
+     "form": "Est-ce qu tu viens demain ?",
+     "why_en": "The word is cut incorrectly; elision only occurs before a vowel.",
+     "why_de": "Das Wort ist falsch gekürzt; Elision gibt es nur vor Vokal."
+    },
+    {
+     "form": "Est-ce quoi tu viens demain ?",
+     "why_en": "Quoi is not the right linking word in this question.",
+     "why_de": "Quoi ist nicht das richtige Bindewort in dieser Frage."
+    },
+    {
+     "form": "Est-ce que viens tu demain ?",
+     "why_en": "With est-ce que the word order stays that of a statement.",
+     "why_de": "Mit est-ce que bleibt die Wortstellung wie im Aussagesatz."
+    }
+   ]
+  },
+  "FR_A1_VERB_001": {
+   "hash": "476b8617b375129e",
+   "kind": "fix_the_mistake",
+   "key": "Nous faisons nos devoirs.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Nous fait nos devoirs.",
+     "why_en": "The sentence is unchanged; the verb does not match nous.",
+     "why_de": "Der Satz ist unverändert; das Verb passt nicht zu nous."
+    },
+    {
+     "form": "Nous faites nos devoirs.",
+     "why_en": "This ending belongs to vous, not nous.",
+     "why_de": "Diese Endung gehört zu vous, nicht zu nous."
+    },
+    {
+     "form": "Nous faisez nos devoirs.",
+     "why_en": "The verb ending is mixed up and does not exist.",
+     "why_de": "Die Verbendung ist vermischt und existiert nicht."
+    },
+    {
+     "form": "Nous faisont nos devoirs.",
+     "why_en": "The ending is wrong for nous.",
+     "why_de": "Die Endung ist für nous falsch."
+    }
+   ]
+  },
+  "FR_A1_VERB_002": {
+   "hash": "f73c967b2a7a369f",
+   "kind": "fix_the_mistake",
+   "key": "Nous allons visiter Paris demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Nous avons visiter Paris demain.",
+     "why_en": "The sentence is unchanged; the auxiliary does not express the near future.",
+     "why_de": "Der Satz ist unverändert; das Hilfsverb drückt nicht das nahe Futur aus."
+    },
+    {
+     "form": "Nous allons visitons Paris demain.",
+     "why_en": "The verb after the auxiliary must be an infinitive.",
+     "why_de": "Das Verb nach dem Hilfsverb muss im Infinitiv stehen."
+    },
+    {
+     "form": "Nous allez visiter Paris demain.",
+     "why_en": "The form of aller does not match nous.",
+     "why_de": "Die Form von aller passt nicht zu nous."
+    },
+    {
+     "form": "Nous visitons Paris demain.",
+     "why_en": "This is a plain present, not the requested near future.",
+     "why_de": "Das ist einfaches Präsens, nicht das verlangte nahe Futur."
+    }
+   ]
+  },
+  "FR_A2_ADJ_001": {
+   "hash": "2c1078aa176283b6",
+   "kind": "fix_the_mistake",
+   "key": "Cette solution est plus simple que l'autre.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Cette solution est plus simple comme l'autre.",
+     "why_en": "The sentence is unchanged; the comparison word is wrong.",
+     "why_de": "Der Satz ist unverändert; das Vergleichswort ist falsch."
+    },
+    {
+     "form": "Cette solution est plus simple de l'autre.",
+     "why_en": "This preposition is not used to introduce the second term.",
+     "why_de": "Diese Präposition leitet den zweiten Vergleichsteil nicht ein."
+    },
+    {
+     "form": "Cette solution est plus simple qu'à l'autre.",
+     "why_en": "An extra preposition has been added after the comparison word.",
+     "why_de": "Nach dem Vergleichswort wurde eine überflüssige Präposition eingefügt."
+    },
+    {
+     "form": "Cette solution est aussi simple que l'autre.",
+     "why_en": "This changes the meaning to equality instead of more.",
+     "why_de": "Das ändert die Bedeutung zu Gleichheit statt zu mehr."
+    }
+   ]
+  },
+  "FR_A2_NEG_001": {
+   "hash": "4ef17d3717333520",
+   "kind": "fix_the_mistake",
+   "key": "Je ne bois pas de café.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je ne bois pas du café.",
+     "why_en": "The sentence is unchanged; the partitive article stays after negation.",
+     "why_de": "Der Satz ist unverändert; der Teilungsartikel bleibt nach der Verneinung."
+    },
+    {
+     "form": "Je ne bois pas de le café.",
+     "why_en": "Articles cannot be stacked like this after negation.",
+     "why_de": "Artikel können nach der Verneinung nicht so gehäuft werden."
+    },
+    {
+     "form": "Je ne bois pas des café.",
+     "why_en": "This article is the plural form and does not fit.",
+     "why_de": "Dieser Artikel ist die Pluralform und passt nicht."
+    },
+    {
+     "form": "Je ne bois pas le café.",
+     "why_en": "A definite article changes the meaning from any coffee to a specific one.",
+     "why_de": "Ein bestimmter Artikel ändert die Bedeutung von irgendeinem Kaffee zu einem bestimmten."
+    }
+   ]
+  },
+  "FR_A2_PREP_001": {
+   "hash": "9e6fcd6c92a1fa43",
+   "kind": "fix_the_mistake",
+   "key": "J'étudie le français depuis deux ans, et je continue.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "J'étudie le français il y a deux ans, et je continue.",
+     "why_en": "The sentence is unchanged; this expression marks a past point, not an ongoing action.",
+     "why_de": "Der Satz ist unverändert; dieser Ausdruck bezeichnet einen Zeitpunkt in der Vergangenheit, keine andauernde Handlung."
+    },
+    {
+     "form": "J'étudie le français pendant deux ans, et je continue.",
+     "why_en": "This preposition gives a closed duration, but you are still studying.",
+     "why_de": "Diese Präposition gibt eine abgeschlossene Dauer an, aber du lernst noch."
+    },
+    {
+     "form": "J'étudie le français pour deux ans, et je continue.",
+     "why_en": "This preposition expresses a planned period, not how long it has lasted.",
+     "why_de": "Diese Präposition drückt einen geplanten Zeitraum aus, nicht die bisherige Dauer."
+    },
+    {
+     "form": "J'étudie le français dans deux ans, et je continue.",
+     "why_en": "This refers to the future and does not fit.",
+     "why_de": "Das bezieht sich auf die Zukunft und passt nicht."
+    }
+   ]
+  },
+  "FR_A2_PRON_001": {
+   "hash": "fc6173df8d8117dc",
+   "kind": "fix_the_mistake",
+   "key": "Je lui parle tous les jours.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je le parle tous les jours.",
+     "why_en": "The sentence is unchanged; this pronoun is direct, but parler takes an indirect object.",
+     "why_de": "Der Satz ist unverändert; dieses Pronomen ist direkt, parler hat aber ein indirektes Objekt."
+    },
+    {
+     "form": "Je la parle tous les jours.",
+     "why_en": "Wrong type of pronoun, and Paul is masculine.",
+     "why_de": "Falsche Pronomenart, und Paul ist männlich."
+    },
+    {
+     "form": "Je y parle tous les jours.",
+     "why_en": "This pronoun replaces things or places, not a person.",
+     "why_de": "Dieses Pronomen ersetzt Sachen oder Orte, nicht eine Person."
+    },
+    {
+     "form": "Je leur parle tous les jours.",
+     "why_en": "This pronoun is plural, but Paul is one person.",
+     "why_de": "Dieses Pronomen ist Plural, Paul ist aber eine Person."
+    }
+   ]
+  },
+  "FR_A2_PRON_002": {
+   "hash": "a77aeee7b3709f28",
+   "kind": "fix_the_mistake",
+   "key": "Des pommes ? J'en achète deux.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Des pommes ? J'y achète deux.",
+     "why_en": "The sentence is unchanged; this pronoun does not replace an quantity of things.",
+     "why_de": "Der Satz ist unverändert; dieses Pronomen ersetzt keine Mengenangabe von Dingen."
+    },
+    {
+     "form": "Des pommes ? Je les achète deux.",
+     "why_en": "This pronoun cannot be combined with a bare number like this.",
+     "why_de": "Dieses Pronomen lässt sich so nicht mit einer bloßen Zahl verbinden."
+    },
+    {
+     "form": "Des pommes ? J'achète deux.",
+     "why_en": "The pronoun is missing altogether.",
+     "why_de": "Das Pronomen fehlt ganz."
+    },
+    {
+     "form": "Des pommes ? J'en achète.",
+     "why_en": "The quantity from the prompt is missing.",
+     "why_de": "Die Mengenangabe aus der Aufgabe fehlt."
+    }
+   ]
+  },
+  "FR_A2_REL_001": {
+   "hash": "52e6f966ef6891dc",
+   "kind": "fix_the_mistake",
+   "key": "La ville où j'habite est calme.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "La ville que j'habite est calme.",
+     "why_en": "The sentence is unchanged; this relative pronoun is for direct objects, not place.",
+     "why_de": "Der Satz ist unverändert; dieses Relativpronomen steht für direkte Objekte, nicht für Orte."
+    },
+    {
+     "form": "La ville qui j'habite est calme.",
+     "why_en": "This pronoun is a subject and cannot be followed by a subject.",
+     "why_de": "Dieses Pronomen ist ein Subjekt und kann nicht von einem Subjekt gefolgt werden."
+    },
+    {
+     "form": "La ville ou j'habite est calme.",
+     "why_en": "Without the accent this is a different word meaning or.",
+     "why_de": "Ohne Akzent ist das ein anderes Wort mit der Bedeutung oder."
+    },
+    {
+     "form": "La ville dont j'habite est calme.",
+     "why_en": "This pronoun replaces a phrase with de, which does not fit here.",
+     "why_de": "Dieses Pronomen ersetzt eine Wendung mit de, was hier nicht passt."
+    }
+   ]
+  },
+  "FR_A2_TENSE_001": {
+   "hash": "22ccc9b9e8811cd7",
+   "kind": "fix_the_mistake",
+   "key": "Hier, nous avons fini le projet.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Hier, nous finissons le projet.",
+     "why_en": "The sentence is unchanged; it is still in the present.",
+     "why_de": "Der Satz ist unverändert; er steht noch im Präsens."
+    },
+    {
+     "form": "Hier, nous avons finissons le projet.",
+     "why_en": "After the auxiliary you need a past participle, not a conjugated verb.",
+     "why_de": "Nach dem Hilfsverb braucht man ein Partizip, kein konjugiertes Verb."
+    },
+    {
+     "form": "Hier, nous sommes fini le projet.",
+     "why_en": "This verb takes a different auxiliary.",
+     "why_de": "Dieses Verb verwendet ein anderes Hilfsverb."
+    },
+    {
+     "form": "Hier, nous avons finir le projet.",
+     "why_en": "An infinitive is used instead of the past participle.",
+     "why_de": "Es steht ein Infinitiv statt des Partizips."
+    },
+    {
+     "form": "Hier, nous finissions le projet.",
+     "why_en": "This is the imperfect, not the passé composé requested.",
+     "why_de": "Das ist das Imparfait, nicht das verlangte Passé composé."
+    }
+   ]
+  },
+  "FR_A2_TENSE_002": {
+   "hash": "6c37867356a3b82e",
+   "kind": "fix_the_mistake",
+   "key": "Les étudiantes sont arrivées tôt.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Les étudiantes sont arrivé tôt.",
+     "why_en": "The sentence is unchanged; the participle still does not agree with the subject.",
+     "why_de": "Der Satz ist unverändert; das Partizip stimmt noch nicht mit dem Subjekt überein."
+    },
+    {
+     "form": "Les étudiantes sont arrivés tôt.",
+     "why_en": "This agreement is masculine, but the subject is feminine plural.",
+     "why_de": "Diese Angleichung ist maskulin, das Subjekt ist aber feminin Plural."
+    },
+    {
+     "form": "Les étudiantes sont arrivée tôt.",
+     "why_en": "The participle is feminine but still singular; the subject is plural.",
+     "why_de": "Das Partizip ist feminin, aber noch Singular; das Subjekt steht im Plural."
+    },
+    {
+     "form": "Les étudiantes ont arrivé tôt.",
+     "why_en": "Arriver takes a different auxiliary verb in the passé composé.",
+     "why_de": "Arriver bildet das Passé composé mit einem anderen Hilfsverb."
+    }
+   ]
+  },
+  "FR_A2_TENSE_003": {
+   "hash": "08da1c3ace862db1",
+   "kind": "fix_the_mistake",
+   "key": "Quand j'étais enfant, je jouais dehors tous les jours.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Quand j'étais enfant, je jouer dehors tous les jours.",
+     "why_en": "The sentence is unchanged; the verb is still an infinitive.",
+     "why_de": "Der Satz ist unverändert; das Verb steht noch im Infinitiv."
+    },
+    {
+     "form": "Quand j'étais enfant, je jouerai dehors tous les jours.",
+     "why_en": "This is the future; the sentence needs the imperfect for a past habit.",
+     "why_de": "Das ist das Futur; für eine vergangene Gewohnheit braucht man das Imparfait."
+    },
+    {
+     "form": "Quand j'étais enfant, je joue dehors tous les jours.",
+     "why_en": "This is the present tense, which does not fit a past habit.",
+     "why_de": "Das ist das Präsens und passt nicht zu einer vergangenen Gewohnheit."
+    },
+    {
+     "form": "Quand j'étais enfant, j'ai joué dehors tous les jours.",
+     "why_en": "The passé composé does not express a repeated habit here.",
+     "why_de": "Das Passé composé drückt hier keine wiederholte Gewohnheit aus."
+    }
+   ]
+  },
+  "FR_A2_TENSE_004": {
+   "hash": "752cb95eeb0c26bd",
+   "kind": "fix_the_mistake",
+   "key": "Je lisais quand le téléphone a sonné une fois.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je lisais quand le téléphone sonner une fois.",
+     "why_en": "The sentence is unchanged; the verb is still an infinitive.",
+     "why_de": "Der Satz ist unverändert; das Verb steht noch im Infinitiv."
+    },
+    {
+     "form": "Je lisais quand le téléphone sonnait une fois.",
+     "why_en": "A single interrupting event needs a different past tense than the imperfect.",
+     "why_de": "Ein einmaliges unterbrechendes Ereignis braucht eine andere Vergangenheitsform als das Imparfait."
+    },
+    {
+     "form": "Je lisais quand le téléphone a sonner une fois.",
+     "why_en": "After the auxiliary you need a participle, not an infinitive.",
+     "why_de": "Nach dem Hilfsverb braucht man ein Partizip, keinen Infinitiv."
+    },
+    {
+     "form": "Je lisais quand le téléphone sonne une fois.",
+     "why_en": "The present tense does not fit the past scene.",
+     "why_de": "Das Präsens passt nicht zur vergangenen Szene."
+    }
+   ]
+  },
+  "FR_A2_VERB_001": {
+   "hash": "8000c9bfbee0fb13",
+   "kind": "fix_the_mistake",
+   "key": "Nous nous levons à sept heures.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Nous vous levons à sept heures.",
+     "why_en": "The sentence is unchanged; the reflexive pronoun does not match the subject.",
+     "why_de": "Der Satz ist unverändert; das Reflexivpronomen passt nicht zum Subjekt."
+    },
+    {
+     "form": "Nous levons à sept heures.",
+     "why_en": "The reflexive pronoun is missing.",
+     "why_de": "Das Reflexivpronomen fehlt."
+    },
+    {
+     "form": "Nous se levons à sept heures.",
+     "why_en": "This pronoun belongs to a third person subject, not to nous.",
+     "why_de": "Dieses Pronomen gehört zur dritten Person, nicht zu nous."
+    },
+    {
+     "form": "Nous me levons à sept heures.",
+     "why_en": "This pronoun belongs to je, not to nous.",
+     "why_de": "Dieses Pronomen gehört zu je, nicht zu nous."
+    }
+   ]
+  },
+  "FR_A2_VERB_002": {
+   "hash": "c4737ee6a3a71895",
+   "kind": "fix_the_mistake",
+   "key": "Donne-le-moi demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Donne-moi-le demain.",
+     "why_en": "The sentence is unchanged; the pronouns are in the wrong order.",
+     "why_de": "Der Satz ist unverändert; die Pronomen stehen in der falschen Reihenfolge."
+    },
+    {
+     "form": "Donne-moi le demain.",
+     "why_en": "Both pronouns must follow the verb, linked with hyphens, in the right order.",
+     "why_de": "Beide Pronomen müssen mit Bindestrichen nach dem Verb stehen, in der richtigen Reihenfolge."
+    },
+    {
+     "form": "Me le donne demain.",
+     "why_en": "In a positive command the pronouns go after the verb.",
+     "why_de": "Im bejahten Imperativ stehen die Pronomen nach dem Verb."
+    },
+    {
+     "form": "Donne-le-me demain.",
+     "why_en": "The indirect pronoun uses a different form after the verb at the end.",
+     "why_de": "Das indirekte Pronomen hat am Ende nach dem Verb eine andere Form."
+    }
+   ]
+  },
+  "FR_B1_AGR_001": {
+   "hash": "9d347ffa8bf3e2a3",
+   "kind": "fix_the_mistake",
+   "key": "Les lettres que j'ai écrites sont longues.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Les lettres que j'ai écrit sont longues.",
+     "why_en": "The sentence is unchanged; the participle does not agree with the preceding object.",
+     "why_de": "Der Satz ist unverändert; das Partizip stimmt nicht mit dem vorangestellten Objekt überein."
+    },
+    {
+     "form": "Les lettres que j'ai écrits sont longues.",
+     "why_en": "The agreement is masculine, but the object is feminine.",
+     "why_de": "Die Angleichung ist maskulin, das Objekt ist aber feminin."
+    },
+    {
+     "form": "Les lettres que j'ai écrite sont longues.",
+     "why_en": "The participle is feminine but not plural.",
+     "why_de": "Das Partizip ist feminin, aber nicht Plural."
+    },
+    {
+     "form": "Les lettres que je suis écrites sont longues.",
+     "why_en": "Wrong auxiliary verb for écrire.",
+     "why_de": "Falsches Hilfsverb für écrire."
+    }
+   ]
+  },
+  "FR_B1_COND_001": {
+   "hash": "3fac0da1c731c7f3",
+   "kind": "fix_the_mistake",
+   "key": "Si je finis tôt, je t'appellerai.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Si je finis tôt, je t'appeler.",
+     "why_en": "The sentence is unchanged; the infinitive is not a conjugated verb.",
+     "why_de": "Der Satz ist unverändert; der Infinitiv ist kein konjugiertes Verb."
+    },
+    {
+     "form": "Si je finis tôt, je t'appellerais.",
+     "why_en": "The conditional does not fit a real condition in the present.",
+     "why_de": "Das Konditional passt nicht zu einer realen Bedingung im Präsens."
+    },
+    {
+     "form": "Si je finirai tôt, je t'appellerai.",
+     "why_en": "The future is not used after si in the condition clause.",
+     "why_de": "Nach si steht im Bedingungssatz kein Futur."
+    },
+    {
+     "form": "Si je finis tôt, je t'appelerai.",
+     "why_en": "The spelling of the verb stem is wrong.",
+     "why_de": "Die Schreibung des Verbstamms ist falsch."
+    }
+   ],
+   "refused_variants": [
+    {
+     "form": "Si je finis tôt, je vais t'appeler.",
+     "refused_by": "prefilter",
+     "why": "another verb"
+    }
+   ]
+  },
+  "FR_B1_COND_002": {
+   "hash": "6548eaee0603a88a",
+   "kind": "fix_the_mistake",
+   "key": "Si j'avais le temps, je partirais.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Si j'aurais le temps, je partirais.",
+     "why_en": "The sentence is unchanged; the conditional is not used after si.",
+     "why_de": "Der Satz ist unverändert; nach si steht kein Konditional."
+    },
+    {
+     "form": "Si j'ai le temps, je partirais.",
+     "why_en": "The present tense does not match the conditional result.",
+     "why_de": "Das Präsens passt nicht zum Konditional im Hauptsatz."
+    },
+    {
+     "form": "Si j'aurai le temps, je partirais.",
+     "why_en": "The future is not used after si.",
+     "why_de": "Nach si steht kein Futur."
+    },
+    {
+     "form": "Si j'avait le temps, je partirais.",
+     "why_en": "The verb ending does not match je.",
+     "why_de": "Die Endung des Verbs passt nicht zu je."
+    }
+   ]
+  },
+  "FR_B1_COND_003": {
+   "hash": "ab5eb930e7c96b1a",
+   "kind": "fix_the_mistake",
+   "key": "Je voudrais un café, s'il vous plaît.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je voudrait un café, s'il vous plaît.",
+     "why_en": "The sentence is unchanged; the ending does not match je.",
+     "why_de": "Der Satz ist unverändert; die Endung passt nicht zu je."
+    },
+    {
+     "form": "Je veux un café, s'il vous plaît.",
+     "why_en": "This is the present indicative, not the polite conditional requested.",
+     "why_de": "Das ist der Indikativ Präsens, nicht das geforderte höfliche Konditional."
+    },
+    {
+     "form": "Je voudrai un café, s'il vous plaît.",
+     "why_en": "This is the future, not the conditional.",
+     "why_de": "Das ist das Futur, nicht das Konditional."
+    },
+    {
+     "form": "Je voudrais une café, s'il vous plaît.",
+     "why_en": "The article does not match the gender of the noun.",
+     "why_de": "Der Artikel passt nicht zum Genus des Nomens."
+    }
+   ]
+  },
+  "FR_B1_PRON_001": {
+   "hash": "4afcbc3dcbbff521",
+   "kind": "fix_the_mistake",
+   "key": "Je le lui donne demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je lui le donne demain.",
+     "why_en": "The sentence is unchanged; the pronouns are in the wrong order.",
+     "why_de": "Der Satz ist unverändert; die Pronomen stehen in der falschen Reihenfolge."
+    },
+    {
+     "form": "Je leur le donne demain.",
+     "why_en": "The pronoun is plural and the order is still wrong.",
+     "why_de": "Das Pronomen ist Plural und die Reihenfolge ist weiterhin falsch."
+    },
+    {
+     "form": "Je le donne lui demain.",
+     "why_en": "The indirect object must be a pronoun before the verb.",
+     "why_de": "Das indirekte Objekt muss als Pronomen vor dem Verb stehen."
+    },
+    {
+     "form": "Je la lui donne demain.",
+     "why_en": "The direct object pronoun does not match a masculine noun.",
+     "why_de": "Das direkte Objektpronomen passt nicht zu einem maskulinen Nomen."
+    }
+   ]
+  },
+  "FR_B1_PRON_002": {
+   "hash": "f1e479885861cde9",
+   "kind": "fix_the_mistake",
+   "key": "De ce projet, j'en parle souvent.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "De ce projet, j'y parle souvent.",
+     "why_en": "The sentence is unchanged; this pronoun replaces à plus a thing, not de.",
+     "why_de": "Der Satz ist unverändert; dieses Pronomen ersetzt à plus Sache, nicht de."
+    },
+    {
+     "form": "De ce projet, je parle souvent.",
+     "why_en": "The pronoun is missing.",
+     "why_de": "Das Pronomen fehlt."
+    },
+    {
+     "form": "De ce projet, j'en parle le souvent.",
+     "why_en": "The adverb souvent takes no article.",
+     "why_de": "Das Adverb souvent steht ohne Artikel."
+    },
+    {
+     "form": "De ce projet, je lui parle souvent.",
+     "why_en": "This pronoun is for people, not for a thing.",
+     "why_de": "Dieses Pronomen steht für Personen, nicht für Sachen."
+    }
+   ]
+  },
+  "FR_B1_REL_001": {
+   "hash": "63aa5782ecda4eea",
+   "kind": "fix_the_mistake",
+   "key": "C'est le problème dont nous parlons.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "C'est le problème que nous parlons.",
+     "why_en": "The sentence is unchanged; this pronoun does not suit parler de.",
+     "why_de": "Der Satz ist unverändert; dieses Pronomen passt nicht zu parler de."
+    },
+    {
+     "form": "C'est le problème de que nous parlons.",
+     "why_en": "The preposition and pronoun cannot be combined like this.",
+     "why_de": "Präposition und Pronomen lassen sich so nicht verbinden."
+    },
+    {
+     "form": "C'est le problème qui nous parlons.",
+     "why_en": "This pronoun is a subject form, but here it must replace de plus the noun.",
+     "why_de": "Dieses Pronomen ist eine Subjektform, hier muss es de plus Nomen ersetzen."
+    },
+    {
+     "form": "C'est le problème où nous parlons.",
+     "why_en": "This pronoun expresses place or time, not parler de.",
+     "why_de": "Dieses Pronomen drückt Ort oder Zeit aus, nicht parler de."
+    }
+   ]
+  },
+  "FR_B1_SYN_001": {
+   "hash": "da2e40975e5ffc0b",
+   "kind": "fix_the_mistake",
+   "key": "Elle demande si tu viens demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Elle demande est-ce que tu viens demain.",
+     "why_en": "This is the unchanged sentence; direct-question wording is not used in reported speech.",
+     "why_de": "Das ist der unveränderte Satz; die Wortfolge der direkten Frage passt nicht in die indirekte Rede."
+    },
+    {
+     "form": "Elle demande que tu viens demain.",
+     "why_en": "This conjunction introduces a statement or wish, not a yes/no question.",
+     "why_de": "Diese Konjunktion leitet eine Aussage oder einen Wunsch ein, keine Ja/Nein-Frage."
+    },
+    {
+     "form": "Elle demande qu'est-ce que tu viens demain.",
+     "why_en": "This is a question-word phrase that does not fit a yes/no question.",
+     "why_de": "Diese Fragewendung passt nicht zu einer Ja/Nein-Frage."
+    },
+    {
+     "form": "Elle demande viens-tu demain.",
+     "why_en": "Inversion is still direct-question word order.",
+     "why_de": "Die Inversion ist noch die Wortstellung der direkten Frage."
+    }
+   ]
+  },
+  "FR_B1_TENSE_001": {
+   "hash": "5a039b1a9d72fb9c",
+   "kind": "fix_the_mistake",
+   "key": "Il pleuvait quand je suis sorti.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Il pleuvoir quand je suis sorti.",
+     "why_en": "The verb is left in the infinitive and is not conjugated.",
+     "why_de": "Das Verb steht noch im Infinitiv und ist nicht konjugiert."
+    },
+    {
+     "form": "Il a plu quand je suis sorti.",
+     "why_en": "The passé composé describes a completed event, but here the rain is the background.",
+     "why_de": "Das Passé composé nennt ein abgeschlossenes Ereignis, hier ist der Regen aber der Hintergrund."
+    },
+    {
+     "form": "Il pleuvais quand je suis sorti.",
+     "why_en": "The ending does not match the subject il.",
+     "why_de": "Die Endung passt nicht zum Subjekt il."
+    },
+    {
+     "form": "Il pleut quand je suis sorti.",
+     "why_en": "The present tense does not fit a past situation.",
+     "why_de": "Das Präsens passt nicht zu einer vergangenen Situation."
+    }
+   ]
+  },
+  "FR_B1_TENSE_002": {
+   "hash": "65dddb6228e42094",
+   "kind": "fix_the_mistake",
+   "key": "Demain, nous aurons plus de temps.",
+   "accepted": [
+    {
+     "form": "Demain, on aura plus de temps.",
+     "class": "on_nous"
+    }
+   ],
+   "wrong": [
+    {
+     "form": "Demain, nous avions plus de temps.",
+     "why_en": "This is the unchanged sentence; the imperfect does not express the future.",
+     "why_de": "Das ist der unveränderte Satz; das Imparfait drückt keine Zukunft aus."
+    },
+    {
+     "form": "Demain, nous avons plus de temps.",
+     "why_en": "The present tense is not the future simple asked for.",
+     "why_de": "Das Präsens ist nicht das geforderte Futur simple."
+    },
+    {
+     "form": "Demain, nous avrons plus de temps.",
+     "why_en": "The future stem of this verb is irregular and is misspelled here.",
+     "why_de": "Der Futurstamm dieses Verbs ist unregelmäßig und hier falsch gebildet."
+    },
+    {
+     "form": "Demain, nous aurions plus de temps.",
+     "why_en": "This is the conditional, not the future simple.",
+     "why_de": "Das ist der Konditional, nicht das Futur simple."
+    }
+   ]
+  },
+  "FR_B1_VERB_001": {
+   "hash": "c396d9b594a567df",
+   "kind": "fix_the_mistake",
+   "key": "Il faut que tu viennes demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Il faut que tu viens demain.",
+     "why_en": "This is the unchanged sentence; il faut que needs the subjunctive.",
+     "why_de": "Das ist der unveränderte Satz; il faut que verlangt den Subjonctif."
+    },
+    {
+     "form": "Il faut que tu venir demain.",
+     "why_en": "An infinitive cannot follow que with a subject.",
+     "why_de": "Nach que mit Subjekt steht kein Infinitiv."
+    },
+    {
+     "form": "Il faut que tu viennais demain.",
+     "why_en": "The imperfect is not the subjunctive.",
+     "why_de": "Das Imparfait ist nicht der Subjonctif."
+    },
+    {
+     "form": "Il faut que tu viendras demain.",
+     "why_en": "The future indicative is not allowed after il faut que.",
+     "why_de": "Das Futur im Indikativ ist nach il faut que nicht erlaubt."
+    }
+   ]
+  },
+  "FR_B1_VERB_002": {
+   "hash": "1d37f01ddc1707ea",
+   "kind": "fix_the_mistake",
+   "key": "Elle a répondu en souriant.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Elle a répondu en sourire.",
+     "why_en": "This is the unchanged sentence; the infinitive does not follow en.",
+     "why_de": "Das ist der unveränderte Satz; nach en steht kein Infinitiv."
+    },
+    {
+     "form": "Elle a répondu en souri.",
+     "why_en": "This is a past participle, not a present participle.",
+     "why_de": "Das ist ein Partizip Perfekt, kein Partizip Präsens."
+    },
+    {
+     "form": "Elle a répondu en sourant.",
+     "why_en": "The verb stem is misspelled.",
+     "why_de": "Der Verbstamm ist falsch geschrieben."
+    },
+    {
+     "form": "Elle a répondu en souriante.",
+     "why_en": "The gerund is invariable and takes no feminine ending.",
+     "why_de": "Das Gerundium ist unveränderlich und hat keine feminine Endung."
+    }
+   ]
+  },
+  "FR_B2_COND_001": {
+   "hash": "dbf39dcc10905e83",
+   "kind": "fix_the_mistake",
+   "key": "J'aurais répondu si j'avais vu ton message.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "J'avais répondu si j'avais vu ton message.",
+     "why_en": "This is the unchanged sentence; the pluperfect is wrong in the main clause.",
+     "why_de": "Das ist der unveränderte Satz; das Plusquamperfekt ist im Hauptsatz falsch."
+    },
+    {
+     "form": "J'aurai répondu si j'avais vu ton message.",
+     "why_en": "This is the future perfect, not the conditional.",
+     "why_de": "Das ist das Futur antérieur, nicht der Konditional."
+    },
+    {
+     "form": "Je répondrais si j'avais vu ton message.",
+     "why_en": "The present conditional does not express a past result.",
+     "why_de": "Der Konditional Präsens drückt kein vergangenes Ergebnis aus."
+    },
+    {
+     "form": "J'aurais répondu si j'aurais vu ton message.",
+     "why_en": "The conditional cannot be used after si.",
+     "why_de": "Nach si steht kein Konditional."
+    }
+   ]
+  },
+  "FR_B2_COND_002": {
+   "hash": "2059a50e1c6d94e8",
+   "kind": "fix_the_mistake",
+   "key": "Si j'avais su, je serais venu plus tôt.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Si j'aurais su, je serais venu plus tôt.",
+     "why_en": "This is the unchanged sentence; the conditional is not used after si.",
+     "why_de": "Das ist der unveränderte Satz; nach si steht kein Konditional."
+    },
+    {
+     "form": "Si j'ai su, je serais venu plus tôt.",
+     "why_en": "The passé composé does not form an unreal past condition.",
+     "why_de": "Das Passé composé bildet keine irreale Vergangenheitsbedingung."
+    },
+    {
+     "form": "Si je savais, je serais venu plus tôt.",
+     "why_en": "The imperfect does not match the past conclusion.",
+     "why_de": "Das Imparfait passt nicht zur vergangenen Folge."
+    },
+    {
+     "form": "Si j'eusse su, je serais venu plus tôt.",
+     "why_en": "This literary form is not the expected everyday structure.",
+     "why_de": "Diese literarische Form ist nicht die erwartete alltägliche Struktur."
+    }
+   ]
+  },
+  "FR_B2_CONN_001": {
+   "hash": "effcf911827d40c7",
+   "kind": "fix_the_mistake",
+   "key": "Bien qu'il soit tard, elle continue à travailler.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Bien qu'il est tard, elle continue à travailler.",
+     "why_en": "This is the unchanged sentence; bien que needs the subjunctive.",
+     "why_de": "Das ist der unveränderte Satz; bien que verlangt den Subjonctif."
+    },
+    {
+     "form": "Bien qu'il sera tard, elle continue à travailler.",
+     "why_en": "The future indicative is not allowed after bien que.",
+     "why_de": "Das Futur im Indikativ ist nach bien que nicht erlaubt."
+    },
+    {
+     "form": "Bien qu'il soye tard, elle continue à travailler.",
+     "why_en": "The subjunctive form is misspelled.",
+     "why_de": "Die Subjonctif-Form ist falsch geschrieben."
+    },
+    {
+     "form": "Bien qu'il serait tard, elle continue à travailler.",
+     "why_en": "The conditional is not the subjunctive.",
+     "why_de": "Der Konditional ist nicht der Subjonctif."
+    }
+   ]
+  },
+  "FR_B2_PRON_001": {
+   "hash": "d1999e153d7fa1a2",
+   "kind": "fix_the_mistake",
+   "key": "Je vais le lui envoyer demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je vais lui le envoyer demain.",
+     "why_en": "This is the unchanged sentence; the pronoun order and form are wrong.",
+     "why_de": "Das ist der unveränderte Satz; Reihenfolge und Form der Pronomen sind falsch."
+    },
+    {
+     "form": "Je vais lui l'envoyer demain.",
+     "why_en": "The indirect pronoun comes after the direct one here.",
+     "why_de": "Das indirekte Pronomen steht hier nach dem direkten."
+    },
+    {
+     "form": "Je vais leur le envoyer demain.",
+     "why_en": "The pronoun is plural and misplaced; the order is wrong.",
+     "why_de": "Das Pronomen ist Plural und falsch gestellt; die Reihenfolge stimmt nicht."
+    },
+    {
+     "form": "Je vais envoyer le lui demain.",
+     "why_en": "The pronouns must stand before the infinitive.",
+     "why_de": "Die Pronomen müssen vor dem Infinitiv stehen."
+    },
+    {
+     "form": "Je vais l'y envoyer demain.",
+     "why_en": "The pronoun y does not replace a person here.",
+     "why_de": "Das Pronomen y ersetzt hier keine Person."
+    }
+   ]
+  },
+  "FR_B2_REL_001": {
+   "hash": "a63ccd4ead309b64",
+   "kind": "fix_the_mistake",
+   "key": "C'est la raison pour laquelle je refuse.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "C'est la raison pour lequel je refuse.",
+     "why_en": "This is the unchanged sentence; the relative pronoun does not agree with raison.",
+     "why_de": "Das ist der unveränderte Satz; das Relativpronomen stimmt nicht mit raison überein."
+    },
+    {
+     "form": "C'est la raison pour que je refuse.",
+     "why_en": "Que alone cannot follow pour in a relative clause.",
+     "why_de": "Que allein kann in einem Relativsatz nicht auf pour folgen."
+    },
+    {
+     "form": "C'est la raison pour lesquelles je refuse.",
+     "why_en": "The pronoun is plural but raison is singular.",
+     "why_de": "Das Pronomen ist Plural, raison aber Singular."
+    },
+    {
+     "form": "C'est la raison pour quoi je refuse.",
+     "why_en": "Quoi does not fit with a feminine noun antecedent here.",
+     "why_de": "Quoi passt hier nicht zu einem femininen Bezugswort."
+    }
+   ]
+  },
+  "FR_B2_SUBJ_001": {
+   "hash": "e6d221a6f9442f60",
+   "kind": "fix_the_mistake",
+   "key": "Je doute qu'il puisse finir ce soir.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je doute qu'il peut finir ce soir.",
+     "why_en": "This is the unchanged sentence; doubt requires the subjunctive.",
+     "why_de": "Das ist der unveränderte Satz; Zweifel verlangt den Subjonctif."
+    },
+    {
+     "form": "Je doute qu'il pouvoir finir ce soir.",
+     "why_en": "The verb is in the infinitive, not conjugated.",
+     "why_de": "Das Verb steht im Infinitiv und ist nicht konjugiert."
+    },
+    {
+     "form": "Je doute qu'il pourra finir ce soir.",
+     "why_en": "The future indicative is not allowed after douter que.",
+     "why_de": "Das Futur im Indikativ ist nach douter que nicht erlaubt."
+    },
+    {
+     "form": "Je doute qu'il puit finir ce soir.",
+     "why_en": "The subjunctive stem is misspelled.",
+     "why_de": "Der Subjonctif-Stamm ist falsch geschrieben."
+    }
+   ]
+  },
+  "FR_B2_SUBJ_002": {
+   "hash": "6d8166c31158a083",
+   "kind": "fix_the_mistake",
+   "key": "Je pense qu'il vient, mais je doute qu'il vienne demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je pense qu'il vient, mais je doute qu'il vient demain.",
+     "why_en": "This is the unchanged sentence; the second clause needs the subjunctive.",
+     "why_de": "Das ist der unveränderte Satz; der zweite Teil verlangt den Subjonctif."
+    },
+    {
+     "form": "Je pense qu'il vienne, mais je doute qu'il vienne demain.",
+     "why_en": "Penser que in the affirmative takes the indicative, so the first clause is changed wrongly.",
+     "why_de": "Penser que steht bejaht mit dem Indikativ, daher ist der erste Teil falsch geändert."
+    },
+    {
+     "form": "Je pense qu'il vient, mais je doute qu'il viendra demain.",
+     "why_en": "The future indicative is not allowed after douter que.",
+     "why_de": "Das Futur im Indikativ ist nach douter que nicht erlaubt."
+    },
+    {
+     "form": "Je pense qu'il vient, mais je doute qu'il venne demain.",
+     "why_en": "The subjunctive form is misspelled.",
+     "why_de": "Die Subjonctif-Form ist falsch geschrieben."
+    }
+   ]
+  },
+  "FR_B2_SYN_001": {
+   "hash": "67b1e7a90bc0a411",
+   "kind": "fix_the_mistake",
+   "key": "La loi a été votée par l'Assemblée.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "La loi a été voté par l'Assemblée.",
+     "why_en": "The sentence is unchanged; the participle does not agree with the subject.",
+     "why_de": "Der Satz ist unverändert; das Partizip stimmt nicht mit dem Subjekt überein."
+    },
+    {
+     "form": "La loi a été votés par l'Assemblée.",
+     "why_en": "The participle agrees with a feminine singular subject, not a plural.",
+     "why_de": "Das Partizip richtet sich nach einem weiblichen Singular, nicht nach dem Plural."
+    },
+    {
+     "form": "La loi a votée par l'Assemblée.",
+     "why_en": "The passive needs the auxiliary être in the past participle form.",
+     "why_de": "Das Passiv braucht das Hilfsverb être in der Partizipform."
+    }
+   ]
+  },
+  "FR_B2_SYN_002": {
+   "hash": "da8a5935e63bef0c",
+   "kind": "fix_the_mistake",
+   "key": "Le ministre répondra-t-il demain ?",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Le ministre répondra-il demain ?",
+     "why_en": "The sentence is unchanged; a liaison letter is missing between verb and pronoun.",
+     "why_de": "Der Satz ist unverändert; zwischen Verb und Pronomen fehlt ein Bindelaut."
+    },
+    {
+     "form": "Le ministre répondra-t-elle demain ?",
+     "why_en": "The pronoun must match the masculine subject.",
+     "why_de": "Das Pronomen muss zum maskulinen Subjekt passen."
+    },
+    {
+     "form": "Répondra-t-il le ministre demain ?",
+     "why_en": "The subject noun should stay before the verb, with a pronoun after it.",
+     "why_de": "Das Nomen steht vor dem Verb, das Pronomen folgt danach."
+    }
+   ]
+  },
+  "FR_B2_TENSE_001": {
+   "hash": "c927adfc765bd6e4",
+   "kind": "fix_the_mistake",
+   "key": "Quand je suis arrivé, elle était déjà partie.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Quand je suis arrivé, elle est déjà partie.",
+     "why_en": "The sentence is unchanged; the tense does not place her departure before mine.",
+     "why_de": "Der Satz ist unverändert; die Zeitform setzt ihren Abgang nicht vor meine Ankunft."
+    },
+    {
+     "form": "Quand je suis arrivé, elle a déjà partie.",
+     "why_en": "The verb partir takes a different auxiliary.",
+     "why_de": "Das Verb partir verlangt ein anderes Hilfsverb."
+    },
+    {
+     "form": "Quand je suis arrivé, elle sera déjà partie.",
+     "why_en": "The event is in the past, so a future auxiliary is wrong.",
+     "why_de": "Das Ereignis liegt in der Vergangenheit, ein Futur-Hilfsverb ist falsch."
+    }
+   ]
+  },
+  "FR_B2_TENSE_002": {
+   "hash": "5ab38fbc3108848c",
+   "kind": "fix_the_mistake",
+   "key": "Quand tu arriveras, j'aurai fini le rapport.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Quand tu arriveras, j'avais fini le rapport.",
+     "why_en": "The sentence is unchanged; the auxiliary is in the past, but the action is in the future.",
+     "why_de": "Der Satz ist unverändert; das Hilfsverb steht in der Vergangenheit, die Handlung ist aber zukünftig."
+    },
+    {
+     "form": "Quand tu arriveras, j'ai fini le rapport.",
+     "why_en": "Passé composé does not express completion before a future moment.",
+     "why_de": "Das Passé composé drückt keine Vorzeitigkeit zu einem zukünftigen Zeitpunkt aus."
+    },
+    {
+     "form": "Quand tu arriveras, je finirai le rapport.",
+     "why_en": "This is simple future; it does not show the report is already done.",
+     "why_de": "Das ist einfaches Futur; es zeigt nicht, dass der Bericht schon fertig ist."
+    }
+   ]
+  },
+  "FR_B2_VERB_001": {
+   "hash": "38f10199ce0bfcfc",
+   "kind": "fix_the_mistake",
+   "key": "Je fais réparer mon vélo demain.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je fais réparé mon vélo demain.",
+     "why_en": "The sentence is unchanged; after faire the verb must not be a participle.",
+     "why_de": "Der Satz ist unverändert; nach faire darf das Verb kein Partizip sein."
+    },
+    {
+     "form": "Je fais réparez mon vélo demain.",
+     "why_en": "After faire the verb is in the infinitive, not a conjugated form.",
+     "why_de": "Nach faire steht das Verb im Infinitiv, nicht konjugiert."
+    },
+    {
+     "form": "Je répare mon vélo demain.",
+     "why_en": "This drops the causative, so it says you do the repair yourself.",
+     "why_de": "Das lässt den Kausativ weg und sagt, dass du selbst reparierst."
+    }
+   ]
+  },
+  "FR_C1_CONN_001": {
+   "hash": "7ea89d248b745301",
+   "kind": "fix_the_mistake",
+   "key": "Cela dit, il faut nuancer cette conclusion.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Cela dire",
+     "why_en": "The sentence is unchanged; the verb needs a participle form.",
+     "why_de": "Der Satz ist unverändert; das Verb braucht die Partizipform."
+    },
+    {
+     "form": "Cela dis",
+     "why_en": "The fixed expression uses a past participle, not a present form.",
+     "why_de": "Der feste Ausdruck verwendet ein Partizip Perfekt, keine Präsensform."
+    },
+    {
+     "form": "Ceci dit",
+     "why_en": "This is a different expression than the one asked for.",
+     "why_de": "Das ist ein anderer Ausdruck als der verlangte."
+    }
+   ]
+  },
+  "FR_C1_NEG_001": {
+   "hash": "3f1b932ee9279c7b",
+   "kind": "fix_the_mistake",
+   "key": "Il ne répond guère à ces critiques.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "aucun",
+     "why_en": "This is the unchanged error; it is not the adverb asked for.",
+     "why_de": "Das ist der unveränderte Fehler; es ist nicht das verlangte Adverb."
+    },
+    {
+     "form": "pas",
+     "why_en": "The task asks for the literary adverb of low frequency, not the standard negation.",
+     "why_de": "Verlangt ist das gehobene Adverb der geringen Häufigkeit, nicht die Standardverneinung."
+    },
+    {
+     "form": "jamais",
+     "why_en": "This means never, which is stronger than the meaning wanted.",
+     "why_de": "Das bedeutet nie und ist stärker als gewünscht."
+    }
+   ]
+  },
+  "FR_C1_SYN_001": {
+   "hash": "aaf58e2d4115e346",
+   "kind": "fix_the_mistake",
+   "key": "Je crains qu'il ne parte trop tôt.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Je crains qu'il n'est parti trop tôt.",
+     "why_en": "The sentence is unchanged; craindre que needs a different mood.",
+     "why_de": "Der Satz ist unverändert; craindre que verlangt einen anderen Modus."
+    },
+    {
+     "form": "Je crains qu'il parte trop tôt.",
+     "why_en": "The expletive ne is missing.",
+     "why_de": "Das expletive ne fehlt."
+    },
+    {
+     "form": "Je crains qu'il ne part pas trop tôt.",
+     "why_en": "This adds a real negation and keeps the wrong mood.",
+     "why_de": "Das fügt eine echte Verneinung hinzu und behält den falschen Modus."
+    }
+   ]
+  },
+  "FR_C1_SYN_002": {
+   "hash": "399fd89f79bb9010",
+   "kind": "fix_the_mistake",
+   "key": "La décision a été critiquée par plusieurs députés.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "La décision a été critiqué par plusieurs députés.",
+     "why_en": "The sentence is unchanged; the participle does not agree with the subject.",
+     "why_de": "Der Satz ist unverändert; das Partizip stimmt nicht mit dem Subjekt überein."
+    },
+    {
+     "form": "La décision a été critiqués par plusieurs députés.",
+     "why_en": "The subject is feminine singular, so the plural ending is wrong.",
+     "why_de": "Das Subjekt ist weiblich Singular, die Pluralendung ist falsch."
+    },
+    {
+     "form": "La décision a critiquée par plusieurs députés.",
+     "why_en": "The passive auxiliary is missing.",
+     "why_de": "Das Passiv-Hilfsverb fehlt."
+    }
+   ]
+  },
+  "FR_C1_TENSE_001": {
+   "hash": "ad5adf96bd479291",
+   "kind": "fix_the_mistake",
+   "key": "Il a dit qu'il avait compris avant la réunion.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Il a dit qu'il comprendra avant la réunion.",
+     "why_en": "The sentence is unchanged; a future does not fit reported past speech.",
+     "why_de": "Der Satz ist unverändert; ein Futur passt nicht zur indirekten Rede in der Vergangenheit."
+    },
+    {
+     "form": "Il a dit qu'il a compris avant la réunion.",
+     "why_en": "The tense is not shifted after a past reporting verb.",
+     "why_de": "Die Zeitform wird nach einem Vergangenheitsverb nicht angepasst."
+    },
+    {
+     "form": "Il a dit qu'il comprenait avant la réunion.",
+     "why_en": "The imperfect does not show the action came earlier.",
+     "why_de": "Das Imparfait zeigt nicht die Vorzeitigkeit."
+    }
+   ]
+  },
+  "FR_C1_VERB_001": {
+   "hash": "846127dc73657eb4",
+   "kind": "fix_the_mistake",
+   "key": "Arrivant en retard, elle s'est excusée.",
+   "accepted": [],
+   "wrong": [
+    {
+     "form": "Arriver en retard, elle s'est excusée.",
+     "why_en": "The sentence is unchanged; an infinitive cannot head a participial clause.",
+     "why_de": "Der Satz ist unverändert; ein Infinitiv kann keinen Partizipialsatz einleiten."
+    },
+    {
+     "form": "Arrivante en retard, elle s'est excusée.",
+     "why_en": "The present participle is invariable and takes no feminine ending.",
+     "why_de": "Das Partizip Präsens ist unveränderlich und hat keine weibliche Endung."
+    }
+   ],
+   "key_rejected": true,
+   "key_judge_reason": "Le participe présent exprime la simultanéité, pas l'antériorité.",
+   "key_proposer_problem": "Arrivant en retard is odd: the excuse follows the lateness, so the compound participle Étant arrivée en retard is the correct form; Arrivée en retard is also valid."
+  }
+ }
+}

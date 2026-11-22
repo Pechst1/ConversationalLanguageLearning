@@ -8995,6 +8995,13 @@ class AtelierSRSService:
             key = ""
             if attempt.round == "transform":
                 key = str(item.get("expected_answer") or "")
+                # #927: a right fix written as a whole line is the learner's line, not the
+                # item's key («Tu as cherché…» stays «Tu as cherché…»). A right part
+                # («cherché» alone) still stands for the key it completed.
+                from app.services.answer_bank import enabled as answer_bank_enabled
+
+                if answer_bank_enabled() and right and len(learner.split()) > max(1, len(key.split()) // 2):
+                    key = learner
             elif attempt.mode == "fill":
                 blank = _without_asides(str(item.get("prompt") or ""))
                 answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")

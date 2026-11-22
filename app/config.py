@@ -159,6 +159,14 @@ class Settings(BaseSettings):
             "once a second independent check confirms it, the same answer is settled without a model call."
         ),
     )
+    ANSWER_BANK_ENABLED: bool = Field(
+        False,
+        description=(
+            "#174: keyed items consult the reviewed answer bank (app/data/answer_bank): an answer equal to a "
+            "listed variant of the key is right, a listed wrong answer is wrong with its stored reason, and a "
+            "line that differs from the key only by an accepted spelling («clef» / «clé») is right. Off: main's behaviour."
+        ),
+    )
     VERDICT_APPEAL_ENABLED: bool = Field(
         True,
         description=(

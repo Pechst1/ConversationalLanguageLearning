@@ -53,6 +53,7 @@ _RULE_FILES = (
     "services/spelling_variants.py",
     "services/answer_acceptance.py",
     "services/answer_memo.py",
+    "services/answer_bank.py",
 )
 #: The models whose answers the readers turn into evidence.
 _MODEL_SETTINGS = (
@@ -121,6 +122,10 @@ def judge_version() -> str:
     for relative in _RULE_FILES:
         digest.update(relative.encode())
         digest.update((_APP / relative).read_bytes())
+    for bank in sorted((_APP / "data" / "answer_bank").glob("*.json")):  # #174: the reviewed answer bank
+        digest.update(bank.name.encode())
+        digest.update(bank.read_bytes())
+    digest.update(f"ANSWER_BANK_ENABLED={getattr(settings, 'ANSWER_BANK_ENABLED', False)}".encode())
     for name in _MODEL_SETTINGS:
         digest.update(f"{name}={getattr(settings, name, '')}".encode())
     return digest.hexdigest()[:16]
