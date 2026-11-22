@@ -13,6 +13,7 @@ import pytest
 
 from tests.gold_transcripts import gate as G
 from tests.gold_transcripts import runner as R
+from tests.gold_transcripts import surfaces as S
 
 
 def _run(surface: str, scores: dict[str, float | None]) -> dict:
@@ -104,7 +105,8 @@ def correction_fingerprint():
 
 
 def test_the_fingerprint_is_stable(correction_fingerprint):
-    assert correction_fingerprint["calls"] == 26
+    # One first-attempt call per item of the set.
+    assert correction_fingerprint["calls"] == len(S.load_items("correction"))
     assert G.fingerprints(["correction"])["correction"] == correction_fingerprint
 
 

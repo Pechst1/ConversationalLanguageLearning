@@ -14,7 +14,7 @@ import json
 import re
 import time
 from collections.abc import Callable
-from contextlib import ExitStack, contextmanager
+from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
@@ -101,6 +101,12 @@ def scene_payload(item: dict) -> dict:
     payload["history"] = list(item.get("history") or [])
     payload["learner_text"] = item["learner_text"]
     payload["turns_left"] = item.get("turns_left", 1)
+    if item.get("day_rules"):
+        from app.services import story_lanes as lanes
+
+        # P3: what ``living_story`` reads into the turn (``day_rules.for_turn``), in the
+        # language the tutor writes its notes in.
+        payload["day_rules"] = item_day_rules(item, lanes.correction_language(payload) or "en")
     return payload
 
 
@@ -130,6 +136,11 @@ def run_scene(item: dict, client: Any) -> dict:
             if (tutor.correction_fr or tutor.correction_span_fr)
             else None
         ),
+        # From B1 a learner is shown up to three corrections, the day's rule first (P3).
+        "corrections": [
+            {"span": c.span_fr, "fix": c.corrected_fr, "note": c.note_native, "rule_id": c.rule_id}
+            for c in (getattr(tutor, "corrections", None) or [])
+        ],
         "gated": list(result.gated),
     }
 
@@ -163,6 +174,28 @@ def make_concept(external_id: str, concept_id: int = 1):
         core_rule=unit["core_rule"],
         description=unit.get("when_to_use"),
     )
+
+
+def item_day_rules(item: dict, language: str) -> dict | None:
+    """P3: the day's rule and the week's an item names (``{"today": unit id, "recent":
+    [unit id, …]}``), as ``day_rules.for_turn`` returns them in production: each unit's
+    entry built from its card by the production helper, detectors included. ``None``
+    when the item names none."""
+
+    from app.services import day_rules
+
+    named = item.get("day_rules") or {}
+    ids = [named.get("today"), *(named.get("recent") or [])]
+    entries = []
+    for number, external_id in enumerate(ids, start=1):
+        if not external_id:
+            entries.append(None)
+            continue
+        concept = make_concept(external_id, concept_id=number)
+        entries.append(day_rules._rule_entry(_NoDB(concept), concept, language))
+    if not any(entries):
+        return None
+    return {"today": entries[0], "recent": [entry for entry in entries[1:] if entry]}
 
 
 def forge_prompt_payload(item: dict) -> dict:
@@ -295,6 +328,11 @@ class _NoDB:
     def execute(self, *args: Any, **kwargs: Any) -> _NoRows:
         return _NoRows()
 
+    def begin_nested(self) -> AbstractContextManager[None]:
+        """A savepoint over nothing (``day_rules.for_turn`` reads inside one)."""
+
+        return nullcontext()
+
     def __getattr__(self, name: str) -> Callable[..., Any]:
         def nothing(*args: Any, **kwargs: Any) -> Any:
             return None
@@ -325,6 +363,18 @@ def _mission_sandbox(item: dict):
     with ExitStack() as stack:
         stack.enter_context(_patched(missions, "_record_mission_llm_cost", lambda *a, **k: None))
         stack.enter_context(_patched(missions, "_learner_level_code", lambda db, user: item.get("level", "A1")))
+        if item.get("day_rules"):
+            from app.services import day_rules
+
+            # P3: the corrector reads the learner's rules with ``day_rules.for_turn``; the
+            # item's stand in for the database's, in the language production asks for.
+            stack.enter_context(
+                _patched(
+                    day_rules,
+                    "for_turn",
+                    lambda db, user, *, control_language=None, **kwargs: item_day_rules(item, control_language or "en"),
+                )
+            )
         yield missions
 
 
@@ -639,9 +689,12 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
     if surface == "scene":
         learner = _fold(" ".join([item["learner_text"], *[h.get("learner", "") for h in item.get("history") or []]]))
         invented = [q for q in output.get("evidence_quotes") or [] if _fold(q) not in learner]
+        shown = output.get("corrections") or ([output["correction"]] if output.get("correction") else [])
+        first = shown[0] if shown else None
         return {
             "served": served,
             "quotes_real": ("na", "no grade") if failed else (("fail", f"invented: {invented}") if invented else ("pass", "")),
+            "rule_first": rule_first(truth, failed, first and (first.get("span"), first.get("fix"))),
         }
     if surface in ("courrier", "page"):
         return {"served": served}
@@ -670,8 +723,42 @@ def checks(surface: str, item: dict, output: dict) -> dict[str, tuple[str, str]]
         text = _fold(item["learner_text"])
         outside = [e.get("learner_text") for e in errata if e.get("learner_text") and _fold(e["learner_text"]) not in text]
         spans = ("na", "no corrections") if not errata else (("fail", f"not in the sentence: {outside}") if outside else ("pass", ""))
-        return {"checked": served, "verdict_right": verdict, "spans_real": spans}
+        first = errata[0] if errata else None
+        return {
+            "checked": served, "verdict_right": verdict, "spans_real": spans,
+            "rule_first": rule_first(truth, failed, first and (first.get("learner_text"), first.get("corrected_target"))),
+        }
     raise ValueError(surface)
+
+
+_WORD = re.compile(r"[^\W\d_]+")
+
+
+def _words(text: Any) -> list[str]:
+    return _WORD.findall(_fold(text).replace("'", " "))
+
+
+def rule_first(truth: dict, failed: Any, first: tuple[Any, Any] | None) -> tuple[str, str]:
+    """P3: the first correction shown is the error the truth names ``first`` («A → B»):
+    its span holds the words A changes and its fix the words B brings, so «il a déjà
+    quitté → il avait déjà quitté» is met by «a → avait» as by the whole clause. ``na``
+    when the truth names none or nothing was served."""
+
+    named = truth.get("first")
+    if not named:
+        return ("na", "no error to correct first")
+    if failed:
+        return ("na", "nothing served")
+    if not first or not (first[0] or first[1]):
+        return ("fail", f"no correction shown; {named!r} comes first")
+    wrong, _, right = str(named).partition("→")
+    before, after = _words(wrong), _words(right)
+    gone = [w for w in before if w not in after] or before
+    brought = [w for w in after if w not in before] or after
+    span, fix = set(_words(first[0])), set(_words(first[1]))
+    if all(w in span for w in gone) and all(w in fix for w in brought):
+        return ("pass", "")
+    return ("fail", f"first shown {first[0]!r} → {first[1]!r}; {named!r} comes first")
 
 
 _WS = re.compile(r"\s+")

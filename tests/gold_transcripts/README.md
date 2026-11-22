@@ -8,10 +8,10 @@ gate verdict is «rose».
 
 | surface | what runs (production code) | inputs |
 |---|---|---|
-| `scene` | the scene's reply lanes (`story_lanes.run_reply_lanes`: the grade with its correction, and the character's reply) | 28 |
+| `scene` | the scene's reply lanes (`story_lanes.run_reply_lanes`: the grade with its corrections, and the character's reply) | 30 |
 | `forge` | La Forge free text: the Atelier corrector's sentence round, then the second-check merge (`_merge_relecture`) | 28 |
 | `courrier` | the Courrier correspondent's reply (`MissionConversationService.respond`) | 24 |
-| `correction` | the correction under a letter (`MissionCorrectionService.correct_submission`) | 26 |
+| `correction` | the correction under a letter (`MissionCorrectionService.correct_submission`) | 29 |
 | `page` (asked for, not weekly) | the night writer's page written ahead of time: `story_split.draw` (planner, author, aids) inside the production retry loop with the story critic and the scene guards, on a captured `story_context()` | 24 |
 | `day` (its own weekly run) | a whole day of acts (Phase 2 «Folge in Akten»): the page («Le fil»), then each later act an Intensif learner at the day's level plays («Le soir»; on B1 also «À côté»), each written as the night writes it (`living_story.draft_later_act`: planner, author, aids, the critic reading it as an act and dropping it when it refuses). As at night, no act is written after a dropped one | 3 days (A1, A2, B1), one a week |
 
@@ -154,3 +154,15 @@ Take it from a live-walk report (`docs/ops/live-walks/<date>.md`), keep the lear
 exactly as the walk wrote them, name the walk in `source`, and fill `truth`. Keep each set
 between 20 and 30 items (`tests/test_gold_transcripts.py` checks it). Changing a set
 changes its version in the report, so say so in the PR.
+
+A `scene` or `correction` item may carry the day's rule (P3: the tutor and the Courrier's
+corrector correct an error against it first): `"level": "B1"` and
+`"day_rules": {"today": "<unit id>", "recent": ["<unit id>", …]}`, ids from
+`app/data/grammar_review/units_*.json`. The adapter builds each entry from the unit's card
+with the production helper and hands it over as `day_rules.for_turn` would return it
+(`surfaces.item_day_rules`): in the scene's turn payload, and to the corrector in place of
+the database lookup. An item without `day_rules` gets none, as a learner with no rule
+introduced this week does. Its `truth` names the error to correct `first`; take the
+sentence from a walk where the learner broke the day's rule and made another error. The
+code-decided criterion `rule_first` passes when the first correction shown is that error,
+with its fix (`surfaces.rule_first`); it is not applicable to an item without `first`.
