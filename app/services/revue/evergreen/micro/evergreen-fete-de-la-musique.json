@@ -1,0 +1,294 @@
+{
+ "witness": "lila_bonnet",
+ "facts": [
+  {
+   "claim_id": "c1",
+   "ask": "quand",
+   "keywords": [
+    "première",
+    "eu lieu"
+   ],
+   "hole": {
+    "fr": "Quand, la première fête ?",
+    "en": "When was the first festival?",
+    "de": "Wann war das erste Fest?"
+   },
+   "tile": {
+    "fr": "Quand est-ce que la première fête a eu lieu ?",
+    "en": "When did the first festival take place?",
+    "de": "Wann hat das erste Fest stattgefunden?"
+   },
+   "frame": {
+    "fr": "Quand est-ce que",
+    "en": "When",
+    "de": "Wann"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Le 21 juin 1982, mon chou ! La première fête.",
+     "en": "On 21 June 1982, sweetie! The first festival.",
+     "de": "Am 21. Juni 1982, Schätzchen! Das erste Fest."
+    },
+    "a2": {
+     "fr": "Mais arrête, c'est évident : la première Fête de la musique, c'est le 21 juin 1982.",
+     "en": "Come on, it's obvious: the first Fête de la musique was on 21 June 1982.",
+     "de": "Ach komm, das ist doch klar: Die erste Fête de la musique war am 21. Juni 1982."
+    },
+    "b1": {
+     "fr": "Mais arrête, c'est évident : la première Fête de la musique a eu lieu le 21 juin 1982, le jour le plus long de l'année.",
+     "en": "Come on, it's obvious: the first Fête de la musique took place on 21 June 1982, the longest day of the year.",
+     "de": "Ach komm, das ist doch klar: Die erste Fête de la musique fand am 21. Juni 1982 statt, am längsten Tag des Jahres."
+    }
+   },
+   "value_fr": "le 21 juin 1982"
+  },
+  {
+   "claim_id": "c1",
+   "ask": "pourquoi",
+   "keywords": [
+    "jour",
+    "long",
+    "21 juin"
+   ],
+   "hole": {
+    "fr": "Pourquoi le 21 juin ?",
+    "en": "Why 21 June?",
+    "de": "Warum der 21. Juni?"
+   },
+   "tile": {
+    "fr": "Pourquoi est-ce que la fête a lieu le 21 juin ?",
+    "en": "Why does the festival take place on 21 June?",
+    "de": "Warum findet das Fest am 21. Juni statt?"
+   },
+   "frame": {
+    "fr": "Pourquoi est-ce que",
+    "en": "Why",
+    "de": "Warum"
+   },
+   "answer": {
+    "a1": {
+     "fr": "C'est le jour le plus long de l'année !",
+     "en": "It's the longest day of the year!",
+     "de": "Das ist der längste Tag des Jahres!"
+    },
+    "a2": {
+     "fr": "Parce que le 21 juin, c'est le jour le plus long de l'année. Logique, non ?",
+     "en": "Because 21 June is the longest day of the year. Makes sense, right?",
+     "de": "Weil der 21. Juni der längste Tag des Jahres ist. Logisch, oder?"
+    },
+    "b1": {
+     "fr": "Mais arrête, c'est évident : la fête tombe le 21 juin parce que c'est le jour le plus long de l'année.",
+     "en": "Come on, it's obvious: the festival falls on 21 June because it's the longest day of the year.",
+     "de": "Ach komm, das ist doch klar: Das Fest ist am 21. Juni, weil das der längste Tag des Jahres ist."
+    }
+   },
+   "value_fr": "le jour le plus long de l'année"
+  },
+  {
+   "claim_id": "c2",
+   "ask": "combien",
+   "keywords": [
+    "gratuite",
+    "coûte"
+   ],
+   "hole": {
+    "fr": "Combien ça coûte ?",
+    "en": "How much does it cost?",
+    "de": "Wie viel kostet es?"
+   },
+   "tile": {
+    "fr": "Combien coûte la fête ?",
+    "en": "How much does the festival cost?",
+    "de": "Wie viel kostet das Fest?"
+   },
+   "frame": {
+    "fr": "Combien coûte",
+    "en": "How much is",
+    "de": "Wie viel kostet"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Rien du tout ! La fête est gratuite.",
+     "en": "Nothing at all! The festival is free.",
+     "de": "Gar nichts! Das Fest ist kostenlos."
+    },
+    "a2": {
+     "fr": "Rien, mon chou ! La fête est gratuite, on ne paie pas pour écouter.",
+     "en": "Nothing, sweetie! The festival is free, you don't pay to listen.",
+     "de": "Nichts, Schätzchen! Das Fest ist kostenlos, man zahlt nicht fürs Zuhören."
+    },
+    "b1": {
+     "fr": "Rien du tout, mon chou : la fête est gratuite. Tu écoutes ce que tu veux sans payer.",
+     "en": "Nothing at all, sweetie: the festival is free. You listen to whatever you like without paying.",
+     "de": "Gar nichts, Schätzchen: Das Fest ist kostenlos. Du hörst, was du willst, ohne zu zahlen."
+    }
+   },
+   "value_fr": "gratuite"
+  },
+  {
+   "claim_id": "c2",
+   "ask": "quoi",
+   "keywords": [
+    "musiques",
+    "ouverte"
+   ],
+   "hole": {
+    "fr": "Quelles musiques ?",
+    "en": "Which music?",
+    "de": "Welche Musik?"
+   },
+   "tile": {
+    "fr": "Quelles musiques est-ce qu'on peut écouter ?",
+    "en": "Which kinds of music can you hear?",
+    "de": "Welche Musik kann man hören?"
+   },
+   "frame": {
+    "fr": "Quelles musiques est-ce que",
+    "en": "Which music",
+    "de": "Welche Musik"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Toutes les musiques, mon chou ! La fête est ouverte.",
+     "en": "All kinds of music, sweetie! The festival is open.",
+     "de": "Alle Musikrichtungen, Schätzchen! Das Fest ist offen."
+    },
+    "a2": {
+     "fr": "Mais arrête, c'est évident : la fête est ouverte à toutes les musiques, sans exception.",
+     "en": "Come on, it's obvious: the festival is open to all kinds of music, no exceptions.",
+     "de": "Ach komm, das ist doch klar: Das Fest ist offen für alle Musikrichtungen, ohne Ausnahme."
+    },
+    "b1": {
+     "fr": "Toutes les musiques ! La fête est ouverte à toutes les musiques, et en plus, elle est gratuite.",
+     "en": "All kinds of music! The festival is open to all kinds of music, and on top of that it's free.",
+     "de": "Alle Musikrichtungen! Das Fest ist offen für alle Musikrichtungen, und außerdem ist es kostenlos."
+    }
+   },
+   "value_fr": "toutes les musiques"
+  },
+  {
+   "claim_id": "c3",
+   "ask": "pourquoi",
+   "keywords": [
+    "plaintes",
+    "bruit"
+   ],
+   "hole": {
+    "fr": "Pourquoi des plaintes ?",
+    "en": "Why the complaints?",
+    "de": "Warum die Beschwerden?"
+   },
+   "tile": {
+    "fr": "Pourquoi est-ce qu'il y a des plaintes ?",
+    "en": "Why are there complaints?",
+    "de": "Warum gibt es Beschwerden?"
+   },
+   "frame": {
+    "fr": "Pourquoi est-ce qu'il y a",
+    "en": "Why are there",
+    "de": "Warum gibt es"
+   },
+   "answer": {
+    "a1": {
+     "fr": "À cause du bruit ! Il y a de nombreuses plaintes.",
+     "en": "Because of the noise! There are many complaints.",
+     "de": "Wegen des Lärms! Es gibt viele Beschwerden."
+    },
+    "a2": {
+     "fr": "Parce que la fête fait du bruit, mon chou. Alors il y a de nombreuses plaintes.",
+     "en": "Because the festival makes noise, sweetie. So there are many complaints.",
+     "de": "Weil das Fest Lärm macht, Schätzchen. Deshalb gibt es viele Beschwerden."
+    },
+    "b1": {
+     "fr": "La musique, c'est joli, mais la fête provoque aussi du bruit, et il y a de nombreuses plaintes.",
+     "en": "Music is lovely, but the festival also causes noise, and there are many complaints.",
+     "de": "Musik ist schön, aber das Fest macht auch Lärm, und es gibt viele Beschwerden."
+    }
+   },
+   "value_fr": "du bruit"
+  },
+  {
+   "claim_id": "c4",
+   "ask": "comment",
+   "keywords": [
+    "succès",
+    "première édition",
+    "espérances"
+   ],
+   "hole": {
+    "fr": "Comment, la première édition ?",
+    "en": "How did the first edition go?",
+    "de": "Wie war die erste Ausgabe?"
+   },
+   "tile": {
+    "fr": "Comment est-ce que la première édition s'est passée ?",
+    "en": "How did the first edition go?",
+    "de": "Wie ist die erste Ausgabe gelaufen?"
+   },
+   "frame": {
+    "fr": "Comment est-ce que",
+    "en": "How",
+    "de": "Wie"
+   },
+   "answer": {
+    "a1": {
+     "fr": "Un grand succès ! Au-delà de toutes les espérances.",
+     "en": "A big success! Beyond all expectations.",
+     "de": "Ein großer Erfolg! Über alle Erwartungen hinaus."
+    },
+    "a2": {
+     "fr": "Selon le ministère de la Culture, le succès a dépassé toutes les espérances. Pas mal, non ?",
+     "en": "According to the Ministry of Culture, the success exceeded all expectations. Not bad, right?",
+     "de": "Laut Kulturministerium hat der Erfolg alle Erwartungen übertroffen. Nicht schlecht, oder?"
+    },
+    "b1": {
+     "fr": "D'après le ministère de la Culture, le succès de la première édition, en 1982, a dépassé toutes les espérances.",
+     "en": "According to the Ministry of Culture, the success of the first edition, in 1982, exceeded all expectations.",
+     "de": "Laut Kulturministerium hat der Erfolg der ersten Ausgabe 1982 alle Erwartungen übertroffen."
+    }
+   },
+   "value_fr": "toutes les espérances"
+  }
+ ],
+ "shrug": {
+  "a1": {
+   "fr": "Ça, je ne sais pas, mon chou.",
+   "en": "That, I don't know, sweetie.",
+   "de": "Das weiß ich nicht, Schätzchen."
+  },
+  "a2": {
+   "fr": "Bon, ça, je ne sais pas. L'article ne le dit pas.",
+   "en": "Well, that I don't know. The article doesn't say.",
+   "de": "Tja, das weiß ich nicht. Der Artikel sagt es nicht."
+  },
+  "b1": {
+   "fr": "Toi, tu me poses des colles ! Ça, je ne sais pas, et l'article ne le dit pas.",
+   "en": "You and your tricky questions! That I don't know, and the article doesn't say.",
+   "de": "Du stellst mir aber Fangfragen! Das weiß ich nicht, und der Artikel sagt es nicht."
+  }
+ },
+ "phrase": {
+  "a1": {
+   "fr": "Quand… ? · Combien… ?",
+   "en": "When…? · How many…?",
+   "de": "Wann…? · Wie viele…?"
+  },
+  "a2": {
+   "fr": "Pourquoi est-ce que… ?",
+   "en": "Why…?",
+   "de": "Warum…?"
+  },
+  "b1": {
+   "fr": "Est-ce que vous pourriez me dire… ?",
+   "en": "Could you tell me…?",
+   "de": "Könnten Sie mir sagen, …?"
+  },
+  "b2": {
+   "fr": "J'aimerais savoir pourquoi…",
+   "en": "I'd like to know why…",
+   "de": "Ich würde gern wissen, warum …"
+  }
+ },
+ "model": "",
+ "prompt_version": "hand-written"
+}

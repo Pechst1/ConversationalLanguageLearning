@@ -885,6 +885,31 @@ class Settings(BaseSettings):
             "ledger per painting (no learner) so the service's daily cap counts it."
         ),
     )
+    REVUE_PICTURES_PER_STORY: int = Field(
+        1,
+        ge=1,
+        le=3,
+        description=(
+            "«Papier · photos» (2026-11-20): how many generated illustrations each story gets. 1 is "
+            "the story's one picture (WP-119 §8.4); 2-3 add other shots of the same story (the place "
+            "wide, the thing close), each painted once and final, priced per picture like the first."
+        ),
+    )
+    REVUE_PHOTOS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · photos» (2026-11-20): at the morning intake, look up real photos on Wikimedia "
+            "Commons for each story's places and its main object (free licences only, never a "
+            "portrait), and show them in the story's gallery with their credit and licence. Needs "
+            "outbound access to commons.wikimedia.org and upload.wikimedia.org."
+        ),
+    )
+    REVUE_PHOTOS_PER_STORY: int = Field(
+        3,
+        ge=0,
+        le=6,
+        description="«Papier · photos»: the most Commons photos one story keeps (one per subject).",
+    )
     REVUE_ARTICLE_FETCH_ENABLED: bool = Field(
         True,
         description=(
@@ -928,12 +953,142 @@ class Settings(BaseSettings):
             "morning the takes desk writes them. Off: nothing changes (no route, no field, no call)."
         ),
     )
+    REVUE_POURQUOI_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · Le pourquoi» (owner 2026-11-20): each of Romy's marks on «Ton avis» explains "
+            "its rule in the learner's mother tongue (a hint without the answer while they fix it, "
+            "the full rule and the story's own example once settled), and the slip is kept in the "
+            "learner's error memory (source «revue») for La Forge. Off: the comptoir_edit prompt, "
+            "its payload and the screens are exactly as before."
+        ),
+    )
+    REVUE_TUTOR_MARKS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · La règle» (2026-11-22): every mark Romy shows passes the scene tutor's "
+            "verification too (a mark it does not stand by is dropped, and the model-free edit stands "
+            "in when none is left), and is tied to the app's grammar concept with its name; a mark "
+            "under the day's or a recent rule says so and explains itself with the rule card's line. "
+            "Off: the marks are the Papier's own, as before."
+        ),
+    )
     REVUE_COMPTOIR_MODEL: str = Field(
         "claude-haiku-5-5",
         description=(
             "WP-119 «Au comptoir»: the takes desk's model (one shared call per story each morning, "
             "about $0.006 a story). A Claude model needs ANTHROPIC_API_KEY. Chosen by the desk "
             "comparison of 2026-10-19 (claude-haiku-5-5 over gpt-6-luna and claude-sonnet-5-5)."
+        ),
+    )
+    REVUE_ASSIGNMENTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "WP-119 «Le Papier · les rubriques» (owner 2026-11-20): the learner is Romy's trainee and "
+            "each story is dealt one assignment it can carry («Au comptoir», «Le fil»…), never the "
+            "shape of the learner's last two Papiers. On: a new session starts in the dealt "
+            "assignment, and each morning the wire desk writes «Le fil» (one call per story). Off: "
+            "nothing changes (no new mode, no field, no call)."
+        ),
+    )
+    REVUE_ASSIGNMENTS_OFFERED: str = Field(
+        "comptoir,titre",
+        description=(
+            "«Papier · le choix» (owner 2026-11-22): the assignments that are dealt, comma-separated "
+            "(comptoir, fil, titre, intox, photo, micro). Only these are dealt, and only their desks are "
+            "built each morning: the parked ones cost model money for nothing (first real run: «Le fil», "
+            "«L'intox express», «La photo», «Le micro» flat or refused). Parked code stays, with its tests."
+        ),
+    )
+    REVUE_PEDAGOGY_PICK_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · le choix»: the stories are ranked by what the learner needs — their due words in "
+            "the story's French at their band, an occasion to use the day's grammar rule (its detectors over "
+            "the story), their interests (a real weight, not a tie-break) — and the assignment dealt prefers "
+            "the one whose material exercises the rule. Deterministic; the pick carries a small ``why`` record. "
+            "Off: the ranking by recency and the seeded deal, as before."
+        ),
+    )
+    REVUE_CHOICE_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · le choix»: a Papier opens on a front page of up to three stories (the top of the "
+            "ranking, different rubrics where possible), each with its rubric and one honest line of why it "
+            "is offered in the mother tongue; one tap starts it. Off: the journey's Papier starts Romy's pick "
+            "and /revue shows its chooser, as before."
+        ),
+    )
+    REVUE_MEMORY_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous» (owner 2026-11-21): the regulars remember. Each session gets ONE "
+            "authored line (app/services/revue/souvenirs/lines.json) in the mouth of a regular, filled only "
+            "from what the learner did in earlier Papiers (their side at the counter, their printed "
+            "headline, their intox score, a weekday, a count); never twice the same line in a row; no model "
+            "call. Off: GET /revue/sessions/{id}/souvenir is a 404 and nothing else changes."
+        ),
+    )
+    REVUE_TROIS_MOTS_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «Trois mots», a 30-second round on three words of the story as "
+            "the first block of «La page» (match each to its picture or gloss, then one gap sentence from "
+            "the story's own lead or summary; two tries; deterministic). Words the close did not keep are "
+            "kept through the same path, once. Off: /revue/sessions/{id}/trois-mots is a 404."
+        ),
+    )
+    REVUE_UNE_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · les rendez-vous»: «La une de la semaine» (a front page composed only from the "
+            "learner's own printed pieces of the week, /revue/une) and «La carte de presse» on the "
+            "Relevé. Pure reads, no model call. Off: both routes are a 404."
+        ),
+    )
+    REVUE_WORDS_IN_DECK_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · l'écho»: words kept in a Papier (provenance kept_from_revue) count as words kept "
+            "from the story: they open the next deck, the scene director may bring them back, and they "
+            "are recent kept words for the planner. Off: only kept_from_story words do, as before."
+        ),
+    )
+    REVUE_ECHO_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · l'écho»: the learner's last finished Papier of the last three days (the story's "
+            "headline, the desk, what they did there, who was there, the words kept, and at most two "
+            "things the regulars remember of it) reaches the next day scene's director as one short "
+            "block that a character who was there may mention once. Needs REVUE_ENABLED. Off: the "
+            "scene context and prompt are exactly as before."
+        ),
+    )
+    REVUE_PLANNED_STEP_ENABLED: bool = Field(
+        False,
+        description=(
+            "Le Papier as an ordinary step of its day: on a Papier day the plan holds one optional "
+            "`desk` step `papier` after the ending, priced in the day's minutes, and the player opens "
+            "the Papier there (finished or skipped, it advances the day like any step). Off: the "
+            "Papier is mounted after the day's ending with no minutes of its own."
+        ),
+    )
+    REVUE_QUARTIER_AFFICHE_ENABLED: bool = Field(
+        False,
+        description=(
+            "Le Quartier: today's Papier on the quai's Morris column (masthead, date, headline; «lu» "
+            "once filed), and the poster opens the Papier. Off: the column keeps its posters."
+        ),
+    )
+    REVUE_VOIX_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Papier · la voix» (2026-11-22): the paper is heard. The lead read by the newsroom's voice, "
+            "each regular's line at the counter heard before it is read (in their own voice), and an "
+            "optional one-sentence dictée from the lead. Clips are made lazily through "
+            "/revue/sessions/{id}/voix/line and cached per line, voice and band pace in line_audio_clips "
+            "(a second learner gets a copy, no call); synthesis also needs ATELIER_EPISODE_AUDIO_ENABLED, "
+            "else the device voice reads and the text shows at once. Off: every /voix route is a 404."
         ),
     )
     VOCAB_TARGET_RETENTION: float = Field(

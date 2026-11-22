@@ -78,6 +78,8 @@ STORY_PROMPT_VERSION = "revue-story-v2"
 STORY_STORAGE_PREFIX = "revue-stories"
 #: The pilot-ledger row each painting writes (no learner: the picture is everyone's).
 PICTURE_COST_EVENT = "revue_picture_cost"
+#: «Papier · photos» (2026-11-20): the other shots' template version (``REVUE_PICTURES_PER_STORY``).
+STORY_SHOT_PROMPT_VERSION = "revue-story-shot-v1"
 
 _ART_SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "art" / "atelier_art.py"
 _SEASON_NO_PEOPLE = "No people, no animals, no readable text or signage. "
@@ -707,6 +709,151 @@ def paint_story(db: Session, dossier: EditorialDossier) -> str:
     return url
 
 
+# ---------------------------------------------------------------------------
+# The story's other shots («Papier · photos», 2026-11-20)
+# ---------------------------------------------------------------------------
+
+#: What each extra picture shows of the same story, by its position in the gallery (the first
+#: is the story picture itself): the place wide, then the thing at its heart from near. Same
+#: style, people clause, palette lock, checks and negative clause as the first picture.
+STORY_SHOTS: dict[int, tuple[str, str]] = {
+    2: (
+        "wide",
+        "This is a second, different picture of the same story: the whole place seen wide and from further "
+        "back, its surroundings and its sky, the moment small within it",
+    ),
+    3: (
+        "near",
+        "This is a third, different picture of the same story: seen from near, the one thing at the heart of "
+        "the story large in the frame, the place soft behind it, people only at the edges",
+    ),
+}
+
+
+def pictures_per_story() -> int:
+    """``REVUE_PICTURES_PER_STORY`` (1–3): 1 is the story picture alone, as before."""
+
+    return max(1, min(3, int(getattr(settings, "REVUE_PICTURES_PER_STORY", 1) or 1)))
+
+
+def shot_prompt_for(dossier: EditorialDossier, position: int) -> str:
+    """The prompt of the story's extra picture at ``position`` (2 or 3): the story picture's own
+    prompt (:func:`story_prompt_for`, with all its checks) with the shot's sentence after the style."""
+
+    if position not in STORY_SHOTS:
+        raise PlateBriefError("no_shot", dossier_id=dossier.id, position=position)
+    base = story_prompt_for(dossier)
+    return REVUE_STORY_STYLE + _sentence(STORY_SHOTS[position][1]) + base[len(REVUE_STORY_STYLE):]
+
+
+def _shot_row(db: Session | None, dossier_id: str, position: int) -> Any:
+    if db is None:
+        return None
+    from sqlalchemy import select
+
+    from app.db.models.revue_story_media import RevueStoryMedia
+
+    try:
+        with db.begin_nested():
+            return db.scalar(
+                select(RevueStoryMedia).where(
+                    RevueStoryMedia.dossier_id == dossier_id,
+                    RevueStoryMedia.kind == "illustration",
+                    RevueStoryMedia.position == position,
+                )
+            )
+    except Exception as exc:  # noqa: BLE001 - a missing table (an old database) paints nothing more
+        logger.debug("revue plates: shot lookup failed for {} ({})", dossier_id, exc)
+        return None
+
+
+def paint_story_shot(db: Session, dossier: EditorialDossier, position: int) -> str:
+    """Paint the story's extra picture at ``position`` once and return its URL; never repainted.
+
+    The same rules as :func:`paint_story`: one call, final, palette-locked, stored under
+    :data:`STORY_STORAGE_PREFIX`, a ``revue_story_media`` row (``kind="illustration"``) with its
+    prompt, and one pilot-ledger row. Raises :class:`PlateBriefError`, :class:`PlateGenerationOff`,
+    and lets the image API's error through."""
+
+    from sqlalchemy.exc import IntegrityError
+
+    from app.db.models.revue_story_media import RevueStoryMedia
+
+    existing = _shot_row(db, dossier.id, position)
+    if existing is not None:
+        return existing.image_url
+    prompt = shot_prompt_for(dossier, position)
+    reason = generation_unavailable_reason()
+    if reason:
+        raise PlateGenerationOff(reason)
+    image = _call(prompt).convert("RGB")
+    flagged = looks_wrong(image)
+    if flagged:
+        logger.warning("revue plates: shot {} of {} shows a flag band; kept (final)", position, dossier.id)
+    url = _store(f"{dossier.id}-{position}", _webp(palette_lock(image)), prefix=STORY_STORAGE_PREFIX)
+    entity = f"{dossier.id}#{position}"
+    db.add(
+        RevueStoryMedia(
+            dossier_id=dossier.id[:120],
+            kind="illustration",
+            position=position,
+            image_url=url,
+            width=image.width,
+            height=image.height,
+            credit_fr="Illustration · Le Papier",
+            subject=STORY_SHOTS[position][0],
+            prompt=prompt,
+            prompt_version=STORY_SHOT_PROMPT_VERSION,
+            model=_model_name() or None,
+            cost_usd=picture_cost_usd(),
+            flagged=flagged,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:  # a concurrent paint won: theirs is the shot (ours was still paid for)
+        db.rollback()
+        _record_cost(db, kind="story_shot", entity_id=entity, prompt_version=STORY_SHOT_PROMPT_VERSION, flagged=flagged)
+        winner = _shot_row(db, dossier.id, position)
+        if winner is not None:
+            return winner.image_url
+        raise
+    _record_cost(db, kind="story_shot", entity_id=entity, prompt_version=STORY_SHOT_PROMPT_VERSION, flagged=flagged)
+    logger.info("revue plates: painted shot {} of {} ({})", position, dossier.id, STORY_SHOT_PROMPT_VERSION)
+    return url
+
+
+def paint_story_shots(db: Session, dossier: EditorialDossier, *, gate: PaintGate | None = None) -> dict[str, str]:
+    """The story's missing extra pictures (positions 2…``REVUE_PICTURES_PER_STORY``), each under
+    ``"story_<position>"``: its URL when painted now, ``kept`` when painted before, a refusal
+    reason, ``off``, ``error`` or what ``gate`` held it for (then the rest waits). Never raises."""
+
+    out: dict[str, str] = {}
+    for position in range(2, pictures_per_story() + 1):
+        key = f"story_{position}"
+        if _shot_row(db, dossier.id, position) is not None:
+            out[key] = "kept"
+            continue
+        try:
+            held = gate() if gate is not None else None
+            if held:
+                out[key] = held
+                break
+            out[key] = paint_story_shot(db, dossier, position)
+        except PlateBriefError as exc:
+            out[key] = exc.reason
+            break
+        except PlateGenerationOff:
+            out[key] = "off"
+            break
+        except Exception as exc:  # noqa: BLE001 - the gallery shows what is painted; tomorrow retries
+            logger.warning("revue plates: painting shot {} of {} failed ({})", position, dossier.id, exc)
+            db.rollback()
+            out[key] = "error"
+            break
+    return out
+
+
 def paint_dossier_pictures(db: Session, dossier: EditorialDossier, *, gate: PaintGate | None = None) -> dict[str, str]:
     """Every picture ``dossier`` is missing: its story picture, and a plate for each new place
     the story picture does not cover (the second view; the site too when there is no story
@@ -736,6 +883,9 @@ def paint_dossier_pictures(db: Session, dossier: EditorialDossier, *, gate: Pain
     # A held story is painted by the next run: its site needs no place plate meanwhile.
     places = dossier.places[1:2] if story_ok or held else dossier.places[:2]
     out.update(paint_dossier_places(db, dossier, places=places, gate=gate))
+    if story_ok and pictures_per_story() > 1:
+        # «Papier · photos»: the other shots come after the story picture and the place plates.
+        out.update(paint_story_shots(db, dossier, gate=gate))
     return out
 
 

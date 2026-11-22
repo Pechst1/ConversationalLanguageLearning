@@ -22,6 +22,18 @@ Payload conventions the replay reads (other keys are kept and ignored):
 - ``comptoir`` («Au comptoir», 2026-10-19): ``act`` (``vote`` | ``react`` | ``intox_who`` |
   ``intox_fix`` | ``opinion`` | ``comeback``) and that act's fields; replayed by
   ``comptoir_loop.Acts``
+- ``fil`` («Le fil», 2026-11-20): ``act`` (``open`` | ``order`` | ``words`` | ``tell`` |
+  ``tell_fix``) and that act's fields; replayed by ``fil_loop.Acts``
+- ``titre`` («Le titre», 2026-11-20): ``act`` (``open`` | ``pick`` | ``trap`` | ``build`` |
+  ``build_fix``); replayed by ``titre_loop.Acts``
+- ``intox`` («L'intox express», 2026-11-20): ``act`` (``open`` | ``answer`` | ``fix``);
+  replayed by ``intox_loop.Acts``
+- ``photo`` («La photo», 2026-11-21): ``act`` (``open`` | ``choose`` | ``seen`` | ``caption`` |
+  ``caption_fix`` | ``build`` | ``build_fix``); replayed by ``photo_loop.Acts``
+- ``micro`` («Le micro», 2026-11-21): ``act`` (``open`` | ``prepare`` | ``ask`` | ``note`` |
+  ``review`` | ``review_fix``); replayed by ``micro_loop.Acts``
+- ``trois_mots`` («Trois mots», 2026-11-21, on a closed session): ``act`` (``match`` | ``gap`` |
+  ``kept``); replayed by ``trois_mots.Acts``
 
 No DB code here. See ``docs/implementation/atelier-v2/WP-119-LA-REVUE-DE-ROMY.md``.
 """
@@ -50,6 +62,12 @@ EventKind = Literal[
     "support_changed",
     "closed",
     "comptoir",
+    "fil",
+    "titre",
+    "intox",
+    "photo",
+    "micro",
+    "trois_mots",
 ]
 
 

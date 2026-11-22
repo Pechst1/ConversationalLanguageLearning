@@ -108,6 +108,7 @@ import {
   storyArtRendering,
 } from './story-episode-model';
 import { shouldPollStoryArtLate } from './story-art-poll';
+import { isPapierStep } from './desk-step-model';
 
 /** Bounded auto-poll of a `preparing` journey before a manual "check again". */
 const PREPARING_POLL_LIMIT = 8;
@@ -1012,11 +1013,28 @@ export function useDailyJourney(
     const wait = storyWaitRef.current;
     const waitOver = Boolean(wait && wait.stepId === current?.id && finaleWaitOver(wait.since, Date.now()));
     if (!continueAfterStoryWait(journeyRef.current, current, waitOver)) return;
+    // REVUE_PLANNED_STEP_ENABLED: closing the Papier completes its step on the server
+    // (`complete_papier_step`), so the day is read again before it moves on: an advance
+    // against the old revision would be refused, and a Papier that was the day's last
+    // step leaves only the finish.
+    if (isPapierStep(current) && journeyRef.current) {
+      try {
+        applySnapshot(await dailyJourneyService.get(journeyRef.current.id));
+      } catch {
+        // Unreadable: the advance below reconciles as it always did.
+      }
+      const fresh = journeyRef.current;
+      if (journeyAwaitsFinish(fresh)) {
+        if (fresh) await finishSnapshot(fresh, 'complete');
+        return;
+      }
+      if (currentStepOf(fresh)?.id !== current?.id) return;
+    }
     const advanced = await advance();
     if (advanced && journeyAwaitsFinish(advanced)) {
       await finishSnapshot(advanced, 'complete');
     }
-  }, [advance, feedback, finishSnapshot]);
+  }, [advance, applySnapshot, feedback, finishSnapshot]);
 
   const skipToScene = useCallback(async () => {
     revealRef.current.cancel();

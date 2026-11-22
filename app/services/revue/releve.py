@@ -86,6 +86,15 @@ def _period_label(period: str) -> str:
         _, number = parse_week(week_of_period(period))
     except ValueError:
         return period
+    from app.services.revue.weekly import is_daily_period
+
+    if is_daily_period(period):
+        # A daily Papier (§12.2): its day, after its week.
+        from datetime import date
+
+        from app.services.revue.encounter import _french_day
+
+        return f"Semaine {number} · le {_french_day(date.fromisoformat(period))}"
     return f"Semaine {number}"
 
 

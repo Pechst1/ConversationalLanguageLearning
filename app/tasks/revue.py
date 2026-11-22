@@ -10,10 +10,18 @@ period already built is kept; ``refresh=True`` (the admin route) rebuilds it. Of
 Each run gives the kiosk's dossiers without leads (built before them, or an evergreen top-up)
 a try at the lead desk (``leads.ensure_leads``, once per dossier, one small call each), and,
 while ``REVUE_COMPTOIR_ENABLED`` is on, at the takes desk of «Au comptoir»
-(``comptoir.ensure_comptoir``, once per dossier, WP-119), then queues :func:`paint_pictures`:
+(``comptoir.ensure_comptoir``, once per dossier, WP-119), while ``REVUE_ASSIGNMENTS_ENABLED`` is
+on at the wire desk of «Le fil» (``fil.ensure_fil``, after the takes, so a story the comptoir
+skipped is skipped too) and at the desks of «Le titre» and «L'intox express»
+(``rubriques_now``), then queues :func:`paint_pictures`:
 one picture per story the kiosk is missing (and a plate for each new place), painted once and
 final (``plates.paint_period``), within the service's daily cap. A morning that finds
 everything painted spends nothing; one whose painting failed is caught up the next morning.
+
+«Papier · photos» (2026-11-20): while ``REVUE_PHOTOS_ENABLED`` is on, each run also looks up
+real photos on Wikimedia Commons for every kiosk story not searched yet (:func:`photos_now`,
+``photos.ensure_photos``: one search per story, 6 s, one try, failure = no photos), and the
+painter adds a story's other shots when ``REVUE_PICTURES_PER_STORY`` is above 1.
 """
 
 from __future__ import annotations
@@ -109,6 +117,86 @@ def comptoir_now(*, period: str | None = None, now: datetime | None = None) -> d
         db.close()
 
 
+def photos_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """«Papier · photos»: look up Commons photos once for every story of ``period``'s kiosk not
+    searched yet (``photos.ensure_photos``); off while ``REVUE_PHOTOS_ENABLED`` is off."""
+
+    from app.services.revue.photos import ensure_photos, photos_enabled
+    from app.services.revue.weekly import period_for
+
+    if not getattr(settings, "REVUE_ENABLED", False) or not photos_enabled():
+        return {"status": "disabled"}
+    target = period or period_for(now or datetime.now(UTC))
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "period": target, "photos": ensure_photos(db, target)}
+    except Exception as exc:  # noqa: BLE001 - a story without photos keeps its pictures; tomorrow retries
+        logger.exception("revue photos failed for {}", target)
+        db.rollback()
+        return {"status": "failed", "period": target, "error": type(exc).__name__}
+    finally:
+        db.close()
+
+
+def fil_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Write the «Le fil» wires ``period``'s kiosk is missing (2026-11-20); off with either switch."""
+
+    from app.services.revue.assignments import is_offered
+    from app.services.revue.fil import ensure_fil, fil_enabled
+    from app.services.revue.weekly import period_for
+
+    if not fil_enabled():
+        return {"status": "disabled"}
+    if not is_offered("fil"):
+        return {"status": "parked"}
+    target = period or period_for(now or datetime.now(UTC))
+    db = SessionLocal()
+    try:
+        return {"status": "ok", "period": target, "written": ensure_fil(db, target)}
+    except Exception as exc:  # noqa: BLE001 - the stories carry other assignments; tomorrow retries
+        logger.exception("revue fil failed for {}", target)
+        db.rollback()
+        return {"status": "failed", "period": target, "error": type(exc).__name__}
+    finally:
+        db.close()
+
+
+def rubriques_now(*, period: str | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Write «Le titre», «L'intox express», «La photo» and «Le micro» for ``period``'s kiosk
+    (2026-11-20/21), each desk on its own (one failing leaves the others); off with either switch.
+    Only the offered ones (``REVUE_ASSIGNMENTS_OFFERED``, 2026-11-22): a parked desk is not asked.
+    The photo desk reads the story's gallery: it runs after the morning's photos (:func:`photos_now`)."""
+
+    from app.services.revue.assignments import assignments_enabled, offered_keys
+    from app.services.revue.intox import ensure_intox
+    from app.services.revue.micro import ensure_micro
+    from app.services.revue.photo import ensure_photo
+    from app.services.revue.titre import ensure_titre
+    from app.services.revue.weekly import period_for
+
+    if not assignments_enabled():
+        return {"status": "disabled"}
+    target = period or period_for(now or datetime.now(UTC))
+    report: dict[str, Any] = {"status": "ok", "period": target}
+    offered = offered_keys()
+    for key, ensure in (("titre", ensure_titre), ("intox", ensure_intox), ("photo", ensure_photo),
+                        ("micro", ensure_micro)):
+        if key not in offered:
+            # «Papier · le choix»: a parked desk is never asked (REVUE_ASSIGNMENTS_OFFERED).
+            report[key] = {"status": "parked"}
+            continue
+        db = SessionLocal()
+        try:
+            report[key] = ensure(db, target)
+        except Exception as exc:  # noqa: BLE001 - the stories carry other assignments; tomorrow retries
+            logger.exception("revue {} failed for {}", key, target)
+            db.rollback()
+            report[key] = {"status": "failed", "error": type(exc).__name__}
+        finally:
+            db.close()
+    return report
+
+
 @celery_app.task(name="app.tasks.revue.paint_pictures")
 def paint_pictures(period: str | None = None, limit: int | None = None) -> dict[str, Any]:
     """§8.4: the period's missing pictures, one image call each, final."""
@@ -143,5 +231,16 @@ def weekly_intake(refresh: bool = False) -> dict[str, Any]:
     report["leads"] = leads_now(period=report.get("period"))
     if getattr(settings, "REVUE_COMPTOIR_ENABLED", False):
         report["comptoir"] = comptoir_now(period=report.get("period"))
+    if getattr(settings, "REVUE_PHOTOS_ENABLED", False):
+        report["photos"] = photos_now(period=report.get("period"))
+    if getattr(settings, "REVUE_ASSIGNMENTS_ENABLED", False):
+        from app.services.revue.assignments import offered_keys
+
+        # «Papier · le choix» (2026-11-22): only the offered assignments' desks are built.
+        offered = offered_keys()
+        if "fil" in offered:
+            report["fil"] = fil_now(period=report.get("period"))
+        if {"titre", "intox", "photo", "micro"} & set(offered):
+            report["rubriques"] = rubriques_now(period=report.get("period"))
     report["pictures"] = _queue_painting(report.get("period"))
     return report

@@ -175,6 +175,25 @@ def sentences(text: object) -> list[str]:
     return _chained([piece.strip() for piece in pieces if piece.strip()])
 
 
+def typed_sentences(text: object) -> list[str]:
+    """A learner's own typing as its sentences: :func:`sentences`, except that a sentence
+    may open in small letters («combien de chevaux courent ? quand la course commence ?»).
+    A learner often does not capitalise; a text we wrote goes to :func:`sentences`."""
+
+    flat = _flat(text)
+    raised = "".join(
+        char.upper() if index > 1 and flat[index - 1] == " " and _ends_here(flat[: index - 1]) else char
+        for index, char in enumerate(flat)
+    )
+    kept: list[str] = []
+    cursor = 0
+    for sentence in sentences(raised):
+        at = raised.index(sentence, cursor)
+        kept.append(flat[at : at + len(sentence)])
+        cursor = at + len(sentence)
+    return kept
+
+
 def cut_sentences(text: object) -> list[str]:
     """``text`` cut after every . ! ? … that is no title's or initial's, each piece as it was
     stored, so a caller can look a word up in it (#398: «Sur le toit, la lampe de M.» was the

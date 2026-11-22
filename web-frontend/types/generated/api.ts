@@ -3660,6 +3660,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/carte-de-presse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Carte De Presse
+         * @description «La carte de presse»: the rubriques the learner has filed, how many pieces, since when.
+         */
+        get: operations["read_carte_de_presse_api_v1_revue_carte_de_presse_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/carte/review/{place_id}": {
         parameters: {
             query?: never;
@@ -3974,6 +3994,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/fil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Fil
+         * @description «Le fil»: one act of the learner's loop (open, order, words, tell, tell_fix). 409
+         *     ``revue_not_fil`` on another session, 409 ``revue_fil_out_of_order`` (with the current
+         *     ``step``) for an act out of order; an act that repeats one already recorded returns the
+         *     session as it is; ``error`` says why an act the learner can fix was not recorded.
+         */
+        post: operations["post_fil_api_v1_revue_sessions__session_id__fil_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/make": {
         parameters: {
             query?: never;
@@ -3995,6 +4038,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/revue/sessions/{session_id}/rubrique": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Rubrique
+         * @description «Le titre» (open, pick, trap, build, build_fix) and «L'intox express» (open, answer,
+         *     fix): one act of the assignment the session was dealt. 409 ``revue_not_rubrique`` on
+         *     another session, 409 ``revue_<mode>_out_of_order`` (with the current ``step``) for an act
+         *     out of order; an act that repeats one already recorded returns the session as it is;
+         *     ``error`` says why an act the learner can fix was not recorded.
+         */
+        post: operations["post_rubrique_api_v1_revue_sessions__session_id__rubrique_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/souvenir": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Souvenir
+         * @description The regulars remember: ONE line for this session from the learner's earlier Papiers, or none.
+         */
+        get: operations["read_souvenir_api_v1_revue_sessions__session_id__souvenir_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/trois-mots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Trois Mots
+         * @description «Trois mots»: the closed session's round as it stands (``round`` ``None`` before the close).
+         */
+        get: operations["read_trois_mots_api_v1_revue_sessions__session_id__trois_mots_get"];
+        put?: never;
+        /**
+         * Post Trois Mots
+         * @description One act of the round (``match`` all three pairs, then ``gap``); deterministic, no model call.
+         */
+        post: operations["post_trois_mots_api_v1_revue_sessions__session_id__trois_mots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/revue/sessions/{session_id}/turns": {
         parameters: {
             query?: never;
@@ -4006,6 +4117,80 @@ export interface paths {
         put?: never;
         /** Post Turn */
         post: operations["post_turn_api_v1_revue_sessions__session_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/voix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Voix */
+        get: operations["read_voix_api_v1_revue_sessions__session_id__voix_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/voix/dictee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grade Voix Dictee */
+        post: operations["grade_voix_dictee_api_v1_revue_sessions__session_id__voix_dictee_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/sessions/{session_id}/voix/line": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Speak Voix Line
+         * @description Speak one line of the session, or say ``disabled`` so the device reads it.
+         */
+        post: operations["speak_voix_line_api_v1_revue_sessions__session_id__voix_line_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/revue/une": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Une
+         * @description «La une de la semaine»: the learner's own printed pieces of an ISO week (default: this one).
+         */
+        get: operations["read_une_api_v1_revue_une_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8282,14 +8467,17 @@ export interface components {
          *     * ``radio`` — the Radio bulletin of ``dossier_id`` (``GET /revue/radio/{id}``),
          *       listen first, then the dictée, then «C'est entendu»;
          *     * ``correcteur`` — ``CorrecteurDesk`` on a new draft of ``dossier_id``
-         *       (``POST /revue/correcteur/{id}``).
+         *       (``POST /revue/correcteur/{id}``);
+         *     * ``papier`` (``REVUE_PLANNED_STEP_ENABLED``) — the Papier itself, on the Papier
+         *       day only, after its ending: the player opens the week's Papier there
+         *       (``RvJourneyPapier``); ``seconds`` is what the plan priced it at.
          */
         DeskPrompt: {
             /**
              * Desk
              * @enum {string}
              */
-            desk: "relecture" | "radio" | "correcteur";
+            desk: "relecture" | "radio" | "correcteur" | "papier";
             /** Dossier Id */
             dossier_id: string | null;
             relecture: components["schemas"]["RelectureOffer"] | null;
@@ -10370,6 +10558,8 @@ export interface components {
             line_key?: string | null;
             /** Panel Id */
             panel_id?: string | null;
+            /** Revue Session Id */
+            revue_session_id?: string | null;
             /** Sentence */
             sentence: string;
             /** Speaker Id */
@@ -12771,6 +12961,20 @@ export interface components {
             prompt: components["schemas"]["RulePrompt"];
             status: components["schemas"]["StepStatus"];
         };
+        /**
+         * RvAffiche
+         * @description ``REVUE_QUARTIER_AFFICHE_ENABLED``: today's edition as the Quartier's Morris column
+         *     shows it — the story's headline (our French: the lead desk's headline, else the dossier
+         *     title) and whether this period's Papier is filed (the poster's «lu»).
+         */
+        RvAffiche: {
+            /** Done */
+            done: boolean;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Headline Fr */
+            headline_fr: string;
+        };
         /** RvAngle */
         RvAngle: {
             /** Fr */
@@ -12884,6 +13088,37 @@ export interface components {
             /** Options */
             options?: components["schemas"]["RvCaptionOption"][];
         };
+        /**
+         * RvCardAssignment
+         * @description The assignment a story is dealt for this learner («La photo»…): the chooser names it.
+         */
+        RvCardAssignment: {
+            /** Key */
+            key: string;
+            /** Name Fr */
+            name_fr: string;
+        };
+        /** RvCarteDePresse */
+        RvCarteDePresse: {
+            /** Pieces */
+            pieces: number;
+            /** Rubriques */
+            rubriques: components["schemas"]["RvCarteRubrique"][];
+            /** Since */
+            since?: string | null;
+        };
+        /** RvCarteRubrique */
+        RvCarteRubrique: {
+            /** First On */
+            first_on?: string | null;
+            /** Pieces */
+            pieces: number;
+            /**
+             * Rubrique
+             * @enum {string}
+             */
+            rubrique: "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
+        };
         /** RvClaim */
         RvClaim: {
             /** Attributed To */
@@ -12920,7 +13155,7 @@ export interface components {
         /** RvClosedWord */
         RvClosedWord: {
             /** Claim Id */
-            claim_id: string;
+            claim_id?: string | null;
             /** Fr */
             fr: string;
             /** Gloss */
@@ -12945,11 +13180,16 @@ export interface components {
             colophon_fr?: "La suite la semaine prochaine." | "La suite demain.";
             comptoir_page?: components["schemas"]["RvComptoirPage"] | null;
             dispatch: components["schemas"]["RvDispatch"];
+            fil_page?: components["schemas"]["RvFilPage"] | null;
+            intox_page?: components["schemas"]["RvIntoxPage"] | null;
             kept: components["schemas"]["RvKept"];
+            micro_page?: components["schemas"]["RvMicroPage"] | null;
+            photo_page?: components["schemas"]["RvPhotoPage"] | null;
             /** Question Kept Fr */
             question_kept_fr?: string | null;
             /** Romy Line Fr */
             romy_line_fr: string;
+            titre_page?: components["schemas"]["RvTitrePage"] | null;
             vignette?: components["schemas"]["VignetteView"] | null;
         };
         /** RvComptoirCast */
@@ -13046,6 +13286,14 @@ export interface components {
          *     ``start`` in ``draft_fr``) and what kind of slip it is; never the corrected words.
          */
         RvComptoirMark: {
+            /** Concept Id */
+            concept_id?: string | null;
+            /** Concept Name */
+            concept_name?: string | null;
+            /** Is Day Rule */
+            is_day_rule?: boolean | null;
+            /** Is Recent Rule */
+            is_recent_rule?: boolean | null;
             /**
              * Kind
              * @enum {string}
@@ -13058,6 +13306,38 @@ export interface components {
              * @default 0
              */
             start?: number;
+            /** Why */
+            why?: string | null;
+        };
+        /**
+         * RvComptoirNote
+         * @description «Le pourquoi», once the opinion is settled: one of Romy's marks with its rule in full
+         *     (``why``, the learner's mother tongue; it may show the corrected form now), the same
+         *     pattern in today's story (``example_fr``, found by the app, never written by the model)
+         *     and the grammar rule La Forge brings back (``rule_id``, the Correcteur's rule names).
+         */
+        RvComptoirNote: {
+            /** Concept Id */
+            concept_id?: string | null;
+            /** Concept Name */
+            concept_name?: string | null;
+            /** Example Fr */
+            example_fr?: string | null;
+            /** Is Day Rule */
+            is_day_rule?: boolean | null;
+            /** Is Recent Rule */
+            is_recent_rule?: boolean | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
+            /** Rule Id */
+            rule_id?: string | null;
+            /** Span Fr */
+            span_fr: string;
+            /** Why */
+            why?: string | null;
         };
         /** RvComptoirOpinion */
         RvComptoirOpinion: {
@@ -13075,6 +13355,8 @@ export interface components {
              * @default 2
              */
             max_tries?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
             /** Printed Fr */
             printed_fr?: string | null;
             /**
@@ -13313,6 +13595,20 @@ export interface components {
             /** Words */
             words?: components["schemas"]["RvWordEvidence"][];
         };
+        /**
+         * RvFilConnector
+         * @description A sequence word. ``tr`` (its gloss) and ``role`` only once the words step is resolved.
+         */
+        RvFilConnector: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /** Role */
+            role?: ("first" | "middle" | "last") | null;
+            /** Tr */
+            tr?: string | null;
+        };
         /** RvFiled */
         RvFiled: {
             /** Closed At */
@@ -13325,6 +13621,275 @@ export interface components {
             session_id: string;
             /** Title Fr */
             title_fr: string;
+        };
+        /**
+         * RvFilError
+         * @description Why an act was not recorded, for the copy in the learner's language: ``code`` and the
+         *     strips or words it is about.
+         */
+        RvFilError: {
+            /** After Key */
+            after_key?: string | null;
+            /** Code */
+            code: string;
+            /** Count */
+            count?: number | null;
+            /** Key */
+            key?: string | null;
+        };
+        /**
+         * RvFilHint
+         * @description After a wrong order: the first strip out of place (``key``) happens after ``after_key``.
+         */
+        RvFilHint: {
+            /** After Key */
+            after_key: string;
+            /** Key */
+            key: string;
+        };
+        /**
+         * RvFilMiss
+         * @description A sequence word put where it does not fit: what it means and where it goes.
+         */
+        RvFilMiss: {
+            /** Fr */
+            fr: string;
+            /** Id */
+            id: string;
+            /**
+             * Needs
+             * @enum {string}
+             */
+            needs: "first" | "middle" | "last";
+            /** Position */
+            position: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "first" | "middle" | "last";
+            /** Tr */
+            tr?: string | null;
+        };
+        /**
+         * RvFilOrder
+         * @description Step 2. ``strips`` in the order they were shown; ``solution`` (the keys in true order)
+         *     only once the order is resolved (right, or two tries used).
+         */
+        RvFilOrder: {
+            /** Correct */
+            correct?: boolean | null;
+            hint?: components["schemas"]["RvFilHint"] | null;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Placed */
+            placed?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string[];
+            /** Strips */
+            strips: components["schemas"]["RvFilStrip"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvFilPage
+         * @description «La page»: the wire printed in order, the learner's telling under their name.
+         */
+        RvFilPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Mine Fr */
+            mine_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Strips */
+            strips: components["schemas"]["RvFilPageStrip"][];
+            /** Title Fr */
+            title_fr: string;
+            /** Words */
+            words: string[];
+        };
+        /** RvFilPageStrip */
+        RvFilPageStrip: {
+            /** Connector Fr */
+            connector_fr: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvFilRequest */
+        RvFilRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "open" | "order" | "words" | "tell" | "tell_fix";
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Order */
+            order?: string[] | null;
+            /** Parts */
+            parts?: string[] | null;
+            /** Picks */
+            picks?: string[] | null;
+            /** Text */
+            text?: string | null;
+            /** Texts */
+            texts?: string[] | null;
+            /** Value */
+            value?: string | null;
+        };
+        /** RvFilResult */
+        RvFilResult: {
+            error?: components["schemas"]["RvFilError"] | null;
+            session: components["schemas"]["RvSessionView"];
+        };
+        /**
+         * RvFilStrip
+         * @description A dispatch of the wire at the learner's band. ``key`` is the session's own letter for
+         *     it (``a``–``d`` in the order it was shown): it says nothing of the true order.
+         */
+        RvFilStrip: {
+            /** Key */
+            key: string;
+            label?: components["schemas"]["RvComptoirText"] | null;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvFilTell
+         * @description Step 4. A1 builds two sentences from a sequence word and an event tile each (no model
+         *     call); A2 completes the two ``frames``; B1+ write freely with ``min_connectors`` of the
+         *     sequence words. From A2 Romy marks, the learner fixes (as at the counter).
+         */
+        RvFilTell: {
+            /** Connectors */
+            connectors?: components["schemas"]["RvFilConnector"][];
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Frames */
+            frames?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frames" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /**
+             * Min Connectors
+             * @default 0
+             */
+            min_connectors?: number;
+            /**
+             * Min Words
+             * @default 0
+             */
+            min_words?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Tiles */
+            tiles?: components["schemas"]["RvFilTile"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvFilTile */
+        RvFilTile: {
+            /** Key */
+            key: string;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /** RvFilView */
+        RvFilView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            order?: components["schemas"]["RvFilOrder"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "order" | "words" | "tell" | "page";
+            /** Steps */
+            steps: ("read" | "order" | "words" | "tell" | "page")[];
+            tell?: components["schemas"]["RvFilTell"] | null;
+            /** Title Fr */
+            title_fr: string;
+            words?: components["schemas"]["RvFilWords"] | null;
+        };
+        /**
+         * RvFilWords
+         * @description Step 3. ``place``: A1 puts its four words on the four strips; ``choose``: from A2 each
+         *     strip offers three (``options``), one per role.
+         */
+        RvFilWords: {
+            /** Connectors */
+            connectors: components["schemas"]["RvFilConnector"][];
+            /** Correct */
+            correct?: boolean | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "place" | "choose";
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Misses */
+            misses?: components["schemas"]["RvFilMiss"][];
+            /** Options */
+            options?: string[][];
+            /** Picked */
+            picked?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string[];
+            /** Strips */
+            strips: components["schemas"]["RvComptoirText"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
         };
         /** RvGloss */
         RvGloss: {
@@ -13464,6 +14029,157 @@ export interface components {
             line?: components["schemas"]["RvLineItem"] | null;
             made?: components["schemas"]["RvMade"] | null;
         };
+        /**
+         * RvIntoxCard
+         * @description One statement. Before it is answered only ``key`` and ``text``; after, the verdict,
+         *     ``why`` and, on a false statement or a miss, the source ``quote``.
+         */
+        RvIntoxCard: {
+            /** Answer */
+            answer?: ("vrai" | "faux") | null;
+            /** Correct */
+            correct?: boolean | null;
+            /** Key */
+            key: string;
+            quote?: components["schemas"]["RvRubriqueQuote"] | null;
+            text: components["schemas"]["RvComptoirText"];
+            /** True */
+            true?: boolean | null;
+            why?: components["schemas"]["RvComptoirText"] | null;
+            /** Wrong Fr */
+            wrong_fr?: string | null;
+        };
+        /** RvIntoxFix */
+        RvIntoxFix: {
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /** Items */
+            items: components["schemas"]["RvIntoxFixItem"][];
+            phrase: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvIntoxFixItem
+         * @description A false statement to make true. A1–A2 pick (``options``: the true value and another
+         *     of the same kind from the claims, per-session order); B1+ rewrite it. ``right_fr`` and
+         *     ``fixed`` only once resolved (right, or two tries).
+         */
+        RvIntoxFixItem: {
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            fixed?: components["schemas"]["RvComptoirText"] | null;
+            /** Key */
+            key: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            quote: components["schemas"]["RvRubriqueQuote"];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Right Fr */
+            right_fr?: string | null;
+            text: components["schemas"]["RvComptoirText"];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvIntoxPage
+         * @description «La page»: the five statements as they should read, the score, the corrections.
+         */
+        RvIntoxPage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Fixed */
+            fixed: number;
+            /** Lines */
+            lines: components["schemas"]["RvIntoxPageLine"][];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Score */
+            score: number;
+            /** Title Fr */
+            title_fr: string;
+            /** Total */
+            total: number;
+            /** Words */
+            words: string[];
+        };
+        /** RvIntoxPageLine */
+        RvIntoxPageLine: {
+            /** Answered Right */
+            answered_right: boolean;
+            /** Fixed Right */
+            fixed_right?: boolean | null;
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Text Fr */
+            text_fr: string;
+            /** Was False */
+            was_false: boolean;
+            /** Wrong Fr */
+            wrong_fr?: string | null;
+        };
+        /**
+         * RvIntoxRound
+         * @description Step 2: five statements one at a time; ``current`` is the one to answer.
+         */
+        RvIntoxRound: {
+            /**
+             * Answered
+             * @default 0
+             */
+            answered?: number;
+            /** Cards */
+            cards: components["schemas"]["RvIntoxCard"][];
+            /** Current */
+            current?: string | null;
+            /**
+             * Score
+             * @default 0
+             */
+            score?: number;
+            /**
+             * Total
+             * @default 5
+             */
+            total?: number;
+        };
+        /** RvIntoxView */
+        RvIntoxView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            fix?: components["schemas"]["RvIntoxFix"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            round?: components["schemas"]["RvIntoxRound"] | null;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "round" | "fix" | "page";
+            /** Steps */
+            steps: ("read" | "round" | "fix" | "page")[];
+            /** Title Fr */
+            title_fr: string;
+        };
         /** RvKept */
         RvKept: {
             /** Claims */
@@ -13514,7 +14230,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
+            kind: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
             /** Learner Fr */
             learner_fr?: string | null;
             /** Text Fr */
@@ -13544,7 +14260,7 @@ export interface components {
              * Recommended
              * @enum {string}
              */
-            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion";
+            recommended: "headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
         };
         /** RvMatchRequest */
         RvMatchRequest: {
@@ -13559,6 +14275,257 @@ export interface components {
             match: string | null;
             /** Romy Line Fr */
             romy_line_fr?: string | null;
+        };
+        /**
+         * RvMicroHint
+         * @description A slip the app saw in a question («inversion», «question_word»): the rule, said in the
+         *     learner's language, never the corrected question.
+         */
+        RvMicroHint: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "inversion" | "question_word";
+            /** Index */
+            index: number;
+        };
+        /**
+         * RvMicroHole
+         * @description One of Romy's notes with a hole («Combien ? ___»).
+         */
+        RvMicroHole: {
+            /**
+             * Filled
+             * @default false
+             */
+            filled?: boolean;
+            hole: components["schemas"]["RvComptoirText"];
+            /** Key */
+            key: string;
+        };
+        /**
+         * RvMicroInterview
+         * @description Step 3: three turns. A1 picks a question tile; A2 completes a frame; B1+ write.
+         */
+        RvMicroInterview: {
+            /**
+             * Done
+             * @default false
+             */
+            done?: boolean;
+            /** Frames */
+            frames?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Free
+             * @default true
+             */
+            free?: boolean;
+            /** Holes */
+            holes: components["schemas"]["RvMicroHole"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            phrase: components["schemas"]["RvComptoirText"];
+            /**
+             * Spent
+             * @default 0
+             */
+            spent?: number;
+            /** Tiles */
+            tiles?: components["schemas"]["RvMicroTile"][];
+            /**
+             * Total
+             * @default 3
+             */
+            total?: number;
+            /** Turns */
+            turns?: components["schemas"]["RvMicroTurn"][];
+            witness: components["schemas"]["RvRubriqueCast"];
+        };
+        /**
+         * RvMicroNote
+         * @description A hole to fill from the witness's line: A1–A2 pick (``options``), B1+ type.
+         */
+        RvMicroNote: {
+            answer: components["schemas"]["RvComptoirText"];
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            hole: components["schemas"]["RvComptoirText"];
+            /** Key */
+            key: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Value Fr */
+            value_fr?: string | null;
+        };
+        /** RvMicroNotes */
+        RvMicroNotes: {
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /** Items */
+            items: components["schemas"]["RvMicroNote"][];
+        };
+        /**
+         * RvMicroPage
+         * @description «La page»: the interview as Q&A under the learner's name, the facts' sources printed.
+         */
+        RvMicroPage: {
+            /** Byline Fr */
+            byline_fr: string;
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Lines */
+            lines: components["schemas"]["RvMicroPageLine"][];
+            /** Notes */
+            notes: components["schemas"]["RvMicroPageNote"][];
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Title Fr */
+            title_fr: string;
+            witness: components["schemas"]["RvRubriqueCast"];
+            /** Words */
+            words: string[];
+        };
+        /** RvMicroPageLine */
+        RvMicroPageLine: {
+            /** Answer Fr */
+            answer_fr: string;
+            /** Question Fr */
+            question_fr: string;
+            /** Source Name */
+            source_name: string;
+        };
+        /** RvMicroPageNote */
+        RvMicroPageNote: {
+            /** Hole Fr */
+            hole_fr: string;
+            /** Right */
+            right: boolean;
+            /** Value Fr */
+            value_fr: string;
+        };
+        /**
+         * RvMicroPrepare
+         * @description Step 2: what Romy still needs; the learner chooses ``need`` of them to go after.
+         */
+        RvMicroPrepare: {
+            /** Chosen */
+            chosen?: string[];
+            /** Holes */
+            holes: components["schemas"]["RvMicroHole"][];
+            /**
+             * Need
+             * @default 3
+             */
+            need?: number;
+        };
+        /**
+         * RvMicroReview
+         * @description Step 5: the learner's questions with Romy's marks, fix-it-yourself first.
+         */
+        RvMicroReview: {
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Hints */
+            hints?: components["schemas"]["RvMicroHint"][];
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "write";
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Questions */
+            questions: string[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvMicroTile */
+        RvMicroTile: {
+            /** Key */
+            key: string;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvMicroTurn
+         * @description One question and the witness's line. ``kind``: ``answer`` (a hole filled, ``hole_key``),
+         *     ``again`` (asked before), ``shrug`` (the story cannot answer). ``spent``: it used a turn.
+         *     A question's form is never judged here (the slips wait for «Relis tes questions»).
+         */
+        RvMicroTurn: {
+            answer: components["schemas"]["RvComptoirText"];
+            /** Hole Key */
+            hole_key?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "again" | "shrug";
+            /** Question Fr */
+            question_fr: string;
+            /** Spent */
+            spent: boolean;
+        };
+        /** RvMicroView */
+        RvMicroView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            interview?: components["schemas"]["RvMicroInterview"] | null;
+            notes?: components["schemas"]["RvMicroNotes"] | null;
+            prepare?: components["schemas"]["RvMicroPrepare"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            review?: components["schemas"]["RvMicroReview"] | null;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "prepare" | "interview" | "notes" | "review" | "page";
+            /** Steps */
+            steps: ("read" | "prepare" | "interview" | "notes" | "review" | "page")[];
+            /** Title Fr */
+            title_fr: string;
         };
         /** RvMineItem */
         RvMineItem: {
@@ -13602,8 +14569,13 @@ export interface components {
         };
         /** RvOffer */
         RvOffer: {
+            affiche?: components["schemas"]["RvAffiche"] | null;
             /** Alternatives */
             alternatives: components["schemas"]["RvStoryCard"][];
+            /** Choices */
+            choices?: components["schemas"]["RvStoryCard"][] | null;
+            /** Edition Date */
+            edition_date?: string | null;
             /** Evergreen Only */
             evergreen_only: boolean;
             filed?: components["schemas"]["RvFiled"] | null;
@@ -13615,6 +14587,327 @@ export interface components {
             recommended_reason: "topic_least_recent" | "interests" | "first";
             resume?: components["schemas"]["RvResume"] | null;
             week: components["schemas"]["RvWeek"];
+            /** Why Language */
+            why_language?: ("en" | "de" | "fr") | null;
+        };
+        /**
+         * RvPhotoBuild
+         * @description Step 4: the learner's caption for a picture of their choice. A1 builds it from a thing
+         *     seen and a fact (no model call); A2 completes ``frame``; B1+ write two sentences (what
+         *     the picture shows, then the news). Then Romy's marks, the learner's fix, as «Le titre».
+         */
+        RvPhotoBuild: {
+            /** Choices */
+            choices: components["schemas"]["RvPhotoChoice"][];
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Facts */
+            facts?: components["schemas"]["RvComptoirText"][];
+            frame?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Max Words */
+            max_words: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Picture */
+            picture?: string | null;
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoCaption
+         * @description One caption of the lead picture; ``role`` and ``why`` for a wrong one picked, and for
+         *     all once resolved.
+         */
+        RvPhotoCaption: {
+            /** Key */
+            key: string;
+            /** Role */
+            role?: ("right" | "wrong" | "other") | null;
+            text: components["schemas"]["RvComptoirText"];
+            why?: components["schemas"]["RvComptoirText"] | null;
+        };
+        /**
+         * RvPhotoChoice
+         * @description A picture «À toi» can caption, with what it shows (A1 tiles, the word bank from A2).
+         */
+        RvPhotoChoice: {
+            picture: components["schemas"]["RvPhotoPicture"];
+            /** Seen */
+            seen: components["schemas"]["RvComptoirText"][];
+        };
+        /**
+         * RvPhotoFix
+         * @description «Qu'est-ce qui est faux ?»: A1–A2 pick (``options``), B1+ rewrite. ``right_fr`` and
+         *     ``fixed`` only once resolved.
+         */
+        RvPhotoFix: {
+            /** Attempts */
+            attempts?: string[];
+            /** Correct */
+            correct?: boolean | null;
+            fixed?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "pick" | "write";
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Options */
+            options?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Right Fr */
+            right_fr?: string | null;
+            text: components["schemas"]["RvComptoirText"];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Wrong Fr */
+            wrong_fr: string;
+        };
+        /**
+         * RvPhotoLegende
+         * @description Step 3: the lead picture and three captions: find the one with the wrong fact (two
+         *     tries), then say what is wrong (``fix``).
+         */
+        RvPhotoLegende: {
+            /** Captions */
+            captions: components["schemas"]["RvPhotoCaption"][];
+            /** Correct */
+            correct?: boolean | null;
+            fix?: components["schemas"]["RvPhotoFix"] | null;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            picture: components["schemas"]["RvPhotoPicture"];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoPage
+         * @description «La page»: the picture printed large with the learner's caption, its credit, signed.
+         */
+        RvPhotoPage: {
+            /** Caption Fr */
+            caption_fr: string;
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            picture: components["schemas"]["RvPhotoPicture"];
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Title Fr */
+            title_fr: string;
+            /** Words */
+            words: string[];
+        };
+        /**
+         * RvPhotoPicture
+         * @description One picture of the story as the player shows it (``key`` per session), with its credit
+         *     and licence printed; never which one goes with the headline before it is found.
+         */
+        RvPhotoPicture: {
+            /** Credit Fr */
+            credit_fr: string;
+            /** Height */
+            height?: number | null;
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "illustration" | "photo";
+            /** Licence */
+            licence?: string | null;
+            /** Licence Url */
+            licence_url?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Url */
+            url: string;
+            /** Width */
+            width?: number | null;
+        };
+        /**
+         * RvPhotoPlanche
+         * @description Step 2: «Laquelle va avec ce titre ?» — pick the picture for the day's headline (two
+         *     tries; a miss says, in the mother tongue, what the picked picture shows), then ``seen``.
+         */
+        RvPhotoPlanche: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Headline Fr */
+            headline_fr: string;
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            /** Pictures */
+            pictures: components["schemas"]["RvPhotoPicture"][];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            seen?: components["schemas"]["RvPhotoSeen"] | null;
+            /** Shows */
+            shows?: components["schemas"]["RvComptoirText"][];
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvPhotoSeen
+         * @description «Qu'est-ce qu'on voit ?»: tap the things THIS picture shows. After a miss, ``elsewhere``
+         *     (tapped words another picture shows) and ``missing`` (how many are still to find), never
+         *     which; ``solution`` only once resolved.
+         */
+        RvPhotoSeen: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Elsewhere */
+            elsewhere?: number[];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /**
+             * Missing
+             * @default 0
+             */
+            missing?: number;
+            /** Picked */
+            picked?: number[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: number[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            /** Words */
+            words: components["schemas"]["RvPhotoWord"][];
+        };
+        /** RvPhotoView */
+        RvPhotoView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            build?: components["schemas"]["RvPhotoBuild"] | null;
+            legende?: components["schemas"]["RvPhotoLegende"] | null;
+            planche?: components["schemas"]["RvPhotoPlanche"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "planche" | "legende" | "build" | "page";
+            /** Steps */
+            steps: ("read" | "planche" | "legende" | "build" | "page")[];
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** RvPhotoWord */
+        RvPhotoWord: {
+            /** Index */
+            index: number;
+            text: components["schemas"]["RvComptoirText"];
+        };
+        /**
+         * RvPicture
+         * @description «Papier · photos» (2026-11-20): one picture of the story's gallery — a painted
+         *     illustration (``Illustration · Le Papier``) or a real photo from Wikimedia Commons, with
+         *     its French credit line (always printed), its licence and the link to its source.
+         */
+        RvPicture: {
+            /**
+             * Alt Fr
+             * @default
+             */
+            alt_fr?: string;
+            /** Caption Fr */
+            caption_fr?: string | null;
+            /** Credit Fr */
+            credit_fr: string;
+            /** Height */
+            height?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "illustration" | "photo";
+            /** Licence */
+            licence?: string | null;
+            /** Licence Url */
+            licence_url?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Url */
+            url: string;
+            /** Width */
+            width?: number | null;
         };
         /** RvPlanView */
         RvPlanView: {
@@ -13636,7 +14929,7 @@ export interface components {
              */
             gloss_language: "en" | "de" | "fr";
             /** Make Options */
-            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion")[];
+            make_options: ("headline_choice" | "headline_write" | "reader_question" | "short_report" | "caption" | "opinion" | "fil" | "titre" | "intox" | "photo" | "micro")[];
             support: components["schemas"]["RvSupport"];
             /**
              * Ui Language
@@ -13760,6 +15053,80 @@ export interface components {
             /** Used */
             used: number;
         };
+        /**
+         * RvRubriqueCast
+         * @description Who proposes («Le titre»: Gus, who exaggerates by character).
+         */
+        RvRubriqueCast: {
+            /** Id */
+            id: string;
+            /** Name Fr */
+            name_fr: string;
+            /** Role Fr */
+            role_fr: string;
+        };
+        /**
+         * RvRubriqueError
+         * @description Why an act was not recorded, for the copy in the learner's language.
+         */
+        RvRubriqueError: {
+            /** Code */
+            code: string;
+            /** Count */
+            count?: number | null;
+            /** Key */
+            key?: string | null;
+        };
+        /**
+         * RvRubriqueQuote
+         * @description The outlet's verbatim words (≤ 40), its name, and the words in it that settle the
+         *     point (``settles_fr``; empty: nothing is lit).
+         */
+        RvRubriqueQuote: {
+            /** Quote Fr */
+            quote_fr: string;
+            /**
+             * Settles Fr
+             * @default
+             */
+            settles_fr?: string;
+            /** Source Name */
+            source_name: string;
+        };
+        /** RvRubriqueRequest */
+        RvRubriqueRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "open" | "pick" | "trap" | "build" | "build_fix" | "answer" | "fix" | "choose" | "seen" | "caption" | "caption_fix" | "prepare" | "ask" | "note" | "review" | "review_fix";
+            /** Key */
+            key?: string | null;
+            /** Keys */
+            keys?: string[] | null;
+            /**
+             * Mode
+             * @default text
+             * @enum {string}
+             */
+            mode?: "text" | "voice";
+            /** Parts */
+            parts?: number[] | null;
+            /** Text */
+            text?: string | null;
+            /** Value */
+            value?: string | null;
+            /** Words */
+            words?: number[] | null;
+        };
+        /**
+         * RvRubriqueResult
+         * @description «Le titre», «L'intox express»: the session after one act, and why it was not recorded.
+         */
+        RvRubriqueResult: {
+            error?: components["schemas"]["RvRubriqueError"] | null;
+            session: components["schemas"]["RvSessionView"];
+        };
         /** RvSessionView */
         RvSessionView: {
             artifact?: components["schemas"]["RvMade"] | null;
@@ -13773,19 +15140,23 @@ export interface components {
             closing?: components["schemas"]["RvClosing"] | null;
             comptoir?: components["schemas"]["RvComptoirView"] | null;
             dossier: components["schemas"]["RvDossierView"];
+            fil?: components["schemas"]["RvFilView"] | null;
             /** Id */
             id: string;
+            intox?: components["schemas"]["RvIntoxView"] | null;
+            micro?: components["schemas"]["RvMicroView"] | null;
             /**
              * Mode
              * @default chat
              * @enum {string}
              */
-            mode?: "chat" | "comptoir";
+            mode?: "chat" | "comptoir" | "fil" | "titre" | "intox" | "photo" | "micro";
             /**
              * Own Line
              * @default false
              */
             own_line?: boolean;
+            photo?: components["schemas"]["RvPhotoView"] | null;
             plan: components["schemas"]["RvPlanView"];
             /** Quick Replies */
             quick_replies: components["schemas"]["RvQuickReply"][];
@@ -13802,7 +15173,9 @@ export interface components {
             steer_to_make: boolean;
             /** Thread */
             thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
+            titre?: components["schemas"]["RvTitreView"] | null;
             week: components["schemas"]["RvWeek"];
+            why?: components["schemas"]["RvWhy"] | null;
         };
         /** RvShiftItem */
         RvShiftItem: {
@@ -13881,6 +15254,35 @@ export interface components {
             /** Url */
             url: string;
         };
+        /**
+         * RvSouvenir
+         * @description One line in the mouth of a regular: French at the learner's band, with its translations.
+         */
+        RvSouvenir: {
+            /** About Session Id */
+            about_session_id: string;
+            /** De */
+            de: string;
+            /** En */
+            en: string;
+            /**
+             * Fact
+             * @enum {string}
+             */
+            fact: "stance" | "headline" | "intox_score" | "fil" | "count" | "opinion" | "photo" | "micro";
+            /** Fr */
+            fr: string;
+            /** Speaker Fr */
+            speaker_fr: string;
+            /** Speaker Id */
+            speaker_id: string;
+            /** Template Id */
+            template_id: string;
+        };
+        /** RvSouvenirResult */
+        RvSouvenirResult: {
+            line?: components["schemas"]["RvSouvenir"] | null;
+        };
         /** RvStage */
         RvStage: {
             /** Cast */
@@ -13892,6 +15294,8 @@ export interface components {
             dress: "coat" | "suit" | "apron" | "raincoat" | "sport" | "scarf_only" | "chef" | "hi_vis";
             /** Picture Words */
             picture_words?: components["schemas"]["RvGloss"][];
+            /** Pictures */
+            pictures?: components["schemas"]["RvPicture"][];
             /** Place Fr */
             place_fr: string;
             /** Place Id */
@@ -13927,6 +15331,8 @@ export interface components {
         RvStartRequest: {
             /** Angle Id */
             angle_id?: string | null;
+            /** Assignment */
+            assignment?: string | null;
             /** Dossier Id */
             dossier_id?: string | null;
             /** Free Request */
@@ -13936,6 +15342,7 @@ export interface components {
         };
         /** RvStoryCard */
         RvStoryCard: {
+            assignment?: components["schemas"]["RvCardAssignment"] | null;
             /** Cast */
             cast?: string[] | null;
             /** Dossier Id */
@@ -13960,6 +15367,7 @@ export interface components {
              * @enum {string}
              */
             topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
+            why?: components["schemas"]["RvWhy"] | null;
         };
         /**
          * RvSummaryItem
@@ -14008,6 +15416,326 @@ export interface components {
             translation: "one_tap" | "on_request" | "none";
             /** Vocab Target */
             vocab_target: number;
+        };
+        /**
+         * RvTitreBuild
+         * @description Step 4. A1 builds from a ``subjects`` tile and a ``facts`` tile (no model call); A2
+         *     completes ``frame``; B1+ write freely. Never with ``avoid_fr`` (the words that said too
+         *     much). From A2 Romy marks, the learner fixes (as «Le fil»).
+         */
+        RvTitreBuild: {
+            /** Avoid Fr */
+            avoid_fr: string;
+            /** Draft Fr */
+            draft_fr?: string | null;
+            /** Facts */
+            facts?: components["schemas"]["RvComptoirText"][];
+            frame?: components["schemas"]["RvComptoirText"] | null;
+            /**
+             * Input
+             * @enum {string}
+             */
+            input: "tiles" | "frame" | "free";
+            /** Learner Fr */
+            learner_fr?: string | null;
+            /** Marks */
+            marks?: components["schemas"]["RvComptoirMark"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Max Words */
+            max_words: number;
+            /** Notes */
+            notes?: components["schemas"]["RvComptoirNote"][];
+            phrase: components["schemas"]["RvComptoirText"];
+            /** Printed Fr */
+            printed_fr?: string | null;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Subjects */
+            subjects?: components["schemas"]["RvComptoirText"][];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvTitreOption
+         * @description One headline. ``role`` once the step is resolved; ``why`` and ``claim`` on a wrong
+         *     headline the learner picked (and on both wrong ones once resolved).
+         */
+        RvTitreOption: {
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Key */
+            key: string;
+            /** Role */
+            role?: ("honest" | "exaggerated" | "off") | null;
+            text: components["schemas"]["RvComptoirText"];
+            why?: components["schemas"]["RvComptoirText"] | null;
+        };
+        /**
+         * RvTitrePage
+         * @description «La page»: the story under the learner's headline, signed.
+         */
+        RvTitrePage: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /** Headline Fr */
+            headline_fr: string;
+            /** Honest Fr */
+            honest_fr: string;
+            /** Lead Fr */
+            lead_fr: string;
+            /** Phrase Fr */
+            phrase_fr: string;
+            /** Proof */
+            proof?: ("clean" | "marked" | "fixed" | "corrected" | "as_written") | null;
+            /** Words */
+            words: string[];
+        };
+        /**
+         * RvTitreThree
+         * @description Step 2. ``solution`` (the honest headline's key) only once resolved (right, or two tries).
+         */
+        RvTitreThree: {
+            by: components["schemas"]["RvRubriqueCast"];
+            /** Correct */
+            correct?: boolean | null;
+            /** Headlines */
+            headlines: components["schemas"]["RvTitreOption"][];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: string[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /**
+         * RvTitreTrap
+         * @description Step 3: tap the word(s) of the exaggerated headline that say too much. ``fine``: what
+         *     the last wrong try tapped that the claims do say (never the answer); ``solution`` (the
+         *     words' indices) only once resolved.
+         */
+        RvTitreTrap: {
+            claim?: components["schemas"]["RvClaim"] | null;
+            /** Correct */
+            correct?: boolean | null;
+            /** Fine */
+            fine?: number[];
+            headline: components["schemas"]["RvComptoirText"];
+            /**
+             * Max Tries
+             * @default 2
+             */
+            max_tries?: number;
+            /** Picked */
+            picked?: number[];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: number[];
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+            why?: components["schemas"]["RvComptoirText"] | null;
+            /** Words */
+            words: components["schemas"]["RvTitreWord"][];
+        };
+        /** RvTitreView */
+        RvTitreView: {
+            /**
+             * Band
+             * @enum {string}
+             */
+            band: "a1" | "a2" | "b1";
+            build?: components["schemas"]["RvTitreBuild"] | null;
+            read: components["schemas"]["RvComptoirRead"];
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "read" | "three" | "trap" | "build" | "page";
+            /** Steps */
+            steps: ("read" | "three" | "trap" | "build" | "page")[];
+            three?: components["schemas"]["RvTitreThree"] | null;
+            /** Title Fr */
+            title_fr: string;
+            trap?: components["schemas"]["RvTitreTrap"] | null;
+        };
+        /** RvTitreWord */
+        RvTitreWord: {
+            /** Fr */
+            fr: string;
+            /** Index */
+            index: number;
+        };
+        /** RvTmCue */
+        RvTmCue: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "1" | "2" | "3";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "picture" | "gloss";
+            picture?: components["schemas"]["RvPicture"] | null;
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * RvTmGap
+         * @description One sentence of the story's own text (its lead or its summary) with the word taken out.
+         */
+        RvTmGap: {
+            /** After Fr */
+            after_fr: string;
+            /** Before Fr */
+            before_fr: string;
+            /** Correct */
+            correct?: boolean | null;
+            miss?: components["schemas"]["RvTmGapMiss"] | null;
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Sentence Fr */
+            sentence_fr?: string | null;
+            /** Solution */
+            solution?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "lead" | "summary";
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvTmGapMiss */
+        RvTmGapMiss: {
+            /** Gloss */
+            gloss: string;
+            /**
+             * Word Key
+             * @enum {string}
+             */
+            word_key: "a" | "b" | "c";
+        };
+        /** RvTmMatch */
+        RvTmMatch: {
+            /** Correct */
+            correct?: boolean | null;
+            /** Misses */
+            misses?: components["schemas"]["RvTmMiss"][];
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved?: boolean;
+            /** Solution */
+            solution?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Tries
+             * @default 0
+             */
+            tries?: number;
+        };
+        /** RvTmMiss */
+        RvTmMiss: {
+            /**
+             * Cue Key
+             * @enum {string}
+             */
+            cue_key: "1" | "2" | "3";
+            /**
+             * Word Key
+             * @enum {string}
+             */
+            word_key: "a" | "b" | "c";
+        };
+        /** RvTmWord */
+        RvTmWord: {
+            /** Bare Fr */
+            bare_fr: string;
+            /** Fr */
+            fr: string;
+            /** Gloss */
+            gloss?: string | null;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "a" | "b" | "c";
+        };
+        /** RvTroisMots */
+        RvTroisMots: {
+            /** Cues */
+            cues: components["schemas"]["RvTmCue"][];
+            gap?: components["schemas"]["RvTmGap"] | null;
+            /**
+             * Kept Now
+             * @default 0
+             */
+            kept_now?: number;
+            match: components["schemas"]["RvTmMatch"];
+            /** Session Id */
+            session_id: string;
+            /**
+             * Step
+             * @enum {string}
+             */
+            step: "match" | "gap" | "done";
+            /** Words */
+            words: components["schemas"]["RvTmWord"][];
+        };
+        /** RvTroisMotsRequest */
+        RvTroisMotsRequest: {
+            /**
+             * Act
+             * @enum {string}
+             */
+            act: "match" | "gap";
+            /** Pairs */
+            pairs?: {
+                [key: string]: "1" | "2" | "3";
+            } | null;
+            /** Word */
+            word?: ("a" | "b" | "c") | null;
+        };
+        /** RvTroisMotsResult */
+        RvTroisMotsResult: {
+            /** Error */
+            error?: ("pair_all" | "unknown_key" | "out_of_order") | null;
+            round?: components["schemas"]["RvTroisMots"] | null;
         };
         /** RvTurnRequest */
         RvTurnRequest: {
@@ -14060,6 +15788,143 @@ export interface components {
             /** Text Fr */
             text_fr: string;
         };
+        /** RvUneItem */
+        RvUneItem: {
+            /** Corrections Fr */
+            corrections_fr?: string[];
+            /** Filed On */
+            filed_on: string;
+            /** Filed Weekday Fr */
+            filed_weekday_fr: string;
+            picture?: components["schemas"]["RvPicture"] | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "headline" | "caption" | "quote" | "vox" | "brief" | "rectificatif";
+            /**
+             * Rubrique
+             * @enum {string}
+             */
+            rubrique: "opinion" | "fil" | "titre" | "intox" | "photo" | "micro";
+            /** Score */
+            score?: number | null;
+            /** Session Id */
+            session_id: string;
+            /** Stance */
+            stance?: ("pour" | "contre" | "nuance") | null;
+            /** Story Title Fr */
+            story_title_fr: string;
+            /** Text Fr */
+            text_fr: string;
+            /** Total */
+            total?: number | null;
+        };
+        /** RvUneSemaine */
+        RvUneSemaine: {
+            /** Dateline Fr */
+            dateline_fr: string;
+            /**
+             * Due Today
+             * @default false
+             */
+            due_today?: boolean;
+            /** Items */
+            items: components["schemas"]["RvUneItem"][];
+            /** Lexique */
+            lexique: string[];
+            /** Pieces */
+            pieces: number;
+            /** Rubriques Filed */
+            rubriques_filed: number;
+            /**
+             * Rubriques Total
+             * @default 6
+             */
+            rubriques_total?: number;
+            week: components["schemas"]["RvWeek"];
+        };
+        /** RvVoixDictee */
+        RvVoixDictee: {
+            /** Max Tries */
+            max_tries: number;
+            /** Text Fr */
+            text_fr: string;
+            /** Words */
+            words: number;
+        };
+        /** RvVoixDicteeRequest */
+        RvVoixDicteeRequest: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt?: number;
+            /** Text */
+            text: string;
+        };
+        /** RvVoixDicteeResult */
+        RvVoixDicteeResult: {
+            /** Answer Fr */
+            answer_fr: string;
+            /** Attempt */
+            attempt: number;
+            /** Expected Fr */
+            expected_fr?: string | null;
+            /** Marks */
+            marks: components["schemas"]["RvVoixMark"][];
+            /** Max Tries */
+            max_tries: number;
+            /** Note */
+            note?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "met" | "partially_met" | "not_yet";
+            /** Resolved */
+            resolved: boolean;
+        };
+        /** RvVoixLine */
+        RvVoixLine: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "lead" | "take" | "reply" | "last_word";
+            /** Speaker Id */
+            speaker_id: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** RvVoixManifest */
+        RvVoixManifest: {
+            /**
+             * Audio
+             * @enum {string}
+             */
+            audio: "ready" | "device";
+            dictee?: components["schemas"]["RvVoixDictee"] | null;
+            /** Lines */
+            lines: components["schemas"]["RvVoixLine"][];
+            /** Newsreader Id */
+            newsreader_id: string;
+        };
+        /** RvVoixMark */
+        RvVoixMark: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accord" | "conjugaison" | "genre" | "orthographe" | "mot" | "ordre" | "manque";
+            /** Span Fr */
+            span_fr: string;
+            /**
+             * Start
+             * @default 0
+             */
+            start?: number;
+        };
         /** RvWeek */
         RvWeek: {
             /** Iso */
@@ -14068,6 +15933,45 @@ export interface components {
             label: string;
             /** Range */
             range: string;
+        };
+        /**
+         * RvWhy
+         * @description «Papier · le choix» (2026-11-22): why pedagogy offered a story — the learner's due words its
+         *     French contains, the rule it gives occasion to use, the interest it meets, and its score.
+         */
+        RvWhy: {
+            /** Due Words */
+            due_words: string[];
+            interest?: components["schemas"]["RvWhyInterest"] | null;
+            rule?: components["schemas"]["RvWhyRule"] | null;
+            /**
+             * Score
+             * @default 0
+             */
+            score?: number;
+        };
+        /**
+         * RvWhyInterest
+         * @description The learner's interest a story meets: the story's topic when it matched, and their word.
+         */
+        RvWhyInterest: {
+            /** Topic */
+            topic: string;
+            /** Word */
+            word: string;
+        };
+        /**
+         * RvWhyRule
+         * @description The grammar rule a story gives occasion to use: its id, its name in the mother tongue,
+         *     and whether it is the day's own (else the most recent of the week's).
+         */
+        RvWhyRule: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Today */
+            today: boolean;
         };
         /** RvWordEvidence */
         RvWordEvidence: {
@@ -22954,6 +24858,26 @@ export interface operations {
             };
         };
     };
+    read_carte_de_presse_api_v1_revue_carte_de_presse_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvCarteDePresse"];
+                };
+            };
+        };
+    };
     read_carte_review_api_v1_revue_carte_review__place_id__get: {
         parameters: {
             query?: never;
@@ -23498,6 +25422,41 @@ export interface operations {
             };
         };
     };
+    post_fil_api_v1_revue_sessions__session_id__fil_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvFilRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvFilResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_make_options_api_v1_revue_sessions__session_id__make_get: {
         parameters: {
             query?: never;
@@ -23564,6 +25523,138 @@ export interface operations {
             };
         };
     };
+    post_rubrique_api_v1_revue_sessions__session_id__rubrique_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvRubriqueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvRubriqueResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_souvenir_api_v1_revue_sessions__session_id__souvenir_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvSouvenirResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_trois_mots_api_v1_revue_sessions__session_id__trois_mots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvTroisMotsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_trois_mots_api_v1_revue_sessions__session_id__trois_mots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvTroisMotsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvTroisMotsResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_turn_api_v1_revue_sessions__session_id__turns_post: {
         parameters: {
             query?: never;
@@ -23586,6 +25677,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RvTurnResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_voix_api_v1_revue_sessions__session_id__voix_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvVoixManifest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grade_voix_dictee_api_v1_revue_sessions__session_id__voix_dictee_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RvVoixDicteeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvVoixDicteeResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speak_voix_line_api_v1_revue_sessions__session_id__voix_line_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LineAudioRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineAudioResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_une_api_v1_revue_une_get: {
+        parameters: {
+            query?: {
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RvUneSemaine"];
                 };
             };
             /** @description Validation Error */

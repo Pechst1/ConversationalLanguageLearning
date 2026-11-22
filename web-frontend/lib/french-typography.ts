@@ -25,6 +25,10 @@ const HIGH_PUNCT_GLUED = /([A-Za-zÀ-ÖØ-öø-ÿŒœ])([!?;])/g;
 // A guillemet glued to its word: «Bonjour» → « Bonjour »
 const OPEN_QUOTE_GLUED = /«(?=[^\s ])/g;
 const CLOSE_QUOTE_GLUED = /([^\s ])»/g;
+// Tirage 2026-11-22: a number and its «%», and a number's thousands («2 400», «9,9 %»), never
+// part at a line end (a real pull quote printed «9,9» / «% sur un an» on two lines).
+const SPACE_BEFORE_PERCENT = /(\d)[ \u00a0\u202f]+%/g;
+const DIGIT_GROUPS = /(\d)[ \u00a0](?=\d{3}(?!\d))/g;
 // WP-144b: a typewriter apostrophe between two letters («d'Odile») is set as the
 // typographic one («d’Odile»), as French print does.
 const STRAIGHT_APOSTROPHE = /([A-Za-zÀ-ÖØ-öø-ÿŒœ])'(?=[A-Za-zÀ-ÖØ-öø-ÿŒœ])/g;
@@ -38,6 +42,8 @@ export function frenchSpacing(text: string | null | undefined): string {
   return text
     .replace(STRAIGHT_APOSTROPHE, '$1’')
     .replace(SPACE_BEFORE_HIGH_PUNCT, `${NNBSP}$1`)
+    .replace(SPACE_BEFORE_PERCENT, `$1${NNBSP}%`)
+    .replace(DIGIT_GROUPS, `$1${NNBSP}`)
     .replace(HIGH_PUNCT_GLUED, `$1${NNBSP}$2`)
     .replace(SPACE_AFTER_OPEN_QUOTE, `«${NNBSP}`)
     .replace(OPEN_QUOTE_GLUED, `«${NNBSP}`)

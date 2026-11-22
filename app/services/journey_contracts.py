@@ -385,6 +385,19 @@ class StepKind(StrEnum):
 #: The three desks a «bureau» step can open (``public_prompt["desk"]``).
 DESK_KINDS: tuple[str, ...] = ("relecture", "radio", "correcteur")
 
+#: ``REVUE_PLANNED_STEP_ENABLED``: the Papier itself as the Papier day's desk step —
+#: one optional step after the ending, never dealt by ``choose_desk`` (which only
+#: deals :data:`DESK_KINDS` on an ordinary day).
+PAPIER_DESK = "papier"
+
+
+def is_papier_step(step: Any) -> bool:
+    """Is ``step`` the Papier day's ``papier`` desk step?"""
+
+    return getattr(step, "kind", None) is StepKind.DESK and str(
+        (getattr(step, "public_prompt", None) or {}).get("desk") or ""
+    ) == PAPIER_DESK
+
 #: Phase 2: the steps that make up an act, in the order they are played. A day
 #: of several acts plays them back to back, nothing between them.
 ACT_STEP_KINDS: tuple[StepKind, ...] = (StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION)
@@ -1218,7 +1231,9 @@ class PlannedJourney:
         """
 
         return sum(
-            step.estimated_seconds for step in self.steps if step.kind not in EXTENSION_STEP_KINDS
+            step.estimated_seconds
+            for step in self.steps
+            if step.kind not in EXTENSION_STEP_KINDS or is_papier_step(step)
         )
 
     def extension_seconds(self) -> dict[str, int]:
@@ -1226,7 +1241,9 @@ class PlannedJourney:
 
         out: dict[str, int] = {}
         for step in self.steps:
-            if step.kind in EXTENSION_STEP_KINDS:
+            # The Papier day's Papier is half of that day, not an extension: its
+            # minutes are the core's (Home's figure, the day's header).
+            if step.kind in EXTENSION_STEP_KINDS and not is_papier_step(step):
                 key = EXTENSION_STEP_KINDS[step.kind]
                 out[key] = out.get(key, 0) + int(step.estimated_seconds)
         return out
@@ -1248,9 +1265,19 @@ class PlannedJourney:
             raise ValueError("only a practice day plays more than one act")
         rule = day_shape_rule(self.day_shape)
         shape = str(self.day_shape)
-        if len(self.steps) > MAX_PLANNED_STEPS:
-            raise ValueError(f"plan has {len(self.steps)} steps, max {MAX_PLANNED_STEPS}")
-        kinds = [step.kind for step in self.steps]
+        # REVUE_PLANNED_STEP_ENABLED: the Papier day may end on the Papier itself, one
+        # optional desk step after the ending. It is the day's second half, not part
+        # of the story's envelope, so the story is checked without it.
+        steps = list(self.steps)
+        if steps and is_papier_step(steps[-1]):
+            if shape != str(DayShape.REVUE):
+                raise ValueError("only the Papier day plans the Papier")
+            if not steps[-1].optional:
+                raise ValueError("the Papier step is optional")
+            steps = steps[:-1]
+        if len(steps) > MAX_PLANNED_STEPS:
+            raise ValueError(f"plan has {len(steps)} steps, max {MAX_PLANNED_STEPS}")
+        kinds = [step.kind for step in steps]
         first_day = self.shape_reason == "first_day"
         # WP-93 walk: the first day may open on its warm-ups (the words the
         # reply will ask for); every other classic day opens on the scene.
@@ -1287,10 +1314,10 @@ class PlannedJourney:
         if [step.ordinal for step in self.steps] != list(range(len(self.steps))):
             raise ValueError("step ordinals must be a stable 0..n-1 sequence")
 
-        if not rule.min_steps <= len(self.steps) <= rule.max_steps:
+        if not rule.min_steps <= len(steps) <= rule.max_steps:
             raise ValueError(
                 f"a {shape} day holds {rule.min_steps}..{rule.max_steps} steps, "
-                f"not {len(self.steps)}"
+                f"not {len(steps)}"
             )
         if not rule.min_recall <= recalls <= rule.max_recall:
             raise ValueError(
@@ -1298,7 +1325,7 @@ class PlannedJourney:
                 f"step(s), not {recalls}"
             )
         if rule.allowed_formats:
-            for step in self.steps:
+            for step in steps:
                 if step.kind is not StepKind.RECALL:
                     continue
                 task_type = str(getattr(step.private_task, "task_type", "") or "")
@@ -1306,20 +1333,20 @@ class PlannedJourney:
                     raise ValueError(
                         f"a {shape} day cannot pose a {task_type} recall"
                     )
-        for step in self.steps:
+        for step in steps:
             gap = recall_goal_gap(step) if step.kind is StepKind.RECALL else None
             if gap:
                 raise ValueError(gap)
 
         mandatory = sum(
-            step.estimated_seconds for step in self.steps if not step.optional
+            step.estimated_seconds for step in steps if not step.optional
         )
         if self.longer_day:
             # WP-128: a longer day is the story alone, never padded past the rhythm.
             if any(
                 step.kind not in (StepKind.SCENE, StepKind.RESPOND, StepKind.RESOLUTION)
                 and step.estimated_seconds > 0
-                for step in self.steps
+                for step in steps
             ):
                 raise ValueError("a longer day holds the story only")
         elif mandatory > self.budget_seconds:

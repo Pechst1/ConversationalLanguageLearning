@@ -1,0 +1,869 @@
+{
+ "recorded": "2026-11-22, live commons.wikimedia.org API (HTTP/2), first real Papier run; trimmed to the first 4 pages of each search and the extmetadata keys the filter reads",
+ "dossier": {
+  "id": "2026-w40-le-budget-2027-prevoit-des-economies-et-des-changements-pour",
+  "week": "2026-W40",
+  "leads": {
+   "a1": {
+    "de": "Die Regierung legt am 1. Oktober 2026 den Haushalt 2027 vor. Der Plan sieht Einsparungen von 54 Milliarden Euro vor. Er schlägt geringere Erhöhungen für Renten von mehr als 1.260 Euro vor.",
+    "en": "The government presents the 2027 budget on October 1, 2026. The plan includes 54 billion euros in savings. It proposes smaller increases for pensions over 1,260 euros.",
+    "fr": "Le gouvernement présente le budget 2027 le 1er octobre 2026. Le projet prévoit 54 milliards d’euros d’économies. Il propose de moins augmenter les pensions de plus de 1 260 euros."
+   },
+   "a2": {
+    "de": "Die Regierung legt am 1. Oktober 2026 den Haushaltsentwurf 2027 vor. Er sieht Einsparungen von 54 Milliarden Euro vor. Die Regierung schlägt außerdem vor, Renten von mehr als 1.260 Euro nicht vollständig an die Inflation anzupassen. Das Parlament muss diese Maßnahmen debattieren.",
+    "en": "The government presents the 2027 budget proposal on October 1, 2026. It includes 54 billion euros in savings. The government also proposes not to increase pensions over 1,260 euros fully in line with inflation. Parliament must debate these measures.",
+    "fr": "Le gouvernement présente le projet de budget 2027 le 1er octobre 2026. Il prévoit 54 milliards d’euros d’économies. Le gouvernement propose aussi de ne pas augmenter entièrement avec l’inflation les pensions supérieures à 1 260 euros. Le Parlement doit débattre de ces mesures."
+   },
+   "headline_fr": "Le budget change les pensions"
+  },
+  "topic": "politics",
+  "angles": [
+   {
+    "fr": "Quelles étapes le projet de budget doit-il encore suivre au Parlement ?",
+    "id": "a1",
+    "purpose": "understand_change",
+    "guest_fit": null,
+    "participation": "none"
+   },
+   {
+    "fr": "Comment le projet répartit-il les économies entre les finances publiques et les retraités ?",
+    "id": "a2",
+    "purpose": "choose_angle",
+    "guest_fit": null,
+    "participation": "none"
+   }
+  ],
+  "claims": [
+   {
+    "fr": "Le gouvernement présente le projet de budget 2027 le 1er octobre 2026.",
+    "id": "c1",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "kind": "fact",
+    "quote": "Présenté jeudi 1er octobre par le Gouvernement",
+    "source_id": "rt_budget_lfpt",
+    "confidence": "reported",
+    "published_at": "2026-10-02",
+    "attributed_to": null
+   },
+   {
+    "fr": "Le projet de budget prévoit 54 milliards d’euros d’économies.",
+    "id": "c2",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "kind": "fact",
+    "quote": "Le projet de loi de finances (PLF) 2027, qui prévoit 54 milliards d’euros d’économies",
+    "source_id": "rt_budget_lfpt",
+    "confidence": "reported",
+    "published_at": "2026-10-02",
+    "attributed_to": null
+   },
+   {
+    "fr": "Le gouvernement présente la baisse du déficit comme un choix pour protéger l’avenir du pays.",
+    "id": "c3",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "kind": "interpretation",
+    "quote": "sauvegarder l’avenir de notre pays, en réduisant le déficit public tout en continuant à investir pour les futures générations.",
+    "source_id": "rt_budget_lfpt",
+    "confidence": "reported",
+    "published_at": "2026-10-02",
+    "attributed_to": "Le Gouvernement"
+   },
+   {
+    "fr": "Le gouvernement propose de ne pas indexer entièrement sur l’inflation les pensions supérieures à 1 260 euros.",
+    "id": "c4",
+    "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+    "kind": "fact",
+    "quote": "le gouvernement propose que les pensions supérieures à 1 260 euros, soit 85% du smic net, ne soient pas indexées intégralement sur l'inflation",
+    "source_id": "rt_budget_franceinfo",
+    "confidence": "reported",
+    "published_at": "2026-10-02",
+    "attributed_to": null
+   }
+  ],
+  "places": [
+   {
+    "id": "paris",
+    "geo": {
+     "lat": 48.8738,
+     "lon": 2.295,
+     "label_fr": "Arc de Triomphe, place Charles-de-Gaulle",
+     "precision": "exact"
+    },
+    "brief": "Paris : la tour Eiffel, l’Arc de Triomphe et Notre-Dame ; lumière claire de journée.",
+    "known": false,
+    "name_fr": "Paris"
+   }
+  ],
+  "visual": {
+   "kind": "editorial",
+   "light": "Clear morning light from a window",
+   "words": [
+    {
+     "fr": "le budget",
+     "shows": "The oversized book marked « 2027 » on the heavy side of the scale"
+    },
+    {
+     "fr": "les pensions",
+     "shows": "The small coin and the strip marked « 1 260 euros » on the raised side"
+    }
+   ],
+   "moment": "A giant 2027 budget book sits on one side of a kitchen scale, weighed against a small pension coin on the other. The scale’s needle points toward the budget, while a narrow strip marked « 1 260 euros » lies beside the coin.",
+   "symbol": "A giant 2027 budget book outweighing a small pension coin on a tilted kitchen scale",
+   "look_fr": "Regarde : le budget pèse sur la balance. Les pensions sont de l’autre côté.",
+   "decoys_fr": [
+    "À Paris, le budget 2027 pèse plus lourd que les pensions sur une balance de cuisine.",
+    "À Paris, les pensions pèsent plus lourd que le budget 2027 sur une balance."
+   ],
+   "viewpoint": "Close to the scale at eye level, with the giant budget book filling the left side of the frame",
+   "caption_fr": "À Paris, le budget 2027 pèse plus lourd que les pensions sur une balance."
+  },
+  "sources": [
+   {
+    "id": "rt_budget_lfpt",
+    "url": "https://www.lafinancepourtous.com/2026/10/02/projet-de-loi-de-finances-pour-2027-les-mesures-pour-les-particuliers/",
+    "name": "La finance pour tous (Institut pour l'éducation financière du public)",
+    "published_at": "2026-10-02"
+   },
+   {
+    "id": "rt_budget_franceinfo",
+    "url": "https://www.franceinfo.fr/economie/retraite/sous-indexation-des-pensions-abattement-fiscal-rabote-arbitrages-renvoyes-au-parlement-que-prevoit-le-budget-2027-pour-les-retraites_8218297.html",
+    "name": "franceinfo",
+    "published_at": "2026-10-02"
+   }
+  ],
+  "entities": [
+   {
+    "kind": "organisation",
+    "name": "Le Gouvernement",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Assemblée nationale",
+    "role": null
+   },
+   {
+    "kind": "organisation",
+    "name": "Sénat",
+    "role": null
+   }
+  ],
+  "title_fr": "Le budget 2027 prévoit des économies et des changements pour les pensions",
+  "evergreen": false,
+  "summary_fr": "Le gouvernement présente son projet de budget 2027 le 1er octobre. Il prévoit 54 milliards d’euros d’économies et propose de limiter l’indexation de certaines pensions. Le Parlement doit débattre de ces mesures.",
+  "time_scope": {
+   "happening": "2026-10-01/2026-10-01",
+   "relevant_until": "2026-10-04"
+  },
+  "uncertainties": [
+   {
+    "fr": "Le Parlement n’a pas encore débattu des mesures du projet.",
+    "id": "u1"
+   },
+   {
+    "fr": "Les sources ne précisent pas quels niveaux de pension pourraient augmenter ni à quel taux.",
+    "id": "u2"
+   },
+   {
+    "fr": "Les sources ne donnent pas le calendrier complet des débats parlementaires.",
+    "id": "u3"
+   }
+  ],
+  "dossier_version": "revue-v1",
+  "vignette_object_fr": "un budget"
+ },
+ "responses": {
+  "Arc de Triomphe, place Charles-de-Gaulle": {
+   "batchcomplete": true,
+   "query": {
+    "pages": [
+     {
+      "pageid": 2958985,
+      "ns": 6,
+      "title": "File:Arc Triomphe.jpg",
+      "index": 1,
+      "imageinfo": [
+       {
+        "width": 3929,
+        "height": 4260,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Arc_Triomphe.jpg/1280px-Arc_Triomphe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 1388,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Arc_Triomphe.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Arc_Triomphe.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Arc Triomphe",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Base Mérimée|GFDL|Taken with Canon EOS 400D|License migration redundant|Featured pictures of Paris|Self-published work|Featured pictures on Wikipedia, English|Featured night photography|Paris photographs taken on 2007-10-21|Featured pictures on Wikipedia, Indonesian|Featured pictures on Wikipedia, Japanese|Featured pictures on Wikipedia, Persian|Featured pictures on Wikipedia, Spanish|Featured pictures on Wikipedia, Turkish|Featured pictures on Wikipedia, Vietnamese|Mérimée with PA parameter|Cultural heritage monuments in France with known IDs|Mérimée without type parameter|Featured pictures by Benh|Featured pictures on Wikipedia, Arabic|Automobile light trails in Paris|Back left views of the Arc de Triomphe de l'Étoile in the 2000s|Arc de Triomphe de l'Étoile at blue hour",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "L'Arc de Triomphe de l'Étoile, au centre de la place Charles de Gaulle, à Paris.",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Benh\" title=\"User:Benh\">Benh LIEU SONG</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 3.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/3.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-3.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 147065481,
+      "ns": 6,
+      "title": "File:Arc de Triomphe de l'Étoile at night vertical fix.jpg",
+      "index": 2,
+      "imageinfo": [
+       {
+        "width": 6784,
+        "height": 4863,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Arc_de_Triomphe_de_l%27%C3%89toile_at_night_vertical_fix.jpg/1280px-Arc_de_Triomphe_de_l%27%C3%89toile_at_night_vertical_fix.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 918,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Arc_de_Triomphe_de_l%27%C3%89toile_at_night_vertical_fix.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Arc_de_Triomphe_de_l%27%C3%89toile_at_night_vertical_fix.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Arc de Triomphe de l'Étoile at night vertical fix",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "CC-Zero|Featured pictures of Paris|Self-published work|Featured pictures by User:Wilfredor|Arc de Triomphe de l'Étoile in the 2020s|Featured pictures supported by Wikimedia Canada|Paris photographs taken on 2024-01-26|Featured photographs in the public domain|Images from Paris Project|Media created with Nikon Z7ii provided by the Quebec WikiClub|Arc de Triomphe de l'Étoile at blue hour",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Arc de Triomphe de l'Étoile de nuit, Paris, France.",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<bdi><a href=\"https://www.wikidata.org/wiki/Q115464159\" class=\"extiw\" title=\"d:Q115464159\"><span title=\"analyste développeur et photographe\">Wilfredo Rafael Rodriguez Hernandez</span></a></bdi>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 67065530,
+      "ns": 6,
+      "title": "File:Auto op de Place de l'Étoile, in de koplamp is de weerspiegeling van de Arc de T, Bestanddeelnr 191-0354.jpg",
+      "index": 3,
+      "imageinfo": [
+       {
+        "width": 3499,
+        "height": 2545,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Auto_op_de_Place_de_l%27%C3%89toile%2C_in_de_koplamp_is_de_weerspiegeling_van_de_Arc_de_T%2C_Bestanddeelnr_191-0354.jpg/1280px-Auto_op_de_Place_de_l%27%C3%89toile%2C_in_de_koplamp_is_de_weerspiegeling_van_de_Arc_de_T%2C_Bestanddeelnr_191-0354.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 931,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Auto_op_de_Place_de_l%27%C3%89toile%2C_in_de_koplamp_is_de_weerspiegeling_van_de_Arc_de_T%2C_Bestanddeelnr_191-0354.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Auto_op_de_Place_de_l%27%C3%89toile,_in_de_koplamp_is_de_weerspiegeling_van_de_Arc_de_T,_Bestanddeelnr_191-0354.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "<div class=\"fn\">\nAuto op de Place de l'Ãtoile, in de koplamp is de weerspiegeling van de Arc de Triomphe te zien</div>",
+          "source": "commons-desc-page"
+         },
+         "Categories": {
+          "value": "CC-Zero|Images from Nationaal Archief|Featured pictures of Paris|Automobile headlamps|Featured pictures of automobiles|Arc de Triomphe de l'Étoile in the 1930s|Glass plate photographs|Reflections on automobiles|1935 photographs of France|Featured black and white photographs|Photographs by Willem van de Poll in Paris (1935)|Featured photographs in the public domain|Reflections in Paris|Black and white photographs of automobiles in Paris|1935 black and white photographs of automobiles in France",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "Artist": {
+          "value": "<bdi><a href=\"https://en.wikipedia.org/wiki/fr:Willem_van_de_Poll\" class=\"extiw\" title=\"w:fr:Willem van de Poll\"><span title=\"photographe de presse néerlandais\">Willem van de Poll</span></a></bdi>",
+          "source": "commons-desc-page"
+         },
+         "ImageDescription": {
+          "value": "A car at <a href=\"https://en.wikipedia.org/wiki/Place_Charles_de_Gaulle\" class=\"extiw\" title=\"w:Place Charles de Gaulle\">Place de l'Étoile</a> with the <a href=\"https://en.wikipedia.org/wiki/Arc_de_Triomphe\" class=\"extiw\" title=\"w:Arc de Triomphe\">Arc de Triomphe</a> reflected in the headlamp.",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 27959644,
+      "ns": 6,
+      "title": "File:Avenue des Champs-Elysées from top of Arc de triomphe Paris.jpg",
+      "index": 4,
+      "imageinfo": [
+       {
+        "width": 2073,
+        "height": 3115,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Avenue_des_Champs-Elys%C3%A9es_from_top_of_Arc_de_triomphe_Paris.jpg/1280px-Avenue_des_Champs-Elys%C3%A9es_from_top_of_Arc_de_triomphe_Paris.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 1923,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/3/35/Avenue_des_Champs-Elys%C3%A9es_from_top_of_Arc_de_triomphe_Paris.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Avenue_des_Champs-Elys%C3%A9es_from_top_of_Arc_de_triomphe_Paris.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Avenue des Champs-Elysées from top of Arc de triomphe Paris",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Taken with Sony DSLR-A550|CC-Zero|Retouched pictures|Images with annotations|Featured pictures of Paris|Les Cars Rouges|Self-published work|Champs-Élysées from the Arc de Triomphe|May 2013 in Paris|Featured pictures on Wikipedia, Persian|Featured pictures on Wikipedia, Vietnamese|Featured pictures of cityscapes|France photographs taken on 2013-05-02|Zebra crossings in Paris|Featured pictures by Jebulon|Featured pictures of road transport|Files with coordinates missing SDC location of creation (48° N, 2° E)|Featured photographs in the public domain|Top views of buses|Unidentified buses in Paris",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "L'Avenue des Champs-Elysées depuis le sommet de l'Arc de Triomphe à Paris.",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Jebulon\" title=\"User:Jebulon\">Jebulon</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "budget": {
+   "batchcomplete": true,
+   "query": {
+    "pages": [
+     {
+      "pageid": 83389800,
+      "ns": 6,
+      "title": "File:Wellbeing Budget Process New Zealand.png",
+      "index": 1,
+      "imageinfo": [
+       {
+        "width": 1250,
+        "height": 1138,
+        "thumburl": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Wellbeing_Budget_Process_New_Zealand.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "thumbwidth": 1280,
+        "thumbheight": 1165,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Wellbeing_Budget_Process_New_Zealand.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Wellbeing_Budget_Process_New_Zealand.png",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Wellbeing Budget Process New Zealand",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Budget|Economic diagrams",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Wellbeing Budget Process New Zealand",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "Treasury of New Zealand",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/png"
+       }
+      ]
+     },
+     {
+      "pageid": 130787608,
+      "ns": 6,
+      "title": "File:EU budget 2022.png",
+      "index": 2,
+      "imageinfo": [
+       {
+        "width": 636,
+        "height": 673,
+        "thumburl": "https://upload.wikimedia.org/wikipedia/commons/6/6b/EU_budget_2022.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "thumbwidth": 1280,
+        "thumbheight": 1354,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/EU_budget_2022.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:EU_budget_2022.png",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "EU budget 2022",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Self-published work|English-language pie charts|Charts of European Union budgets",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Source: Official Journal, Definitive Adoption 2022/182 (24.2.2022) L 45/18-29",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Wikidea\" title=\"User:Wikidea\">Wikidea</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/png"
+       }
+      ]
+     },
+     {
+      "pageid": 130788391,
+      "ns": 6,
+      "title": "File:EU budget 2022, long format.png",
+      "index": 3,
+      "imageinfo": [
+       {
+        "width": 743,
+        "height": 530,
+        "thumburl": "https://upload.wikimedia.org/wikipedia/commons/5/5a/EU_budget_2022%2C_long_format.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "thumbwidth": 1280,
+        "thumbheight": 913,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/5/5a/EU_budget_2022%2C_long_format.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:EU_budget_2022,_long_format.png",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "EU budget 2022, long format",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "2022 in economics|Self-published work|Charts of the European Union|Other images that should use vector graphics|PNG that should use vector graphics|2022 in the European Union|English-language pie charts|Charts of European Union budgets",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Source: Official Journal, Definitive Adoption 2022/182 (24.2.2022) L 45/18-29",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Wikidea\" title=\"User:Wikidea\">Wikidea</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/png"
+       }
+      ]
+     },
+     {
+      "pageid": 144876070,
+      "ns": 6,
+      "title": "File:Оборонний Бюджет на 2024 рік.jpg",
+      "index": 4,
+      "imageinfo": [
+       {
+        "width": 1200,
+        "height": 676,
+        "thumburl": "https://upload.wikimedia.org/wikipedia/commons/8/89/%D0%9E%D0%B1%D0%BE%D1%80%D0%BE%D0%BD%D0%BD%D0%B8%D0%B9_%D0%91%D1%8E%D0%B4%D0%B6%D0%B5%D1%82_%D0%BD%D0%B0_2024_%D1%80%D1%96%D0%BA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "thumbwidth": 1280,
+        "thumbheight": 721,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/8/89/%D0%9E%D0%B1%D0%BE%D1%80%D0%BE%D0%BD%D0%BD%D0%B8%D0%B9_%D0%91%D1%8E%D0%B4%D0%B6%D0%B5%D1%82_%D0%BD%D0%B0_2024_%D1%80%D1%96%D0%BA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:%D0%9E%D0%B1%D0%BE%D1%80%D0%BE%D0%BD%D0%BD%D0%B8%D0%B9_%D0%91%D1%8E%D0%B4%D0%B6%D0%B5%D1%82_%D0%BD%D0%B0_2024_%D1%80%D1%96%D0%BA.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Оборонний Бюджет на 2024 рік",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Budget|Defense|Information graphics of Ukraine|2024 in Ukraine",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Defense Budget of Ukraine for 2024 year",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "Міністерство Оборони України на 2024 рік",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "pensions": {
+   "batchcomplete": true,
+   "query": {
+    "pages": [
+     {
+      "pageid": 128051471,
+      "ns": 6,
+      "title": "File:Kraslice pension U rytíře leden 2023.jpg",
+      "index": 1,
+      "imageinfo": [
+       {
+        "width": 5821,
+        "height": 3880,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Kraslice_pension_U_ryt%C3%AD%C5%99e_leden_2023.jpg/1280px-Kraslice_pension_U_ryt%C3%AD%C5%99e_leden_2023.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 853,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/8/81/Kraslice_pension_U_ryt%C3%AD%C5%99e_leden_2023.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Kraslice_pension_U_ryt%C3%AD%C5%99e_leden_2023.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Kraslice pension U rytíře leden 2023",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Self-published work|Files with coordinates missing SDC location of creation|Restaurace U Rytíře (Kraslice)",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Kraslice, pension a restaurace U rytíře, okres Sokolov",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Lubor_Ferenc\" title=\"User:Lubor Ferenc\">Lubor Ferenc</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 154576634,
+      "ns": 6,
+      "title": "File:Pension replacement rates.jpg",
+      "index": 2,
+      "imageinfo": [
+       {
+        "width": 1414,
+        "height": 1615,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Pension_replacement_rates.jpg/1280px-Pension_replacement_rates.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 1462,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/3/38/Pension_replacement_rates.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:Pension_replacement_rates.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "Pension replacement rates",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Images with watermarks|Retirement|Pensions|Self-published work|Economic maps of Europe|Maps by Maps.interlude",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Percentage of net maintained at normal retirement age",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Maps.interlude\" title=\"User:Maps.interlude\">Maps.interlude</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     },
+     {
+      "pageid": 201948096,
+      "ns": 6,
+      "title": "File:PensionHunter.png",
+      "index": 3,
+      "imageinfo": [
+       {
+        "width": 872,
+        "height": 916,
+        "thumburl": "https://upload.wikimedia.org/wikipedia/commons/a/aa/PensionHunter.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
+        "thumbwidth": 1280,
+        "thumbheight": 1345,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/a/aa/PensionHunter.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:PensionHunter.png",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "PensionHunter",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Retirement|Migrant workers|Pensions|Expatriates|Self-published work",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Building the world's cross-border pension infrastructure",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:PensionHunter&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:PensionHunter (page does not exist)\">PensionHunter</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/png"
+       }
+      ]
+     },
+     {
+      "pageid": 45120509,
+      "ns": 6,
+      "title": "File:DNB visitor centre - ritirement pension.jpg",
+      "index": 4,
+      "imageinfo": [
+       {
+        "width": 3264,
+        "height": 2448,
+        "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/DNB_visitor_centre_-_ritirement_pension.jpg/1280px-DNB_visitor_centre_-_ritirement_pension.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+        "thumbwidth": 1280,
+        "thumbheight": 960,
+        "url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/DNB_visitor_centre_-_ritirement_pension.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "descriptionurl": "https://commons.wikimedia.org/wiki/File:DNB_visitor_centre_-_ritirement_pension.jpg",
+        "extmetadata": {
+         "ObjectName": {
+          "value": "DNB visitor centre - ritirement pension",
+          "source": "mediawiki-metadata"
+         },
+         "Categories": {
+          "value": "Personal income|Self-published work",
+          "source": "commons-categories",
+          "hidden": ""
+         },
+         "ImageDescription": {
+          "value": "Expositiepanelen in visitor centre national bank of The Netherlands",
+          "source": "commons-desc-page"
+         },
+         "Artist": {
+          "value": "<a href=\"//commons.wikimedia.org/wiki/User:Picasdre\" title=\"User:Picasdre\">Picasdre</a>",
+          "source": "commons-desc-page"
+         },
+         "LicenseShortName": {
+          "value": "CC BY-SA 4.0",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "LicenseUrl": {
+          "value": "https://creativecommons.org/licenses/by-sa/4.0",
+          "source": "commons-desc-page"
+         },
+         "Restrictions": {
+          "value": "",
+          "source": "commons-desc-page",
+          "hidden": ""
+         },
+         "License": {
+          "value": "cc-by-sa-4.0",
+          "source": "commons-templates",
+          "hidden": ""
+         }
+        },
+        "mime": "image/jpeg"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

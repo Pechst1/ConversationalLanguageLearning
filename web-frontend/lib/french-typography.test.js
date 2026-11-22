@@ -52,3 +52,12 @@ test('frenchQuote wraps a line in guillemets that cannot come apart', () => {
   assert.equal(frenchQuote('  '), '');
   assert.equal(frenchQuote(null), '');
 });
+
+test('a number keeps its % and its thousands on one line (tirage 2026-11-22)', () => {
+  assert.equal(frenchSpacing('une hausse de 9,9 % sur un an'), `une hausse de 9,9${N}% sur un an`);
+  assert.equal(frenchSpacing('La course fait 2 400 mètres.'), `La course fait 2${N}400 mètres.`);
+  assert.equal(frenchSpacing('plus de 500 000 personnes'), `plus de 500${N}000 personnes`);
+  // Two separate numbers are not glued: «en 2026 16 chevaux» keeps its space.
+  assert.equal(frenchSpacing('le 4 octobre 2026, 16 chevaux'), 'le 4 octobre 2026, 16 chevaux');
+  assert.equal(frenchSpacing(frenchSpacing('9,9 %')), `9,9${N}%`, 'idempotent');
+});

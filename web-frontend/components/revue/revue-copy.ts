@@ -34,11 +34,16 @@ export type RevueCopy = {
   filed_kicker: string;
   filed_kicker_short: string;
   romy_proposes: string;
+  /** The chooser names the assignment dealt (2026-11-21): «Ta mission · La photo». */
+  assignment_label: string;
   or_else: string;
   chip_label: string;
   chip_aria: string;
   chip_more: string;
   chip_more_aria: string;
+  /** REVUE_CADENCE=daily: the period is a day («le 20 nov.»). */
+  chip_aria_day: string;
+  chip_more_aria_day: string;
   exit_label: string;
   back_label: string;
   beats_label: string;
@@ -155,6 +160,13 @@ export type RevueCopy = {
   made_caption: string;
   /** «Au comptoir»: the learner's quote in Romy's vox pop. */
   made_opinion: string;
+  /** «Le fil»: the learner's telling of the wire. */
+  made_fil: string;
+  /** «Le titre»: the learner's own honest headline; «L'intox express»: the statements set right. */
+  made_titre: string;
+  made_intox: string;
+  made_photo: string;
+  made_micro: string;
   /** «Au comptoir» on La Une: the faces' label («Romy, Lila et Gus en parlent déjà»), and the list's last «and». */
   comptoir_faces: string;
   comptoir_and: string;
@@ -193,6 +205,11 @@ export type RevueCopy = {
   made_headline: string;
   made_question: string;
   contribution: string;
+  /** «Papier · photos»: the gallery's name for screen readers, its source link, a new tab. */
+  gallery_label: string;
+  picture_source: string;
+  picture_licence: string;
+  new_tab: string;
   for_releve: string;
   kept_count: string;
   file_revue: string;
@@ -237,11 +254,14 @@ const FR: RevueCopy = {
   filed_kicker: 'Papier bouclé · {week}',
   filed_kicker_short: 'Papier bouclé',
   romy_proposes: 'Ce que Romy te propose',
+  assignment_label: 'Ta mission',
   or_else: 'Ou bien',
   chip_label: 'Le Papier',
   chip_aria: 'Le Papier de Romy, semaine {n}',
   chip_more: 'Autre Papier ?',
   chip_more_aria: 'Un autre Papier cette semaine ({n} sujets au kiosque)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: "Un autre Papier aujourd'hui ({n} sujets au kiosque)",
   exit_label: 'Quitter le Papier — Romy garde tes notes',
   back_label: 'Retour à La Une',
   beats_label: 'Le Papier',
@@ -349,6 +369,11 @@ const FR: RevueCopy = {
   caption_word_used: 'dans ta légende',
   made_caption: 'Ta légende',
   made_opinion: 'Ton avis',
+  made_fil: 'Ton récit',
+  made_titre: 'Ton titre',
+  made_intox: 'Ton intox démontée',
+  made_photo: 'Ta légende',
+  made_micro: 'Ton interview',
   comptoir_faces: '{names} en parlent déjà',
   comptoir_and: 'et',
   vignette_label: 'Ta vignette · {week}',
@@ -378,6 +403,10 @@ const FR: RevueCopy = {
   made_headline: 'Ton titre',
   made_question: 'Ta question pour les lecteurs',
   contribution: 'toi',
+  gallery_label: 'Les images du sujet',
+  picture_source: 'Source',
+  picture_licence: 'Licence',
+  new_tab: 'nouvel onglet',
   for_releve: 'Pour ton Relevé',
   kept_count: '{w} mots · {c} faits',
   file_revue: 'Classer le Papier',
@@ -421,11 +450,14 @@ const EN: RevueCopy = {
   filed_kicker: 'Papier filed · {week}',
   filed_kicker_short: 'Papier filed',
   romy_proposes: 'Romy suggests',
+  assignment_label: 'Your assignment',
   or_else: 'Or',
   chip_label: 'Le Papier',
   chip_aria: "Le Papier de Romy, week {n}",
   chip_more: 'Another Papier?',
   chip_more_aria: 'Another Papier this week ({n} stories at the kiosk)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: 'Another Papier today ({n} stories at the kiosk)',
   exit_label: 'Leave the Papier — Romy keeps your notes',
   back_label: 'Back to La Une',
   beat_names: { arrive: 'Arrive', facts: 'Facts', pursue: 'Follow up', make: 'Make', close: 'Filed' },
@@ -524,6 +556,11 @@ const EN: RevueCopy = {
   caption_word_used: 'in your caption',
   made_caption: 'Your caption',
   made_opinion: 'Your opinion',
+  made_fil: 'Your story',
+  made_titre: 'Your headline',
+  made_intox: 'Your fact check',
+  made_photo: 'Your caption',
+  made_micro: 'Your interview',
   comptoir_faces: '{names} are already arguing',
   comptoir_and: 'and',
   vignette_label: 'Your vignette · {week}',
@@ -553,6 +590,10 @@ const EN: RevueCopy = {
   made_headline: 'Your headline',
   made_question: 'Your question for the readers',
   contribution: 'you',
+  gallery_label: 'Pictures of the story',
+  picture_source: 'Source',
+  picture_licence: 'Licence',
+  new_tab: 'new tab',
   for_releve: 'For your Relevé',
   kept_count: '{w} words · {c} facts',
   file_revue: 'File Le Papier',
@@ -596,11 +637,14 @@ const DE: RevueCopy = {
   filed_kicker: 'Papier abgelegt · {week}',
   filed_kicker_short: 'Papier abgelegt',
   romy_proposes: 'Romys Vorschlag',
+  assignment_label: 'Dein Auftrag',
   or_else: 'Oder',
   chip_label: 'Le Papier',
   chip_aria: 'Le Papier de Romy, Woche {n}',
   chip_more: 'Noch ein Papier?',
   chip_more_aria: 'Noch ein Papier diese Woche ({n} Themen am Kiosk)',
+  chip_aria_day: 'Le Papier de Romy, {day}',
+  chip_more_aria_day: 'Noch ein Papier heute ({n} Themen am Kiosk)',
   exit_label: 'Das Papier verlassen — Romy behält deine Notizen',
   back_label: 'Zurück zu La Une',
   beat_names: { arrive: 'Ankommen', facts: 'Fakten', pursue: 'Nachfragen', make: 'Machen', close: 'Fertig' },
@@ -699,6 +743,11 @@ const DE: RevueCopy = {
   caption_word_used: 'in deiner Bildunterschrift',
   made_caption: 'Deine Bildunterschrift',
   made_opinion: 'Deine Meinung',
+  made_fil: 'Deine Erzählung',
+  made_titre: 'Deine Schlagzeile',
+  made_intox: 'Dein Faktencheck',
+  made_photo: 'Deine Bildunterschrift',
+  made_micro: 'Dein Interview',
   comptoir_faces: '{names} streiten schon',
   comptoir_and: 'und',
   vignette_label: 'Deine Vignette · {week}',
@@ -728,6 +777,10 @@ const DE: RevueCopy = {
   made_headline: 'Deine Schlagzeile',
   made_question: 'Deine Frage für die Leser',
   contribution: 'du',
+  gallery_label: 'Bilder zum Thema',
+  picture_source: 'Quelle',
+  picture_licence: 'Lizenz',
+  new_tab: 'neuer Tab',
   for_releve: 'Für dein Relevé',
   kept_count: '{w} Wörter · {c} Fakten',
   file_revue: 'Le Papier ablegen',

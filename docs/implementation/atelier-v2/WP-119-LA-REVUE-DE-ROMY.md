@@ -470,6 +470,22 @@ shipping, on the owner's sample); people of the story allowed, by their role, ne
   scored, as a contact sheet) runs from the owner's machine before the flag goes on with the bucket. Dossiers built
   before builder v2 have no `visual` and keep their place plates until the next intake or an admin refresh.
 
+### 8.5 Several pictures, real photos among them (owner, 2026-11-20)
+«I don't know why we only have one image. It'd be nice to have maybe even photos.» The story picture of §8.4 stays the
+first picture; the stage's `pictures` list (ordered, additive) adds what follows it, shown as a strip under the first
+picture in «Lire», on the chat stage's arrival and on the Une card, each with its credit line always printed.
+- **Photos** (`revue/photos.py`, `REVUE_PHOTOS_ENABLED`): subjects from the dossier's own fields, no model call (its
+  named places first, then `vignette_object_fr` and the picture's words; never a person, never a typed place); one
+  Commons search per subject at the morning task, 6 s for the story, one try, failure = no photos. Kept only: JPEG/WebP,
+  landscape or square, ≥ 1024 px, CC0 / public domain / CC BY / CC BY-SA, an author, and no picture of a person
+  (`policy.PHOTO_PERSON_WORDS`, a person the dossier names, Commons' personality-rights mark). Stored in
+  `revue_story_media` (migration b2d4f6a8c0e1), hot-linked (no bytes copied), credited «Photo · {author} · {licence} ·
+  Wikimedia Commons», captioned only with a place's name when the file names it too.
+- **More illustrations** (`REVUE_PICTURES_PER_STORY`, default 1): at 2–3, `plates.paint_story_shot` paints the place
+  wide and the thing near, from the story prompt with one sentence added, once each, final, priced per picture.
+- **The outlet's photo** is never stored or shown («no republishing»): the RSS parser records only that one exists and
+  its credit (`Candidate.press_photo`, `press_photo_credit`).
+
 ## 9. Flags, cost, caching
 
 | Flag | Default | Meaning |
@@ -477,6 +493,9 @@ shipping, on the owner's sample); people of the story allowed, by their role, ne
 | `REVUE_ENABLED` | off | the card, the page, the weekly beat |
 | `REVUE_PLATE_GENERATION_ENABLED` | off | §8.1, §8.4: paint each story's own picture and a plate per new place, after the morning intake; needs durable storage; off → the place plates and the known-plate fallback |
 | `REVUE_PICTURE_COST_USD` | 0.06 | §8.4: the price of one painting, written to the pilot ledger for the service's daily cap |
+| `REVUE_PICTURES_PER_STORY` | 1 | §8.5: painted pictures per story (1–3); 2–3 add other shots of the same story, each final, priced like the first |
+| `REVUE_PHOTOS_ENABLED` | off | §8.5: real photos from Wikimedia Commons in the story's gallery (free licences, never a portrait); needs outbound access to commons.wikimedia.org and upload.wikimedia.org |
+| `REVUE_PHOTOS_PER_STORY` | 3 | §8.5: the most Commons photos one story keeps |
 | `REVUE_ARTICLE_FETCH_ENABLED` | on | §4.1; off → RSS only |
 | `REVUE_STORIES_PER_WEEK` | 6 | intake target |
 | `REVUE_CADENCE` | `weekly` | `weekly` or `daily` (§12) |

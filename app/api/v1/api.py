@@ -36,7 +36,9 @@ from app.api.v1.endpoints import (
     revue_correcteur,
     revue_radio,
     revue_relecture,
+    revue_rendez_vous,
     revue_vignettes,
+    revue_voix,
     serial,
     sessions,
     sessions_ws,
@@ -105,8 +107,13 @@ api_router.include_router(revue_vignettes.router)
 api_router.include_router(revue_carte.router)
 # WP-121 B: La Relecture (same flag gate; the POST carries the paid-route guard).
 api_router.include_router(revue_relecture.router)
+# «Papier · les rendez-vous» (2026-11-21): 404 unless REVUE_ENABLED and each route's own switch; reads
+# and a deterministic round, no model call, no paid guard.
+api_router.include_router(revue_rendez_vous.router)
 # WP-122 B: Le Correcteur (its own flag, REVUE_CORRECTEUR_ENABLED; 404 before auth while off).
 api_router.include_router(revue_correcteur.router)
 # WP-122 A: La Radio (404 unless REVUE_ENABLED and REVUE_RADIO_ENABLED; no paid guard: not a PAID_ROUTE).
 api_router.include_router(revue_radio.router)
+# «Papier · la voix» (2026-11-22): 404 unless REVUE_ENABLED and REVUE_VOIX_ENABLED; the line route pays for speech.
+api_router.include_router(revue_voix.router)
 api_router.include_router(revue_admin.router)

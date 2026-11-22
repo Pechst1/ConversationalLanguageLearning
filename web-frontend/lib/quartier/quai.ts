@@ -32,6 +32,8 @@ import { LACE, PATTERN, nextId } from './geo';
 import type { Paint, Rand } from './geo';
 import { INKS, TONES, mix, rgb } from './palette';
 import { plaqueArt, posterArt, letteringArt } from './signs';
+import { afficheArt, bundleArt } from './affiche-art';
+import type { Affiche } from './affiche-model';
 
 export const PLAN = {
   water: -2.05,
@@ -51,6 +53,8 @@ export interface Quai {
   mistral: BuildingInfo;
   /** the lamp heads for the light map and the glints */
   easel: { center: Vector3; normal: Vector3 } | null;
+  /** today's Papier on the Morris column, where it hangs (`affiche.ts`); null without one */
+  affiche: { center: Vector3; normal: Vector3 } | null;
 }
 
 const SHOPS: Array<Omit<Shop, 'from' | 'to'>> = [
@@ -128,7 +132,7 @@ function row(B: Build, from: [number, number], to: [number, number], opts: { sty
 }
 
 /** Lay the whole exterior into the build. */
-export function buildQuai(B: Build): Quai {
+export function buildQuai(B: Build, affiche: Affiche | null = null): Quai {
   const R = B.rand;
   const P = PLAN;
   const { zMin, zMax } = P;
@@ -337,13 +341,19 @@ export function buildQuai(B: Build): Quai {
   // benches facing the water
   for (const z of [-80, -66, 26, 44, 61, 96]) bench(B, -12.4, z, Math.PI / 2);
   for (const z of [-90, -20, 10, 55]) bench(B, 12.4, z, -Math.PI / 2);
-  // the Morris column at the corner of the rue de Lancry
-  morrisColumn(B, -15.4, 8.6, [
+  // the Morris column at the corner of the rue de Lancry; today's Papier, when there is one,
+  // takes the slot that faces the quai's walk (the brocante's), printed finer so it reads
+  const column = { x: -15.4, z: 8.6 };
+  const hung = morrisColumn(B, column.x, column.z, [
     { key: 'poster:cle', draw: posterArt('La Clé', ['comédie en un acte', 'Théâtre du Canal', 'jusqu’au 30 novembre'], INKS.vermilion, INKS.card) },
-    { key: 'poster:brocante', draw: posterArt('Brocante', ['dimanche 15 novembre', 'quai de Jemmapes', 'de 8 h à 18 h'], INKS.green, INKS.card) },
+    affiche
+      ? { key: 'poster:papier', draw: afficheArt(affiche), density: 640 }
+      : { key: 'poster:brocante', draw: posterArt('Brocante', ['dimanche 15 novembre', 'quai de Jemmapes', 'de 8 h à 18 h'], INKS.green, INKS.card) },
     { key: 'poster:bal', draw: posterArt('Grand-mère', ['un film de Lina Morel', 'au Louxor', 'dès le 18 novembre'], INKS.cobalt, mix(INKS.card, INKS.sunflower, 0.12)) },
     { key: 'poster:appart', draw: posterArt('À louer', ['appartement', 'premier étage', 'vue sur le canal'], INKS.ink, INKS.card) },
   ]);
+  const papier = affiche ? hung.find((p) => p.key === 'poster:papier') ?? null : null;
+  if (papier) paperBundle(B, column.x + papier.normal.x * 0.98, column.z + papier.normal.z * 0.98, Math.atan2(papier.normal.x, papier.normal.z));
   // bollards along the corner's pavement edge
   for (let z = -27; z < -12; z += 1.6) bollard(B, -24.35, z);
   for (let x = -52; x < -33; x += 1.6) bollard(B, x, -4.55);
@@ -374,7 +384,28 @@ export function buildQuai(B: Build): Quai {
     W.tri(new Vector3(x - c, KERB + 0.004, z - d), new Vector3(x + d * 0.6, KERB + 0.004, z - c * 0.6), new Vector3(x + c, KERB + 0.004, z + d), { color: R.pick(leafTones), id: 9 }, 9);
   }
 
-  return { mistral, easel };
+  return { mistral, easel, affiche: papier ? { center: papier.center, normal: papier.normal } : null };
+}
+
+/** The day's papers at the column's foot: a tied bundle, folded, the front page up. */
+function paperBundle(B: Build, x: number, z: number, rot: number) {
+  const D = B.dry;
+  const paper: Paint = { color: mix(INKS.card, INKS.ink, 0.06), id: nextId() };
+  const edge: Paint = { color: mix(INKS.card, INKS.ink, 0.16), id: nextId() };
+  const string: Paint = { color: mix(INKS.ochre, INKS.ink, 0.35), id: nextId() };
+  D.at(x, KERB, z, rot, () => {
+    // three folded quires, each turned a little on the one below; the top one square to the walk
+    [0.05, -0.045, 0].forEach((turn, i) => {
+      D.at(0, 0, 0, turn, () => D.block(0, i * 0.055, 0, 0.46, 0.05, 0.32, i === 1 ? edge : paper, { ny: false }));
+    });
+    // the string, round and across, clear of the masthead
+    D.bar(new Vector3(-0.15, 0.168, -0.17), new Vector3(-0.15, 0.168, 0.17), 0.011, string);
+    D.bar(new Vector3(-0.24, 0.168, 0.09), new Vector3(0.24, 0.168, 0.09), 0.011, string);
+  });
+  // the front page on top, read from the walk
+  const n = new Vector3(Math.sin(rot), 0, Math.cos(rot));
+  B.signs.push({ key: 'papier:bundle', center: new Vector3(x, KERB + 0.167, z), normal: n, width: 0.44, height: 0.3, density: 700, tilt: -Math.PI / 2 + 0.02, draw: bundleArt() });
+  B.blocks.push(circle(x, z, 0.35));
 }
 
 /** A green iron footbridge with stairs at both ends: lattice parapets, an arched deck. */

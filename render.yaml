@@ -267,11 +267,13 @@ services:
       # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
       # split that withholds half of each learner's words from the story, not a
       # feature).
-      # Pilot 2026-11-17 (P0): La Revue (Papier, Radio, Correcteur, Comptoir)
-      # stays out of the ten-learner pilot. REVUE_MIN_BAND only stops the news
-      # day shape; the Home card and chips reach every level, so the switch is off.
+      # Owner 2026-11-22: Le Papier is on for every learner, in its cut form
+      # (two assignments, «Au comptoir» and «Le titre», REVUE_ASSIGNMENTS_OFFERED's
+      # default) and tied into the day. This replaces the pilot decision of
+      # 2026-11-17 that kept La Revue out. Radio and Correcteur stay off. Set
+      # REVUE_ENABLED to "false" to take all of it back out.
       - key: REVUE_ENABLED
-        value: "false"
+        value: "true"
       - key: REVUE_RADIO_ENABLED
         value: "false"
       - key: REVUE_CORRECTEUR_ENABLED
@@ -279,7 +281,32 @@ services:
       # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
       # sessions whose story has takes (WP-119-AU-COMPTOIR).
       - key: REVUE_COMPTOIR_ENABLED
-        value: "false"
+        value: "true"
+      # The first real run (2026-11-22) tuned the desks' prompts on this model;
+      # the default (claude-haiku-5-5) has not run them since.
+      - key: REVUE_COMPTOIR_MODEL
+        value: gpt-6-luna
+      - key: REVUE_ASSIGNMENTS_ENABLED
+        value: "true"
+      - key: REVUE_POURQUOI_ENABLED
+        value: "true"
+      - key: REVUE_TUTOR_MARKS_ENABLED
+        value: "true"
+      - key: REVUE_PEDAGOGY_PICK_ENABLED
+        value: "true"
+      - key: REVUE_CHOICE_ENABLED
+        value: "true"
+      - key: REVUE_WORDS_IN_DECK_ENABLED
+        value: "true"
+      - key: REVUE_PLANNED_STEP_ENABLED
+        value: "true"
+      - key: REVUE_QUARTIER_AFFICHE_ENABLED
+        value: "true"
+      # Never run on a real model / real speech before this date (owner's call).
+      - key: REVUE_ECHO_ENABLED
+        value: "true"
+      - key: REVUE_VOIX_ENABLED
+        value: "true"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED
         value: "false"
@@ -546,11 +573,13 @@ services:
       # feature back out. Kept off on purpose: VOCAB_STORY_PILOT_ENABLED (an A/B
       # split that withholds half of each learner's words from the story, not a
       # feature).
-      # Pilot 2026-11-17 (P0): La Revue (Papier, Radio, Correcteur, Comptoir)
-      # stays out of the ten-learner pilot. REVUE_MIN_BAND only stops the news
-      # day shape; the Home card and chips reach every level, so the switch is off.
+      # Owner 2026-11-22: Le Papier is on for every learner, in its cut form
+      # (two assignments, «Au comptoir» and «Le titre», REVUE_ASSIGNMENTS_OFFERED's
+      # default) and tied into the day. This replaces the pilot decision of
+      # 2026-11-17 that kept La Revue out. Radio and Correcteur stay off. Set
+      # REVUE_ENABLED to "false" to take all of it back out.
       - key: REVUE_ENABLED
-        value: "false"
+        value: "true"
       - key: REVUE_RADIO_ENABLED
         value: "false"
       - key: REVUE_CORRECTEUR_ENABLED
@@ -558,7 +587,32 @@ services:
       # Owner 2026-10-30: «Au comptoir» replaces the Papier chat for new
       # sessions whose story has takes (WP-119-AU-COMPTOIR).
       - key: REVUE_COMPTOIR_ENABLED
-        value: "false"
+        value: "true"
+      # The first real run (2026-11-22) tuned the desks' prompts on this model;
+      # the default (claude-haiku-5-5) has not run them since.
+      - key: REVUE_COMPTOIR_MODEL
+        value: gpt-6-luna
+      - key: REVUE_ASSIGNMENTS_ENABLED
+        value: "true"
+      - key: REVUE_POURQUOI_ENABLED
+        value: "true"
+      - key: REVUE_TUTOR_MARKS_ENABLED
+        value: "true"
+      - key: REVUE_PEDAGOGY_PICK_ENABLED
+        value: "true"
+      - key: REVUE_CHOICE_ENABLED
+        value: "true"
+      - key: REVUE_WORDS_IN_DECK_ENABLED
+        value: "true"
+      - key: REVUE_PLANNED_STEP_ENABLED
+        value: "true"
+      - key: REVUE_QUARTIER_AFFICHE_ENABLED
+        value: "true"
+      # Never run on a real model / real speech before this date (owner's call).
+      - key: REVUE_ECHO_ENABLED
+        value: "true"
+      - key: REVUE_VOIX_ENABLED
+        value: "true"
       # Refuses on its own (nearest known plate) until S3 storage is set.
       - key: REVUE_PLATE_GENERATION_ENABLED
         value: "false"

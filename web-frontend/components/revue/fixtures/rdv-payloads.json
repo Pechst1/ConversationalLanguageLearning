@@ -1,0 +1,482 @@
+{
+ "round_open": {
+  "round": {
+   "session_id": "d49b649d-4967-4e50-a45d-90c983e617e5",
+   "step": "match",
+   "words": [
+    {
+     "key": "a",
+     "fr": "la fête",
+     "bare_fr": "fête",
+     "gloss": null
+    },
+    {
+     "key": "b",
+     "fr": "le bruit",
+     "bare_fr": "bruit",
+     "gloss": null
+    },
+    {
+     "key": "c",
+     "fr": "les rues",
+     "bare_fr": "rues",
+     "gloss": null
+    }
+   ],
+   "cues": [
+    {
+     "key": "1",
+     "kind": "gloss",
+     "text": "streets",
+     "picture": null
+    },
+    {
+     "key": "2",
+     "kind": "gloss",
+     "text": "party",
+     "picture": null
+    },
+    {
+     "key": "3",
+     "kind": "gloss",
+     "text": "noise",
+     "picture": null
+    }
+   ],
+   "match": {
+    "tries": 0,
+    "resolved": false,
+    "correct": null,
+    "misses": [],
+    "solution": null
+   },
+   "gap": {
+    "source": "lead",
+    "before_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les ",
+    "after_fr": ", les bars et sur les places.",
+    "tries": 0,
+    "resolved": false,
+    "correct": null,
+    "miss": null,
+    "solution": null,
+    "sentence_fr": null
+   },
+   "kept_now": 0
+  },
+  "error": null
+ },
+ "round_miss": {
+  "round": {
+   "session_id": "d49b649d-4967-4e50-a45d-90c983e617e5",
+   "step": "match",
+   "words": [
+    {
+     "key": "a",
+     "fr": "la fête",
+     "bare_fr": "fête",
+     "gloss": null
+    },
+    {
+     "key": "b",
+     "fr": "le bruit",
+     "bare_fr": "bruit",
+     "gloss": null
+    },
+    {
+     "key": "c",
+     "fr": "les rues",
+     "bare_fr": "rues",
+     "gloss": null
+    }
+   ],
+   "cues": [
+    {
+     "key": "1",
+     "kind": "gloss",
+     "text": "streets",
+     "picture": null
+    },
+    {
+     "key": "2",
+     "kind": "gloss",
+     "text": "party",
+     "picture": null
+    },
+    {
+     "key": "3",
+     "kind": "gloss",
+     "text": "noise",
+     "picture": null
+    }
+   ],
+   "match": {
+    "tries": 1,
+    "resolved": false,
+    "correct": null,
+    "misses": [
+     {
+      "word_key": "a",
+      "cue_key": "3"
+     },
+     {
+      "word_key": "b",
+      "cue_key": "2"
+     }
+    ],
+    "solution": null
+   },
+   "gap": {
+    "source": "lead",
+    "before_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les ",
+    "after_fr": ", les bars et sur les places.",
+    "tries": 0,
+    "resolved": false,
+    "correct": null,
+    "miss": null,
+    "solution": null,
+    "sentence_fr": null
+   },
+   "kept_now": 0
+  },
+  "error": null
+ },
+ "round_gap": {
+  "round": {
+   "session_id": "d49b649d-4967-4e50-a45d-90c983e617e5",
+   "step": "gap",
+   "words": [
+    {
+     "key": "a",
+     "fr": "la fête",
+     "bare_fr": "fête",
+     "gloss": "party"
+    },
+    {
+     "key": "b",
+     "fr": "le bruit",
+     "bare_fr": "bruit",
+     "gloss": "noise"
+    },
+    {
+     "key": "c",
+     "fr": "les rues",
+     "bare_fr": "rues",
+     "gloss": "streets"
+    }
+   ],
+   "cues": [
+    {
+     "key": "1",
+     "kind": "gloss",
+     "text": "streets",
+     "picture": null
+    },
+    {
+     "key": "2",
+     "kind": "gloss",
+     "text": "party",
+     "picture": null
+    },
+    {
+     "key": "3",
+     "kind": "gloss",
+     "text": "noise",
+     "picture": null
+    }
+   ],
+   "match": {
+    "tries": 2,
+    "resolved": true,
+    "correct": true,
+    "misses": [],
+    "solution": {
+     "c": "1",
+     "a": "2",
+     "b": "3"
+    }
+   },
+   "gap": {
+    "source": "lead",
+    "before_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les ",
+    "after_fr": ", les bars et sur les places.",
+    "tries": 0,
+    "resolved": false,
+    "correct": null,
+    "miss": null,
+    "solution": null,
+    "sentence_fr": null
+   },
+   "kept_now": 0
+  },
+  "error": null
+ },
+ "round_gap_miss": {
+  "round": {
+   "session_id": "d49b649d-4967-4e50-a45d-90c983e617e5",
+   "step": "gap",
+   "words": [
+    {
+     "key": "a",
+     "fr": "la fête",
+     "bare_fr": "fête",
+     "gloss": "party"
+    },
+    {
+     "key": "b",
+     "fr": "le bruit",
+     "bare_fr": "bruit",
+     "gloss": "noise"
+    },
+    {
+     "key": "c",
+     "fr": "les rues",
+     "bare_fr": "rues",
+     "gloss": "streets"
+    }
+   ],
+   "cues": [
+    {
+     "key": "1",
+     "kind": "gloss",
+     "text": "streets",
+     "picture": null
+    },
+    {
+     "key": "2",
+     "kind": "gloss",
+     "text": "party",
+     "picture": null
+    },
+    {
+     "key": "3",
+     "kind": "gloss",
+     "text": "noise",
+     "picture": null
+    }
+   ],
+   "match": {
+    "tries": 2,
+    "resolved": true,
+    "correct": true,
+    "misses": [],
+    "solution": {
+     "c": "1",
+     "a": "2",
+     "b": "3"
+    }
+   },
+   "gap": {
+    "source": "lead",
+    "before_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les ",
+    "after_fr": ", les bars et sur les places.",
+    "tries": 1,
+    "resolved": false,
+    "correct": null,
+    "miss": {
+     "word_key": "a",
+     "gloss": "party"
+    },
+    "solution": null,
+    "sentence_fr": null
+   },
+   "kept_now": 0
+  },
+  "error": null
+ },
+ "round_done": {
+  "round": {
+   "session_id": "d49b649d-4967-4e50-a45d-90c983e617e5",
+   "step": "done",
+   "words": [
+    {
+     "key": "a",
+     "fr": "la fête",
+     "bare_fr": "fête",
+     "gloss": "party"
+    },
+    {
+     "key": "b",
+     "fr": "le bruit",
+     "bare_fr": "bruit",
+     "gloss": "noise"
+    },
+    {
+     "key": "c",
+     "fr": "les rues",
+     "bare_fr": "rues",
+     "gloss": "streets"
+    }
+   ],
+   "cues": [
+    {
+     "key": "1",
+     "kind": "gloss",
+     "text": "streets",
+     "picture": null
+    },
+    {
+     "key": "2",
+     "kind": "gloss",
+     "text": "party",
+     "picture": null
+    },
+    {
+     "key": "3",
+     "kind": "gloss",
+     "text": "noise",
+     "picture": null
+    }
+   ],
+   "match": {
+    "tries": 2,
+    "resolved": true,
+    "correct": true,
+    "misses": [],
+    "solution": {
+     "c": "1",
+     "a": "2",
+     "b": "3"
+    }
+   },
+   "gap": {
+    "source": "lead",
+    "before_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les ",
+    "after_fr": ", les bars et sur les places.",
+    "tries": 2,
+    "resolved": true,
+    "correct": true,
+    "miss": null,
+    "solution": "c",
+    "sentence_fr": "Le 21 juin, des musiciens amateurs et professionnels jouent gratuitement dans les rues, les bars et sur les places."
+   },
+   "kept_now": 0
+  },
+  "error": null
+ },
+ "une": {
+  "week": {
+   "iso": "2026-W47",
+   "label": "Semaine 47",
+   "range": "du 16 au 22 nov."
+  },
+  "dateline_fr": "Semaine 47 · du 16 au 22 nov.",
+  "items": [
+   {
+    "session_id": "effd7e69-ab22-4775-9f69-9edd17a2935f",
+    "rubrique": "titre",
+    "role": "headline",
+    "story_title_fr": "Le bac 2026",
+    "text_fr": "Le bac commence lundi",
+    "score": null,
+    "total": null,
+    "corrections_fr": [],
+    "stance": null,
+    "picture": null,
+    "filed_on": "2026-11-17",
+    "filed_weekday_fr": "mardi"
+   },
+   {
+    "session_id": "3eebfb83-13ac-4229-926c-a9cf687005c7",
+    "rubrique": "opinion",
+    "role": "vox",
+    "story_title_fr": "La Fête de la musique",
+    "text_fr": "À mon avis, c'est une très bonne nouvelle pour les musiciens.",
+    "score": null,
+    "total": null,
+    "corrections_fr": [],
+    "stance": "pour",
+    "picture": null,
+    "filed_on": "2026-11-16",
+    "filed_weekday_fr": "lundi"
+   },
+   {
+    "session_id": "fb76af11-20f5-4b04-85c6-c834ac7ce553",
+    "rubrique": "intox",
+    "role": "rectificatif",
+    "story_title_fr": "Une histoire",
+    "text_fr": "4 sur 5, 1 intox corrigée",
+    "score": 4,
+    "total": 5,
+    "corrections_fr": [
+     "La fête a lieu le 21 juin."
+    ],
+    "stance": null,
+    "picture": null,
+    "filed_on": "2026-11-19",
+    "filed_weekday_fr": "jeudi"
+   }
+  ],
+  "lexique": [
+   "la fête",
+   "le bruit",
+   "le bac",
+   "la grève"
+  ],
+  "rubriques_filed": 4,
+  "rubriques_total": 6,
+  "pieces": 4,
+  "due_today": true
+ },
+ "une_empty": {
+  "week": {
+   "iso": "2026-W40",
+   "label": "Semaine 40",
+   "range": "du 28 sept. au 4 oct."
+  },
+  "dateline_fr": "Semaine 40 · du 28 sept. au 4 oct.",
+  "items": [],
+  "lexique": [],
+  "rubriques_filed": 0,
+  "rubriques_total": 6,
+  "pieces": 0,
+  "due_today": false
+ },
+ "carte": {
+  "rubriques": [
+   {
+    "rubrique": "opinion",
+    "pieces": 1,
+    "first_on": "2026-11-16"
+   },
+   {
+    "rubrique": "fil",
+    "pieces": 1,
+    "first_on": "2026-11-18"
+   },
+   {
+    "rubrique": "titre",
+    "pieces": 2,
+    "first_on": "2026-11-15"
+   },
+   {
+    "rubrique": "intox",
+    "pieces": 1,
+    "first_on": "2026-11-19"
+   },
+   {
+    "rubrique": "photo",
+    "pieces": 0,
+    "first_on": null
+   },
+   {
+    "rubrique": "micro",
+    "pieces": 0,
+    "first_on": null
+   }
+  ],
+  "pieces": 5,
+  "since": "2026-11-15"
+ },
+ "souvenir": {
+  "line": {
+   "template_id": "opinion.contre_moi.a1",
+   "speaker_id": "augustin_de_roncourt",
+   "speaker_fr": "Gus",
+   "fr": "La dernière fois, tu étais contre moi. Et aujourd'hui ?",
+   "en": "Last time, you were against me. And today?",
+   "de": "Letztes Mal warst du gegen mich. Und heute?",
+   "about_session_id": "500c357c-7607-4959-a943-6a3d5da24271",
+   "fact": "stance"
+  }
+ }
+}

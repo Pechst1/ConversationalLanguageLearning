@@ -14,6 +14,8 @@
 
 import type { RvComptoirMarkKind, RvComptoirProof, RvLanguage } from '@/lib/revue-types';
 
+import { POURQUOI_COPY, type PourquoiCopy } from './pourquoi';
+
 export type ComptoirCopy = {
   steps_label: string;
   step_value: string;
@@ -53,6 +55,8 @@ export type ComptoirCopy = {
   fix_try: string;
   /** After one try: Romy corrects what is left. */
   fix_romy: string;
+  /** «Le pourquoi» (2026-11-20): the marks' why, the settled notes, La Forge's line. */
+  pourquoi: PourquoiCopy;
   your_reply: string;
   reply_label: string;
   reply_placeholder: string;
@@ -102,6 +106,7 @@ const FR: ComptoirCopy = {
   fix_send: 'Renvoyer',
   fix_try: 'Essai {n} sur {max}',
   fix_romy: 'Corrige-le, Romy',
+  pourquoi: POURQUOI_COPY.fr,
   your_reply: 'Ta réponse',
   reply_label: 'Ta réponse, en une phrase',
   reply_placeholder: 'Ta réponse…',
@@ -151,6 +156,7 @@ const EN: ComptoirCopy = {
   fix_send: 'Send again',
   fix_try: 'Try {n} of {max}',
   fix_romy: 'Let Romy fix it',
+  pourquoi: POURQUOI_COPY.en,
   your_reply: 'Your reply',
   reply_label: 'Your reply, in one sentence',
   reply_placeholder: 'Your reply…',
@@ -200,6 +206,7 @@ const DE: ComptoirCopy = {
   fix_send: 'Erneut senden',
   fix_try: 'Versuch {n} von {max}',
   fix_romy: 'Romy soll es korrigieren',
+  pourquoi: POURQUOI_COPY.de,
   your_reply: 'Deine Antwort',
   reply_label: 'Deine Antwort, in einem Satz',
   reply_placeholder: 'Deine Antwort…',

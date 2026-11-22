@@ -19,6 +19,26 @@
  * the dev-only scripted server.
  */
 
+import { parseFilPage, parseFilView, type RvFilPage, type RvFilView } from './revue-fil-types';
+import {
+  parseIntoxPage,
+  parseIntoxView,
+  parseMicroPage,
+  parseMicroView,
+  parsePhotoPage,
+  parsePhotoView,
+  parseTitrePage,
+  parseTitreView,
+  type RvIntoxPage,
+  type RvIntoxView,
+  type RvMicroPage,
+  type RvMicroView,
+  type RvPhotoPage,
+  type RvPhotoView,
+  type RvTitrePage,
+  type RvTitreView,
+} from './revue-rubriques-types';
+
 export type RvSpan = [number, number];
 
 export type RvTopic = 'food' | 'culture' | 'city' | 'sport' | 'nature' | 'work' | 'politics';
@@ -29,8 +49,8 @@ export type RvRoomPhase = 'open' | 'bouclage' | 'boucle';
 export type RvMakeKind = 'headline_choice' | 'headline_write' | 'reader_question' | 'short_report' | 'caption';
 export const RV_MAKE_KINDS = ['headline_choice', 'headline_write', 'reader_question', 'short_report', 'caption'] as const;
 /** What a session files: a make, or `opinion` («Au comptoir»: the learner's quote in Romy's vox pop, never offered as a make). */
-export type RvMadeKind = RvMakeKind | 'opinion';
-export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion'] as const;
+export type RvMadeKind = RvMakeKind | 'opinion' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
+export const RV_MADE_KINDS = [...RV_MAKE_KINDS, 'opinion', 'fil', 'titre', 'intox', 'photo', 'micro'] as const;
 export type RvLanguage = 'en' | 'de' | 'fr';
 export type RvPurpose = 'understand_change' | 'explain_disagreement' | 'choose_angle' | 'prepare_dispatch';
 /** `look` (§8.4): on arrival, Romy points at the story's picture with the words it shows. */
@@ -73,6 +93,27 @@ export type RvStage = {
   plateKind: RvPlateKind;
   /** §8.4: in a session, the words the story's picture shows, glossed (they lead the vocabulary). */
   pictureWords: RvGloss[];
+  /**
+   * «Papier · photos» (2026-11-20): the story's pictures in order — its painted picture, its other
+   * painted shots, then its Wikimedia Commons photos. Empty on an older payload and, with the
+   * default switches, the painted picture alone (or nothing).
+   */
+  pictures: RvPicture[];
+};
+/** «Papier · photos»: one picture of the story's gallery, credited (French in every chrome language). */
+export type RvPicture = {
+  kind: 'illustration' | 'photo';
+  url: string;
+  width: number | null;
+  height: number | null;
+  /** The text alternative: the caption when there is one, else '' (decorative). */
+  altFr: string;
+  captionFr: string | null;
+  /** «Photo · {author} · {licence} · Wikimedia Commons» or «Illustration · Le Papier». */
+  creditFr: string;
+  licence: string | null;
+  licenceUrl: string | null;
+  sourceUrl: string | null;
 };
 export type RvStoryCard = {
   dossierId: string;
@@ -88,6 +129,20 @@ export type RvStoryCard = {
   /** «Au comptoir»: the question of the day and the three regulars (seat order); null with the switch off. */
   questionFr: string | null;
   cast: string[] | null;
+  /** The assignment this learner would be dealt («La photo»…), named by the chooser; null with the switch off. */
+  assignment: { key: string; nameFr: string } | null;
+  /** «Papier · le choix»: why pedagogy offers it; null with REVUE_PEDAGOGY_PICK_ENABLED off. */
+  why: RvWhy | null;
+};
+/**
+ * «Papier · le choix» (2026-11-22): why a story is offered — the learner's due words its French
+ * contains, the grammar rule it gives occasion to use (named in the mother tongue; `today` false
+ * when it is the week's most recent, not the day's own), the interest it meets.
+ */
+export type RvWhy = {
+  dueWords: string[];
+  rule: { id: string; name: string; today: boolean } | null;
+  interest: { topic: string; word: string } | null;
 };
 export type RvSupport = {
   glosses: 'shown' | 'tap' | 'none';
@@ -197,7 +252,17 @@ export type RvOffer = {
   evergreenOnly: boolean;
   resume: RvResume | null;
   filed: RvFiled | null;
+  /** «Papier · le choix»: the front page (up to three stories); null with REVUE_CHOICE_ENABLED off. */
+  choices: RvStoryCard[] | null;
+  /** The language the choices' `why` lines are said in (the mother tongue). */
+  whyLanguage: RvLanguage | null;
+  /** The front page's edition day (`YYYY-MM-DD`, the server's): its masthead prints it. */
+  editionDate?: string | null;
+  /** `REVUE_QUARTIER_AFFICHE_ENABLED`: today's edition on the Quartier's Morris column. */
+  affiche?: RvAffiche | null;
 };
+/** Today's edition as the quai's poster shows it: the headline (our French) and its «lu». */
+export type RvAffiche = { dossierId: string; headlineFr: string; done: boolean };
 /** `GET /revue/week`: a 404 (the flag is off) is `{ enabled: false }`, never an error. */
 export type RvWeekResult = { enabled: false } | { enabled: true; offer: RvOffer };
 
@@ -224,7 +289,7 @@ export type RvDossierView = {
   sources: RvSource[];
 };
 /** `outcome`: the rubric's best outcome for the word over the session, stored at close (WIRE §3.8); null when never graded. */
-export type RvKeptWord = { fr: string; gloss: string; claimId: string; used: boolean; outcome: RvOutcome | null };
+export type RvKeptWord = { fr: string; gloss: string; claimId: string | null; used: boolean; outcome: RvOutcome | null };
 export type RvClosing = {
   romyLineFr: string;
   dispatch: RvDispatch;
@@ -235,6 +300,13 @@ export type RvClosing = {
   vignette: RvVignetteView | null;
   /** «Au comptoir»: «La page»; null for a chat session. */
   comptoirPage: RvComptoirPage | null;
+  /** «Le fil» (2026-11-20): «La page»; null otherwise. */
+  filPage: RvFilPage | null;
+  /** «Le titre», «L'intox express» (2026-11-20): «La page»; null otherwise. */
+  titrePage: RvTitrePage | null;
+  intoxPage: RvIntoxPage | null;
+  photoPage: RvPhotoPage | null;
+  microPage: RvMicroPage | null;
 };
 export type RvSessionView = {
   id: string;
@@ -255,8 +327,18 @@ export type RvSessionView = {
   artifact: RvMade | null;
   closing: RvClosing | null;
   /** «Au comptoir»: fixed at the start for the session's life; `chat` with the switch off. */
-  mode: 'chat' | 'comptoir';
+  mode: 'chat' | 'comptoir' | 'fil' | 'titre' | 'intox' | 'photo' | 'micro';
   comptoir: RvComptoirView | null;
+  /** «Le fil» (2026-11-20): the dealt assignment's view; null unless `mode` is `fil`. */
+  fil: RvFilView | null;
+  /** «Le titre», «L'intox express» (2026-11-20): null unless `mode` says so. */
+  titre: RvTitreView | null;
+  intox: RvIntoxView | null;
+  /** «La photo», «Le micro» (2026-11-21): null unless `mode` says so. */
+  photo: RvPhotoView | null;
+  micro: RvMicroView | null;
+  /** «Papier · le choix»: why pedagogy offered the story (null when it was not picked that way). */
+  why: RvWhy | null;
 };
 export type RvWordEvidence = { fr: string; outcome: RvOutcome; capabilityKnown: boolean };
 /** WIRE §6.3 · the Papier rubric (`revue-rubric-v1`). */
@@ -352,7 +434,8 @@ export type RvMakeResult =
 export type RvCloseResult = { session: RvSessionView; closing: RvClosing };
 
 // Request bodies (camelCase in, snake_case on the wire — see revue-api.ts).
-export type RvStartBody = { week?: string; dossierId?: string; freeRequest?: string; angleId?: string };
+/** `assignment`: the rubric the front page showed the story in (the session plays it). */
+export type RvStartBody = { week?: string; dossierId?: string; freeRequest?: string; angleId?: string; assignment?: string };
 export type RvTurnBody = { text: string; mode?: 'text' | 'voice'; clientTurnId?: string };
 export type RvMakeBody =
   | { kind: 'headline_choice'; action: 'pick'; optionId: string }
@@ -382,6 +465,23 @@ export type RvErrorCode =
   | 'revue_comptoir_session'
   | 'revue_comptoir_out_of_order'
   | 'revue_comptoir_bad_act'
+  | 'revue_not_fil'
+  | 'revue_fil_session'
+  | 'revue_fil_out_of_order'
+  | 'revue_fil_bad_act'
+  | 'revue_not_rubrique'
+  | 'revue_titre_session'
+  | 'revue_titre_out_of_order'
+  | 'revue_titre_bad_act'
+  | 'revue_intox_session'
+  | 'revue_intox_out_of_order'
+  | 'revue_intox_bad_act'
+  | 'revue_photo_session'
+  | 'revue_photo_out_of_order'
+  | 'revue_photo_bad_act'
+  | 'revue_micro_session'
+  | 'revue_micro_out_of_order'
+  | 'revue_micro_bad_act'
   | 'unauthorized'
   | 'validation'
   | 'rate_limited'
@@ -426,6 +526,23 @@ export function parseRevueError(status: number, data: unknown): RevueError {
       'revue_comptoir_session',
       'revue_comptoir_out_of_order',
       'revue_comptoir_bad_act',
+      'revue_not_fil',
+      'revue_fil_session',
+      'revue_fil_out_of_order',
+      'revue_fil_bad_act',
+      'revue_not_rubrique',
+      'revue_titre_session',
+      'revue_titre_out_of_order',
+      'revue_titre_bad_act',
+      'revue_intox_session',
+      'revue_intox_out_of_order',
+      'revue_intox_bad_act',
+      'revue_photo_session',
+      'revue_photo_out_of_order',
+      'revue_photo_bad_act',
+      'revue_micro_session',
+      'revue_micro_out_of_order',
+      'revue_micro_bad_act',
       'rate_limited',
     ];
     if ((known as string[]).includes(code)) {
@@ -517,6 +634,33 @@ export function parseStage(raw: Json): RvStage {
     // §8.4: an older payload (no `plate_kind`) is a season plate with no picture words.
     plateKind: oneOf(raw.plate_kind, PLATE_KINDS, 'season'),
     pictureWords: list(raw.picture_words, parseGloss),
+    pictures: list(raw.pictures, parsePicture).filter((picture) => picture.url !== ''),
+  };
+}
+
+const PICTURE_KINDS = ['illustration', 'photo'] as const;
+
+function numOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** «Papier · photos»: a link is only ever an https URL (a licence deed or the Commons file page). */
+function httpsOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://') ? value : null;
+}
+
+export function parsePicture(raw: Json): RvPicture {
+  return {
+    kind: oneOf(raw.kind, PICTURE_KINDS, 'illustration'),
+    url: str(raw.url),
+    width: numOrNull(raw.width),
+    height: numOrNull(raw.height),
+    altFr: str(raw.alt_fr),
+    captionFr: strOrNull(raw.caption_fr),
+    creditFr: str(raw.credit_fr),
+    licence: strOrNull(raw.licence),
+    licenceUrl: httpsOrNull(raw.licence_url),
+    sourceUrl: httpsOrNull(raw.source_url),
   };
 }
 
@@ -535,6 +679,18 @@ export function parseStoryCard(raw: Json): RvStoryCard {
     stage: parseStage(isObject(raw.stage) ? raw.stage : {}),
     questionFr: strOrNull(raw.question_fr) || null,
     cast: Array.isArray(raw.cast) ? raw.cast.filter((id: unknown): id is string => typeof id === 'string') : null,
+    assignment: isObject(raw.assignment) && raw.assignment.name_fr ? { key: str(raw.assignment.key), nameFr: str(raw.assignment.name_fr) } : null,
+    why: isObject(raw.why) ? parseWhy(raw.why) : null,
+  };
+}
+
+export function parseWhy(raw: Json): RvWhy {
+  const rule = isObject(raw.rule) && str(raw.rule.name) ? raw.rule : null;
+  const interest = isObject(raw.interest) && str(raw.interest.word) ? raw.interest : null;
+  return {
+    dueWords: Array.isArray(raw.due_words) ? raw.due_words.filter((w: unknown): w is string => typeof w === 'string' && w.trim() !== '') : [],
+    rule: rule ? { id: str(rule.id), name: str(rule.name), today: rule.today === true } : null,
+    interest: interest ? { topic: str(interest.topic), word: str(interest.word) } : null,
   };
 }
 
@@ -673,15 +829,25 @@ export function parseThread(value: unknown): RvThreadItem[] {
   return list(value, parseThreadItem).filter((item): item is RvThreadItem => item !== null);
 }
 
+export function parseAffiche(value: unknown): RvAffiche | null {
+  if (!isObject(value)) return null;
+  const headlineFr = str(value.headline_fr).trim();
+  return headlineFr ? { dossierId: str(value.dossier_id), headlineFr, done: value.done === true } : null;
+}
+
 export function parseOffer(raw: Json): RvOffer {
   const resume = isObject(raw.resume) ? raw.resume : null;
   const filed = isObject(raw.filed) ? raw.filed : null;
   return {
+    affiche: parseAffiche(raw.affiche),
     week: parseWeek(isObject(raw.week) ? raw.week : {}),
     recommended: isObject(raw.recommended) ? parseStoryCard(raw.recommended) : null,
     recommendedReason: oneOf(raw.recommended_reason, ['topic_least_recent', 'interests', 'first'] as const, 'first'),
     alternatives: list(raw.alternatives, parseStoryCard),
     evergreenOnly: Boolean(raw.evergreen_only),
+    choices: Array.isArray(raw.choices) ? list(raw.choices, parseStoryCard).slice(0, 3) : null,
+    whyLanguage: raw.why_language === 'en' || raw.why_language === 'de' || raw.why_language === 'fr' ? raw.why_language : null,
+    editionDate: typeof raw.edition_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.edition_date) ? raw.edition_date : null,
     resume: resume
       ? {
           sessionId: str(resume.session_id),
@@ -718,7 +884,7 @@ export function parseClosing(raw: Json): RvClosing {
       words: list(kept.words, (word) => ({
         fr: str(word.fr),
         gloss: str(word.gloss),
-        claimId: str(word.claim_id),
+        claimId: strOrNull(word.claim_id),
         used: Boolean(word.used),
         outcome: word.outcome === 'correct' || word.outcome === 'incorrect' || word.outcome === 'unscored' ? word.outcome : null,
       })),
@@ -728,6 +894,11 @@ export function parseClosing(raw: Json): RvClosing {
     colophonFr: str(raw.colophon_fr) || 'La suite la semaine prochaine.',
     vignette: isObject(raw.vignette) ? parseVignette(raw.vignette) : null,
     comptoirPage: isObject(raw.comptoir_page) ? parseComptoirPage(raw.comptoir_page) : null,
+    filPage: isObject(raw.fil_page) ? parseFilPage(raw.fil_page) : null,
+    titrePage: isObject(raw.titre_page) ? parseTitrePage(raw.titre_page) : null,
+    intoxPage: isObject(raw.intox_page) ? parseIntoxPage(raw.intox_page) : null,
+    photoPage: isObject(raw.photo_page) ? parsePhotoPage(raw.photo_page) : null,
+    microPage: isObject(raw.micro_page) ? parseMicroPage(raw.micro_page) : null,
   };
 }
 
@@ -779,8 +950,27 @@ export function parseSessionView(raw: Json): RvSessionView {
     artifact: isObject(raw.artifact) ? parseMade(raw.artifact) : null,
     closing: isObject(raw.closing) ? parseClosing(raw.closing) : null,
     // A comptoir session without its view is drawn as a chat: never a player with nothing to show.
-    mode: raw.mode === 'comptoir' && isObject(raw.comptoir) ? 'comptoir' : 'chat',
+    mode:
+      raw.mode === 'comptoir' && isObject(raw.comptoir)
+        ? 'comptoir'
+        : raw.mode === 'fil' && isObject(raw.fil)
+          ? 'fil'
+          : raw.mode === 'titre' && isObject(raw.titre)
+            ? 'titre'
+            : raw.mode === 'intox' && isObject(raw.intox)
+              ? 'intox'
+              : raw.mode === 'photo' && isObject(raw.photo)
+                ? 'photo'
+                : raw.mode === 'micro' && isObject(raw.micro)
+                  ? 'micro'
+                  : 'chat',
     comptoir: raw.mode === 'comptoir' && isObject(raw.comptoir) ? parseComptoirView(raw.comptoir) : null,
+    fil: raw.mode === 'fil' && isObject(raw.fil) ? parseFilView(raw.fil, parseSource) : null,
+    titre: raw.mode === 'titre' && isObject(raw.titre) ? parseTitreView(raw.titre, parseSource, parseClaim) : null,
+    intox: raw.mode === 'intox' && isObject(raw.intox) ? parseIntoxView(raw.intox, parseSource) : null,
+    photo: raw.mode === 'photo' && isObject(raw.photo) ? parsePhotoView(raw.photo, parseSource) : null,
+    micro: raw.mode === 'micro' && isObject(raw.micro) ? parseMicroView(raw.micro, parseSource) : null,
+    why: isObject(raw.why) ? parseWhy(raw.why) : null,
   };
 }
 
@@ -918,6 +1108,7 @@ export function startBodyWire(body: RvStartBody): Json {
   if (body.dossierId) wire.dossier_id = body.dossierId;
   if (body.freeRequest) wire.free_request = body.freeRequest;
   if (body.angleId) wire.angle_id = body.angleId;
+  if (body.assignment) wire.assignment = body.assignment;
   return wire;
 }
 
@@ -1039,7 +1230,28 @@ export const RV_COMPTOIR_MARK_KINDS = ['accord', 'conjugaison', 'genre', 'orthog
  */
 export type RvComptoirProof = 'clean' | 'marked' | 'fixed' | 'corrected' | 'as_written';
 export const RV_COMPTOIR_PROOFS = ['clean', 'marked', 'fixed', 'corrected', 'as_written'] as const;
-export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind };
+/**
+ * `why` («Le pourquoi», `REVUE_POURQUOI_ENABLED`): the rule in the learner's mother tongue,
+ * never the corrected form; absent when the server sent none (switch off, or a refused why).
+ */
+/**
+ * «La règle» (`REVUE_TUTOR_MARKS_ENABLED`): the grammar concept a slip falls under (the app's
+ * id and its name, as the scene and the grammar pages name it) and whether it is the day's rule
+ * or a recent one. Absent when the server sent none.
+ */
+export type RvMarkRule = { conceptId?: string; conceptName?: string; isDayRule?: boolean; isRecentRule?: boolean };
+export type RvComptoirMark = { spanFr: string; start: number; kind: RvComptoirMarkKind; why?: string } & RvMarkRule;
+/**
+ * «Le pourquoi», once the opinion is settled: a mark with its full rule (`why`, the mother
+ * tongue), the same pattern in today's story (`exampleFr`) and the rule La Forge brings back.
+ */
+export type RvComptoirNote = {
+  spanFr: string;
+  kind: RvComptoirMarkKind;
+  why: string | null;
+  exampleFr: string | null;
+  ruleId: string | null;
+} & RvMarkRule;
 export type RvComptoirComeback = { textFr: string; index: number | null; lastWord: RvComptoirText };
 export type RvComptoirOpinion = {
   stance: RvStance;
@@ -1059,6 +1271,8 @@ export type RvComptoirOpinion = {
   /** A1–A2: the three comeback chips; empty from B1 (one free line). */
   comebacks: RvComptoirText[];
   comeback: RvComptoirComeback | null;
+  /** «Le pourquoi», once settled; absent when the server sent none. */
+  notes?: RvComptoirNote[];
 };
 export type RvComptoirView = {
   step: RvComptoirStep;
@@ -1184,10 +1398,12 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           learnerFr: str(opinion.learner_fr),
           draftFr: str(opinion.draft_fr) || str(opinion.learner_fr),
           proof: oneOf(opinion.proof, RV_COMPTOIR_PROOFS, 'as_written'),
-          marks: list(opinion.marks, (row) => ({
+          marks: list(opinion.marks, (row): RvComptoirMark => ({
             spanFr: str(row.span_fr),
             start: typeof row.start === 'number' ? row.start : 0,
             kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+            ...(str(row.why).trim() ? { why: str(row.why).trim() } : {}),
+            ...parseMarkRule(row),
           })).filter((mark) => mark.spanFr),
           tries: num(opinion.tries),
           maxTries: num(opinion.max_tries) || 2,
@@ -1197,8 +1413,34 @@ export function parseComptoirView(raw: Json): RvComptoirView {
           comeback: comeback
             ? { textFr: str(comeback.text_fr), index: typeof comeback.index === 'number' ? comeback.index : null, lastWord: comptoirText(comeback.last_word) }
             : null,
+          ...(Array.isArray(opinion.notes) && opinion.notes.length ? { notes: parseComptoirNotes(opinion.notes) } : {}),
         }
       : null,
+  };
+}
+
+/** «Le pourquoi»'s notes: a note without its words is dropped, an unknown kind is «mot». */
+export function parseComptoirNotes(raw: unknown): RvComptoirNote[] {
+  return list(raw, (row) => ({
+    spanFr: str(row.span_fr),
+    kind: oneOf(row.kind, RV_COMPTOIR_MARK_KINDS, 'mot'),
+    why: strOrNull(row.why) || null,
+    exampleFr: strOrNull(row.example_fr) || null,
+    ruleId: strOrNull(row.rule_id) || null,
+    ...parseMarkRule(row),
+  })).filter((note) => note.spanFr && (note.why || note.exampleFr || note.ruleId || note.conceptId));
+}
+
+/** «La règle»: the concept fields of a mark or a note, only those the server sent. */
+export function parseMarkRule(row: Json): RvMarkRule {
+  const conceptId = str(row.concept_id).trim();
+  if (!conceptId) return {};
+  const conceptName = str(row.concept_name).trim();
+  return {
+    conceptId,
+    ...(conceptName ? { conceptName } : {}),
+    ...(row.is_day_rule === true ? { isDayRule: true } : {}),
+    ...(row.is_recent_rule === true ? { isRecentRule: true } : {}),
   };
 }
 

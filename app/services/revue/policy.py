@@ -128,6 +128,27 @@ STORY_NEGATIVE = (
     "quotation, headline or statement by a real person."
 )
 
+#: «Papier · photos» (2026-11-20): the same rule for a real photo — never a portrait or a likeness
+#: (§1 non-goals). A Commons file whose title, description or categories carry one of these words
+#: (accent-folded whole words; ``*`` a prefix) is a picture of a person, and is refused; so is one
+#: that names a person of the dossier, or that Commons marks with personality rights. For a story
+#: about a person the gallery shows the place or the thing.
+PHOTO_PERSON_WORDS: tuple[str, ...] = (
+    "portrait*", "autoportrait*", "headshot*", "selfie*", "mugshot*", "bildnis*", "retrato*", "ritratto*",
+    "births", "deaths", "people", "persons", "person", "personnes", "personnalite*", "personality",
+    "men", "women", "man", "woman", "homme", "femme", "hommes", "femmes", "child", "children", "enfant*",
+    "politician*", "politicien*", "minister", "ministers", "president", "presidents", "deputes", "mayor*",
+    "actor*", "actress*", "acteur*", "actrice*", "singer*", "chanteu*", "musician*", "musicien*",
+    "footballer*", "athlete*", "player", "players", "joueu*", "celebrit*", "interview*",
+)
+
+
+def photo_person_hits(text: str | None) -> list[str]:
+    """The :data:`PHOTO_PERSON_WORDS` a Commons file's title, description or categories carry."""
+
+    tokens = _tokens(text or "")
+    return [word.rstrip("*") for word in PHOTO_PERSON_WORDS if _word_matches(word, tokens)]
+
 #: The ``outfit`` catalogue of the Revue stage (§8.2). ``coat`` is the canon default.
 OUTFITS: tuple[str, ...] = ("coat", "suit", "apron", "raincoat", "sport", "scarf_only", "chef", "hi_vis")
 

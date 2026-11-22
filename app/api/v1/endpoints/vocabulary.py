@@ -1324,6 +1324,31 @@ class KeepWordRequest(BaseModel):
     panel_id: str | None = Field(default=None, max_length=80)
     #: The line's audio key (``{panel_id}:l{index}``).
     line_key: str | None = Field(default=None, max_length=120)
+    #: Integration 2026-11-22: kept inside a Papier — the word is a Papier word
+    #: (``kept_from_revue``, tied to this session and its place), not a story word.
+    revue_session_id: UUID | None = None
+
+
+def _keep_in_papier(payload: KeepWordRequest, db: Session, user: User) -> dict[str, Any]:
+    """«Garder» inside a Papier (``revue.carte.keep_tapped_word``): the learner's own session
+    only (404 otherwise); a word with no meaning in their language is refused as a story keep is."""
+
+    from app.db.models.revue_session import RevueSession
+    from app.services.kept_words import keep_refusal
+    from app.services.revue.carte import keep_tapped_word
+
+    row = db.get(RevueSession, payload.revue_session_id)
+    if row is None or row.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Papier session not found")
+    kept = keep_tapped_word(db, user=user, row=row, term=payload.term, sentence=payload.sentence, surface=payload.surface)
+    if kept is None:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=keep_refusal("not_in_lexicon", user_mother_tongue(user)),
+        )
+    db.commit()
+    return kept
 
 
 @router.post("/keep")
@@ -1340,6 +1365,8 @@ def keep_vocabulary_word(
 
     from app.services.kept_words import KeepRefused, keep_refusal, keep_word
 
+    if payload.revue_session_id is not None:
+        return _keep_in_papier(payload, db, current_user)
     try:
         kept = keep_word(
             db,

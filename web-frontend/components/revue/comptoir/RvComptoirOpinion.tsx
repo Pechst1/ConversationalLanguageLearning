@@ -29,10 +29,19 @@ import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvTranslate } from '../RvThread';
 import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from './comptoir-copy';
-import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, markSegments, wordDiff } from './comptoir-model';
+import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, wordDiff } from './comptoir-model';
 import { ComptoirBubble, MineLine, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
+import { RvProofMarks } from './RvProofMarks';
+import { RvProofNotes } from './RvProofNotes';
+import { useVoixScope, useVxListening } from '../voix/VoixContext';
 
 const SIDES: RvStance[] = ['pour', 'contre', 'nuance'];
+
+/** The same sentence, spaces and the final stop aside. */
+function sameSentence(a: string, b: string): boolean {
+  const form = (text: string) => text.replace(/\s+/g, ' ').replace(/[\s.!?…]+$/, '').trim();
+  return Boolean(form(a)) && form(a) === form(b);
+}
 
 export function RvComptoirOpinion(props: ComptoirStepProps) {
   const { view, copy, ccopy, glossLanguage, glosses, voice, pending, readOnly, onAct, onContinue, wordFor, notice, footRef } = props;
@@ -44,6 +53,11 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const mic = useVoiceAnswer();
   const micState = mic.state;
+  // The regular's reply, while it waits to be heard, hides the answers to it (integration 2026-11-22).
+  const replyVeiled = useVxListening(
+    opinion?.reply?.line.fr && !opinion.comeback ? [[opinion.reply.by, opinion.reply.line.fr] as const] : [],
+  );
+  const listenHint = useVoixScope()?.copy.listen_hint ?? null;
 
   useEffect(() => {
     if (micState.kind === 'transcript') {
@@ -186,6 +200,7 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
   // --- after the opinion: Romy's marks, the print, the answer, the comeback -------
   let suite: React.ReactNode = null;
   const marked = opinion?.proof === 'marked';
+  const printsAsWritten = Boolean(opinion) && !marked && sameSentence(opinion?.printedFr ?? opinion?.draftFr ?? '', opinion?.learnerFr ?? '');
   if (opinion && marked) {
     suite = (
       <>
@@ -194,24 +209,14 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
           <p className="ct-paper__k" lang="fr">
             {COMPTOIR_FR.proof_marked}
           </p>
-          <p className="ct-paper__fr" lang="fr">
-            {markSegments(opinion.draftFr, opinion.marks).map((segment, index) =>
-              segment.kind ? (
-                <mark key={index} className="ct-mark" data-kind={segment.kind}>
-                  {segment.text}
-                </mark>
-              ) : (
-                <React.Fragment key={index}>{segment.text}</React.Fragment>
-              ),
-            )}
-          </p>
-          <ul className="ct-marks">
-            {opinion.marks.map((mark, index) => (
-              <li key={index} className="ct-why">
-                <b lang="fr">{mark.spanFr}</b> · {ccopy.mark_kinds[mark.kind]}
-              </li>
-            ))}
-          </ul>
+          <RvProofMarks
+            key={`marks-${opinion.tries}`}
+            draftFr={opinion.draftFr}
+            marks={opinion.marks}
+            kindLabels={ccopy.mark_kinds}
+            copy={ccopy.pourquoi}
+            whyLanguage={glossLanguage}
+          />
         </section>
       </>
     );
@@ -240,6 +245,7 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
               : printed}
           </p>
           <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
+          <RvProofNotes notes={opinion.notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
         </section>
         {opinion.reply?.line.fr && (
           <ComptoirBubble
@@ -258,7 +264,8 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
             onWord={wordFor(opinion.reply.by, opinion.reply.nameFr)}
           />
         )}
-        {!opinion.comeback && opinion.comebacks.length > 0 && (
+        {replyVeiled && listenHint && <p className="ct-hint" data-vx-listening="">{listenHint}</p>}
+        {!replyVeiled && !opinion.comeback && opinion.comebacks.length > 0 && (
           <>
             <p className="ct-label">{ccopy.your_reply}</p>
             <div className="ct-comebacks" role="group" aria-label={ccopy.your_reply}>
@@ -353,6 +360,8 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
         )}
       </>
     );
+  } else if (!opinion.comeback && opinion.comebacks.length === 0 && replyVeiled && listenHint) {
+    foot = <p className="ct-foot__hint">{listenHint}</p>;
   } else if (!opinion.comeback && opinion.comebacks.length === 0) {
     // From B1: one free line, no model call.
     foot = (
@@ -377,7 +386,9 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
     <>
       <div className="rv-body ct-body" data-step="opinion" data-input={input}>
         <RomyLine line={COMPTOIR_LINES.opinion_ask} props={props} past={Boolean(opinion)} />
-        {opinion && <MineLine textFr={opinion.learnerFr} copy={copy} />}
+        {/* Romy's corrections card is the sentence while it is shown, and the printed card when it
+            prints the learner's words unchanged: the learner's bubble steps aside for them. */}
+        {opinion && !marked && !printsAsWritten && <MineLine textFr={opinion.learnerFr} copy={copy} />}
         {composer}
         {suite}
         {notice}

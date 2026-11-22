@@ -16,6 +16,17 @@ Which evergreen fits a week is decided by ``time_scope`` alone: a dossier's stor
 «Au comptoir» (WP-119, 2026-10-19): ``evergreen/comptoir/<id>.json`` holds the takes the desk
 wrote for that evergreen (checked, read by eye, committed), loaded onto its dossier here, so
 an evergreen week makes no desk call and the tests and the walk play real French offline.
+
+«Le fil» (2026-11-20): ``evergreen/fil/<id>.json`` holds a wire written by hand for the
+evergreens whose claims carry four events in a stated order (most do not: they describe a
+custom, not a sequence). Read on demand (:func:`evergreen_wire`), never attached to the loaded
+dossiers, so nothing an evergreen stores or snapshots changes while the assignments are off.
+«Le titre» and «L'intox express» likewise read ``evergreen/titre/<id>.json`` and
+``evergreen/intox/<id>.json`` (:func:`evergreen_titre`, :func:`evergreen_intox`); «La photo» and «Le
+micro» (2026-11-21) ``evergreen/photo/<id>.json`` and ``evergreen/micro/<id>.json``
+(:func:`evergreen_photo`, :func:`evergreen_micro`). An evergreen's photo desk is written against
+the pictures its gallery would hold (its Commons subjects, ``photos.subjects_for``): it plays only
+while the story's gallery holds exactly those (``photo.bind``).
 """
 
 from __future__ import annotations
@@ -24,11 +35,25 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
-from app.services.revue.dossier import ComptoirTakes, EditorialDossier, week_bounds
+from app.services.revue.dossier import (
+    ComptoirTakes,
+    EditorialDossier,
+    FilWire,
+    IntoxExpress,
+    MicroDesk,
+    PhotoDesk,
+    TitreDesk,
+    week_bounds,
+)
 
 EVERGREEN_DIR = Path(__file__).with_name("evergreen")
 SOURCES_DIR = EVERGREEN_DIR / "sources"
 COMPTOIR_DIR = EVERGREEN_DIR / "comptoir"
+FIL_DIR = EVERGREEN_DIR / "fil"
+TITRE_DIR = EVERGREEN_DIR / "titre"
+INTOX_DIR = EVERGREEN_DIR / "intox"
+PHOTO_DIR = EVERGREEN_DIR / "photo"
+MICRO_DIR = EVERGREEN_DIR / "micro"
 
 
 @lru_cache(maxsize=1)
@@ -44,6 +69,71 @@ def evergreen_takes(dossier_id: str) -> ComptoirTakes | None:
 
     takes = _takes().get(dossier_id)
     return takes.model_copy(deep=True) if takes is not None else None
+
+
+@lru_cache(maxsize=1)
+def _wires() -> dict[str, FilWire]:
+    return {path.stem: FilWire.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(FIL_DIR.glob("*.json"))}
+
+
+def evergreen_wire(dossier_id: str) -> FilWire | None:
+    """«Le fil» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    wire = _wires().get(dossier_id)
+    return wire.model_copy(deep=True) if wire is not None else None
+
+
+@lru_cache(maxsize=1)
+def _titres() -> dict[str, TitreDesk]:
+    return {path.stem: TitreDesk.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(TITRE_DIR.glob("*.json"))}
+
+
+def evergreen_titre(dossier_id: str) -> TitreDesk | None:
+    """«Le titre» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    titre = _titres().get(dossier_id)
+    return titre.model_copy(deep=True) if titre is not None else None
+
+
+@lru_cache(maxsize=1)
+def _intoxes() -> dict[str, IntoxExpress]:
+    return {path.stem: IntoxExpress.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(INTOX_DIR.glob("*.json"))}
+
+
+def evergreen_intox(dossier_id: str) -> IntoxExpress | None:
+    """«L'intox express» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    intox = _intoxes().get(dossier_id)
+    return intox.model_copy(deep=True) if intox is not None else None
+
+
+@lru_cache(maxsize=1)
+def _photos() -> dict[str, PhotoDesk]:
+    return {path.stem: PhotoDesk.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(PHOTO_DIR.glob("*.json"))}
+
+
+def evergreen_photo(dossier_id: str) -> PhotoDesk | None:
+    """«La photo» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    photo = _photos().get(dossier_id)
+    return photo.model_copy(deep=True) if photo is not None else None
+
+
+@lru_cache(maxsize=1)
+def _micros() -> dict[str, MicroDesk]:
+    return {path.stem: MicroDesk.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in sorted(MICRO_DIR.glob("*.json"))}
+
+
+def evergreen_micro(dossier_id: str) -> MicroDesk | None:
+    """«Le micro» shipped with the evergreen ``dossier_id`` (a copy), or ``None``."""
+
+    micro = _micros().get(dossier_id)
+    return micro.model_copy(deep=True) if micro is not None else None
 
 
 @lru_cache(maxsize=1)

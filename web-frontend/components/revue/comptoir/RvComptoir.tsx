@@ -34,8 +34,12 @@ import type { RvComptoirBody, RvComptoirStep, RvLanguage, RvSessionView } from '
 import { revueCopy } from '../revue-copy';
 import { knownGloss, sessionGlosses } from '../revue-model';
 import type { RvWordEvent } from '../RvThread';
-import { comptoirCopy } from './comptoir-copy';
-import { clampStep, nextStep, openingStep, stepOrder } from './comptoir-model';
+import { PpPlayerSection } from '../papier/PapierPrint';
+import { VoixScope, useVoixSession } from '../voix/VoixContext';
+import { pendingLines } from '../voix/voix-model';
+import { COMPTOIR_FR, comptoirCopy } from './comptoir-copy';
+import { clampStep, nextStep, openingStep, STEP_LABELS_FR, stepOrder } from './comptoir-model';
+import { bringNewestIntoView, scrollerOf } from './scroll';
 import { RvComptoirHead, RomyRefusal, type ComptoirStepProps } from './RvComptoirParts';
 import { RvComptoirIntox } from './RvComptoirIntox';
 import { RvComptoirOpinion } from './RvComptoirOpinion';
@@ -57,44 +61,6 @@ export type RvComptoirProps = {
 };
 
 const ROMY = 'romy_tremblay';
-
-/**
- * The element that scrolls the page: the nearest ancestor that scrolls, else the
- * document. The body's own `overflow-x: hidden` computes its `overflow-y` to `auto`
- * but, while `html` is `visible`, it is handed to the viewport (CSS overflow
- * propagation), so the body never scrolls itself: skipped then. In the native
- * shell (`overflow-x: clip`) the document scrolls too.
- */
-function scrollerOf(node: HTMLElement | null): HTMLElement | null {
-  if (typeof window === 'undefined' || !node) return null;
-  const root = document.documentElement;
-  const rootStyle = window.getComputedStyle(root);
-  const propagated = rootStyle.overflowX === 'visible' && rootStyle.overflowY === 'visible';
-  for (let el: HTMLElement | null = node.parentElement; el && el !== root; el = el.parentElement) {
-    if (el === document.body && propagated) continue;
-    const style = window.getComputedStyle(el);
-    if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) return el;
-  }
-  return (document.scrollingElement as HTMLElement | null) ?? root;
-}
-
-/**
- * Brings `node` into the band between the sticky head and the sticky foot: its top
- * under the head (`start`), or just enough to show it whole above the foot (`nearest`).
- */
-function bringIntoView(node: HTMLElement, head: HTMLElement | null, foot: HTMLElement | null, block: 'start' | 'nearest') {
-  const scroller = scrollerOf(node);
-  if (!scroller) return;
-  const rect = node.getBoundingClientRect();
-  const top = (head?.getBoundingClientRect().bottom ?? 0) + 8;
-  const bottom = (foot?.getBoundingClientRect().top ?? window.innerHeight) - 12;
-  let delta = 0;
-  if (block === 'start' || rect.top < top) delta = rect.top - top;
-  else if (rect.bottom > bottom) delta = Math.min(rect.bottom - bottom, rect.top - top);
-  if (Math.abs(delta) < 2) return;
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  scroller.scrollBy({ top: delta, behavior: reduce ? 'auto' : 'smooth' });
-}
 
 /** What changed on screen after an act: the newest part is brought into view. */
 function progressKey(session: RvSessionView): string {
@@ -121,7 +87,9 @@ export function RvComptoir({ client, session: initial, language, onExit, onRelev
   const footRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headRef = useRef<HTMLDivElement | null>(null);
-  const voice = useLineVoice();
+  // «Papier · la voix»: the session's lines in their server voices (nothing changes while it is off).
+  const voix = useVoixSession(initial.id);
+  const voice = useLineVoice({ resolve: voix.resolve });
 
   // A different session from the page replaces this one; the same one never rewinds it.
   const shownId = useRef(initial.id);
@@ -161,12 +129,7 @@ export function RvComptoir({ client, session: initial, language, onExit, onRelev
   useEffect(() => {
     if (lastProgress.current === progress) return;
     lastProgress.current = progress;
-    const body = bodyRef.current;
-    if (!body || typeof body.querySelectorAll !== 'function') return;
-    const anchors = body.querySelectorAll<HTMLElement>('[data-ct-anchor]');
-    const node = anchors[anchors.length - 1];
-    if (!node || typeof node.getBoundingClientRect !== 'function') return;
-    bringIntoView(node, headRef.current, footRef.current, node.dataset.ctAnchor === 'start' ? 'start' : 'nearest');
+    bringNewestIntoView(bodyRef.current, headRef.current, footRef.current);
   }, [progress]);
 
   const wordFor = useCallback(
@@ -181,9 +144,11 @@ export function RvComptoir({ client, session: initial, language, onExit, onRelev
         speakerId: speakerId ?? ROMY,
         knownGloss: known,
         knownGlossLanguage: known ? glossLanguage : null,
+        // «Garder» here keeps a Papier word, tied to this session (integration 2026-11-22).
+        revueSessionId: session.id,
       });
     },
-    [glossLanguage, glosses],
+    [glossLanguage, glosses, session.id],
   );
 
   const reread = useCallback(async () => {
@@ -295,14 +260,17 @@ export function RvComptoir({ client, session: initial, language, onExit, onRelev
   }
 
   return (
+    <VoixScope session={{ ...voix, id: session.id }} voice={voice} pending={pendingLines(view)} chrome={chrome} motherTongue={glossLanguage}>
     <div className="rv-encounter ct-player" data-step={shown} data-band={view.band} data-ended={ended ? '' : undefined} data-readonly={readOnly ? '' : undefined} ref={bodyRef}>
       <div className="rv-top" ref={headRef}>
-        <RvComptoirHead steps={view.steps} shown={shown} closed={closed} back={ended || readOnly} onExit={onExit} copy={copy} ccopy={ccopy} />
+        <RvComptoirHead steps={view.steps} shown={shown} closed={closed} back={ended || readOnly} onExit={onExit} copy={copy} ccopy={ccopy} opening={shown === 'read'} />
       </div>
+      <PpPlayerSection session={session} section={COMPTOIR_FR.press} step={STEP_LABELS_FR[shown as keyof typeof STEP_LABELS_FR] ?? null} shown={shown} />
       {step}
       <FeuilletonReaderStyles />
       <WordHelpSheet request={word} onClose={() => setWord(null)} language={chrome} note={null} quoteLabel={copy.word_in_text} />
     </div>
+    </VoixScope>
   );
 }
 

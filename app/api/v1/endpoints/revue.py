@@ -9,6 +9,14 @@ dependency, before authentication, so the feature stays invisible. Then the exis
 «Au comptoir» (WP-119, 2026-10-19) sits on the same router. ``REVUE_COMPTOIR_ENABLED`` decides
 which sessions start at the counter, not whether its route answers: a session started while the
 switch was on plays to its end after it is turned off (a chat session answers 409).
+
+«Le fil» (2026-11-20) likewise: ``REVUE_ASSIGNMENTS_ENABLED`` decides which sessions are dealt
+it; its route answers a session that was (any other answers 409 ``revue_not_fil``).
+
+«Le titre» and «L'intox express» (2026-11-20) share ONE act route,
+``POST /sessions/{id}/rubrique``, which plays the assignment the session was dealt
+(``rubriques.LOOPS``; any other session answers 409 ``revue_not_rubrique``). «Le fil» keeps
+its own route.
 """
 
 from __future__ import annotations
@@ -16,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -24,15 +33,20 @@ from app.core.rate_limit import paid_route_guard
 from app.db.models.user import User
 from app.schemas.revue import (
     WEEK_PATTERN,
+    RvAffiche,
     RvCloseResult,
     RvComptoirRequest,
     RvComptoirResult,
+    RvFilRequest,
+    RvFilResult,
     RvMakeOffer,
     RvMakeRequest,
     RvMakeResult,
     RvMatchRequest,
     RvMatchResult,
     RvOffer,
+    RvRubriqueRequest,
+    RvRubriqueResult,
     RvSessionView,
     RvStartRequest,
     RvTurnRequest,
@@ -85,9 +99,28 @@ def read_week(
     """The week's recommended story, two alternatives, and any session to resume or already filed."""
 
     try:
-        return encounter.week_offer(current_user, week)
+        offer = encounter.week_offer(current_user, week)
     except RevueError as error:
         raise _http(error) from error
+    if settings.REVUE_QUARTIER_AFFICHE_ENABLED:
+        offer = offer.model_copy(update={"affiche": affiche_of(offer)})
+    return offer
+
+
+def affiche_of(offer: RvOffer) -> RvAffiche | None:
+    """Today's edition on the Quartier's Morris column: the story filed, else the one in
+    progress, else the recommendation; ``None`` when there is none."""
+
+    cards = {card.dossier_id: card for card in [offer.recommended, *offer.alternatives] if card is not None}
+    for held, done in ((offer.filed, True), (offer.resume, False)):
+        if held is not None:
+            card = cards.get(held.dossier_id)
+            headline = (card.headline_fr if card is not None else None) or held.title_fr
+            return RvAffiche(dossier_id=held.dossier_id, headline_fr=headline.strip(), done=done)
+    card = offer.recommended
+    if card is None:
+        return None
+    return RvAffiche(dossier_id=card.dossier_id, headline_fr=(card.headline_fr or card.title_fr).strip(), done=False)
 
 
 @router.post("/match", response_model=RvMatchResult)
@@ -114,6 +147,7 @@ def start_session(
             dossier_id=body.dossier_id,
             free_request=body.free_request,
             angle_id=body.angle_id,
+            **({"assignment": body.assignment} if body.assignment else {}),
         )
         return encounter.view(row)
     except RevueError as error:
@@ -184,6 +218,20 @@ def post_make(
         raise _http(error) from error
 
 
+def _complete_papier_step(db: Session, user: User) -> None:
+    """``REVUE_PLANNED_STEP_ENABLED``: the closed session completes the day's Papier step
+    (``daily_journey.complete_papier_step``). A failure costs the step, never the close."""
+
+    from app.services.daily_journey import complete_papier_step
+
+    try:
+        if complete_papier_step(db, user):
+            db.commit()
+    except Exception:  # pragma: no cover - the close is already committed
+        logger.exception("revue: the closed session did not complete the day's Papier step")
+        db.rollback()
+
+
 @router.post("/sessions/{session_id}/close", response_model=RvCloseResult)
 def close_session(
     session_id: str,
@@ -196,6 +244,7 @@ def close_session(
     try:
         row = owned_session(db, current_user, session_id, lock=True)
         view, closing = encounter.close(row)
+        _complete_papier_step(db, current_user)
         return RvCloseResult(session=view, closing=closing)
     except RevueError as error:
         raise _http(error) from error
@@ -217,5 +266,46 @@ def post_comptoir(
     try:
         row = owned_session(db, current_user, session_id, lock=True)
         return encounter.comptoir(row, body)
+    except RevueError as error:
+        raise _http(error) from error
+
+
+@router.post("/sessions/{session_id}/fil", response_model=RvFilResult)
+def post_fil(
+    session_id: str,
+    body: RvFilRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    encounter: RevueEncounter = Depends(get_encounter),
+) -> RvFilResult:
+    """«Le fil»: one act of the learner's loop (open, order, words, tell, tell_fix). 409
+    ``revue_not_fil`` on another session, 409 ``revue_fil_out_of_order`` (with the current
+    ``step``) for an act out of order; an act that repeats one already recorded returns the
+    session as it is; ``error`` says why an act the learner can fix was not recorded."""
+
+    try:
+        row = owned_session(db, current_user, session_id, lock=True)
+        return encounter.fil(row, body)
+    except RevueError as error:
+        raise _http(error) from error
+
+
+@router.post("/sessions/{session_id}/rubrique", response_model=RvRubriqueResult)
+def post_rubrique(
+    session_id: str,
+    body: RvRubriqueRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    encounter: RevueEncounter = Depends(get_encounter),
+) -> RvRubriqueResult:
+    """«Le titre» (open, pick, trap, build, build_fix) and «L'intox express» (open, answer,
+    fix): one act of the assignment the session was dealt. 409 ``revue_not_rubrique`` on
+    another session, 409 ``revue_<mode>_out_of_order`` (with the current ``step``) for an act
+    out of order; an act that repeats one already recorded returns the session as it is;
+    ``error`` says why an act the learner can fix was not recorded."""
+
+    try:
+        row = owned_session(db, current_user, session_id, lock=True)
+        return encounter.rubrique(row, body)
     except RevueError as error:
         raise _http(error) from error

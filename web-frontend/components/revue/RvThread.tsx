@@ -563,6 +563,11 @@ export function madeLabel(kind: RvMade['kind'], copy: RevueCopy, mine = true): s
   if (kind === 'short_report') return copy.made_report;
   if (kind === 'caption') return mine ? copy.made_caption : copy.caption_label;
   if (kind === 'opinion') return copy.made_opinion;
+  if (kind === 'fil') return copy.made_fil;
+  if (kind === 'titre') return copy.made_titre;
+  if (kind === 'intox') return copy.made_intox;
+  if (kind === 'photo') return copy.made_photo;
+  if (kind === 'micro') return copy.made_micro;
   return mine ? copy.made_headline : copy.headline_label;
 }
 

@@ -47,6 +47,8 @@ export type WordHelpRequest = {
   knownGloss?: string | null;
   /** The language `knownGloss` is written in (whether «Garder» may keep it). */
   knownGlossLanguage?: string | null;
+  /** Inside a Papier: «Garder» keeps a Papier word, tied to this session (`kept_from_revue`). */
+  revueSessionId?: string | null;
 };
 
 const FOCUSABLE =
@@ -178,6 +180,7 @@ export function WordHelpSheet({
         speaker_id: request.speakerId ?? null,
         panel_id: request.panelId ?? null,
         line_key: request.lineKey ?? null,
+        ...(request.revueSessionId ? { revue_session_id: request.revueSessionId } : {}),
       });
       setKeep({ kind: 'kept', already: Boolean(kept?.already_kept) });
     } catch (error) {

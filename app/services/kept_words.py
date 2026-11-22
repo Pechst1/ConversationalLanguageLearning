@@ -63,6 +63,26 @@ MAX_TERM_CHARS = 80
 KEEP_SESSION_STYLE = "story_reader"
 
 
+def revue_words_count() -> bool:
+    """``REVUE_WORDS_IN_DECK_ENABLED``: a word kept in a Papier counts as kept from the story."""
+
+    from app.config import settings
+
+    return bool(getattr(settings, "REVUE_WORDS_IN_DECK_ENABLED", False))
+
+
+def kept_interaction_types() -> tuple[str, ...]:
+    """The ``WordInteraction`` types that mean «the learner kept this word»."""
+
+    return (KEPT_INTERACTION_TYPE, REVUE_INTERACTION_TYPE) if revue_words_count() else (KEPT_INTERACTION_TYPE,)
+
+
+def kept_provenances() -> tuple[str, ...]:
+    """The progress provenances of a kept word (the deck's «kept, not asked yet»)."""
+
+    return (KEPT_PROVENANCE, REVUE_PROVENANCE) if revue_words_count() else (KEPT_PROVENANCE,)
+
+
 class KeepRefused(ValueError):
     """The word cannot be kept honestly. ``reason`` is a stable code.
 
@@ -325,15 +345,19 @@ def kept_words_for(
 
     The story engine's hook (WP-78 → Codex): the director may bring these back
     into a scene. Read-only, learner-scoped, and it never reads a sentence
-    another learner kept.
+    another learner kept. With ``REVUE_WORDS_IN_DECK_ENABLED`` a word kept in a
+    Papier is one of them.
     """
 
+    types = kept_interaction_types()
     stmt = (
         select(WordInteraction, VocabularyWord)
         .join(VocabularyWord, VocabularyWord.id == WordInteraction.word_id)
         .where(
             WordInteraction.user_id == user_id,
-            WordInteraction.interaction_type == KEPT_INTERACTION_TYPE,
+            WordInteraction.interaction_type == types[0]
+            if len(types) == 1
+            else WordInteraction.interaction_type.in_(types),
         )
         .order_by(WordInteraction.created_at.desc(), WordInteraction.id)
         .limit(max(1, limit) * 3)

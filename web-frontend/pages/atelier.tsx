@@ -141,7 +141,8 @@ import {
   homeDayChip,
   recapStreak,
   sessionMarkState,
-  sessionNextAction,
+  homeNextAction,
+  plannedPapier,
   sessionRows,
   withScenePlayed,
 } from '@/lib/day-session';
@@ -244,6 +245,7 @@ import {
 } from '@/lib/revue-une';
 import { radioHomeChip, useRadioWeek, withRadioChip } from '@/lib/radio-une'; // WP-122 A: «La Radio · 50 s» after the Revue chip
 import { correcteurHomeChip, useCorrecteurWeek, withCorrecteurChip } from '@/lib/correcteur-une'; // WP-122 B: «Le Correcteur» after the Radio chip
+import { uneHomeChip, useUneSemaine, withUneChip } from '@/lib/revue-une-semaine'; // «La une de la semaine», Sundays
 import { journalHomeChip, useJournalWaiting, withJournalChip } from '@/lib/journal-home'; // P9: «Raconter hier» right after the letter
 import { getStoryArchive } from '@/components/feuilleton/archive/archive-api';
 import { homeReplayHref } from '@/components/feuilleton/archive/archive-model';
@@ -2976,7 +2978,15 @@ function TodayView({
    * the next). Only while the journey owns the day (`homeDay`). The rule is `lib/revue-une.ts`, tested in
    * `components/atelier-v2/home/atelier-revue-entry.test.js`.
    */
-  const revueEntry = homeDay
+  // Integration 2026-11-22 (REVUE_PLANNED_STEP_ENABLED): a plan that holds the Papier as a
+  // step makes it a row of the programme in its own place, with its own state; the day's card
+  // is then the one way in (its press opens the next unfinished step, the Papier included), so
+  // no Revue hero promises the Papier and opens the scene.
+  const revueOffer = revueWeek?.enabled ? revueWeek.offer : null;
+  const papierPlanned = homeDay
+    ? plannedPapier(dayJourney, { filed: Boolean(revueOffer?.filed), started: Boolean(revueOffer?.resume) })
+    : null;
+  const revueEntry = homeDay && !papierPlanned
     ? revueUneEntry({
         week: revueWeek,
         language: chromeLanguage,
@@ -3091,6 +3101,7 @@ function TodayView({
     : [];
   const radioWeek = useRadioWeek();
   const correcteurWeek = useCorrecteurWeek();
+  const uneSemaine = useUneSemaine();
   const homeChip = homeDayChip(
     streak,
     Boolean((today as { streak?: { today_done?: boolean } } | null)?.streak?.today_done),
@@ -3100,12 +3111,13 @@ function TodayView({
   // goes in last (the Revue and the Radio also follow the letter). R2 (4): on a
   // finished day Home draws one chip, so there the retell is the first.
   const journalWaiting = useJournalWaiting(Boolean(homeDay));
-  const homeChips: HomeChip[] = withJournalChip<HomeChip>(
+  // «La une de la semaine» (Sundays): after the Correcteur; the journal's retell keeps its place.
+  const homeChips: HomeChip[] = withUneChip<HomeChip>(withJournalChip<HomeChip>(
     withCorrecteurChip<HomeChip>(withRadioChip<HomeChip>(revueHomeChips<HomeChip>(revueEntry, dayChips, revueDayDone && Boolean(revueWeek?.enabled && !revueWeek.offer.filed)), homeDay ? radioHomeChip(radioWeek, chromeLanguage) : null, Boolean(revueEntry.hero)), homeDay ? correcteurHomeChip(correcteurWeek, chromeLanguage) : null, Boolean(revueEntry.hero)),
     homeDay ? journalHomeChip(journalWaiting, chromeLanguage) : null,
     Boolean(revueEntry.hero),
     homeChip.dayDone,
-  );
+  ), homeDay ? uneHomeChip(uneSemaine) : null, Boolean(revueEntry.hero));
   const homeEntries: HomeEntry[] = errorOnlyPage || homeDay
     ? []
     : [
@@ -3201,7 +3213,9 @@ function TodayView({
   const sessionCopy = daySessionCopy(chromeLanguage);
   // P12: the button follows the server's session (the journey card's «Continue today» while
   // the journey's own steps go on); the tracker reads daySession.
-  const sessionNext = sessionNextAction(serverSession, chromeLanguage);
+  const sessionNext = homeNextAction(serverSession, chromeLanguage, papierPlanned, {
+    journeyOpen: dayJourney?.status === 'active' || dayJourney?.status === 'paused',
+  });
   // P7: no «Noch 5 neue Wörter» on Home after the day; Settings holds the offer.
   const homeHero = daySession && sessionNext ? (
     <>
@@ -3257,7 +3271,7 @@ function TodayView({
       // (Le Papier first); only an interlude has no scene to plan.
       planHidden={(Boolean(revueHero) && !daySession) || Boolean(todayInterlude(dayEnvelope as TodayEnvelope | null) && !dayJourney)}
       session={daySession ? {
-        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday }),
+        rows: sessionRows(daySession, chromeLanguage, { papier: Boolean(revueHero) || revueDayToday, planned: papierPlanned }),
         tempoLabel: sessionCopy.tempo(sessionCopy.pace[daySession.pace]),
         onTempo: () => setTempoOpen(true),
       } : null}

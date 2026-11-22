@@ -34,6 +34,8 @@ import { Course } from '@/lib/quartier/course';
 import { Crowd } from '@/lib/quartier/crowd';
 import { Quartier } from '@/lib/quartier/engine';
 import { Interior } from '@/lib/quartier/interior';
+import { routeOfHit } from '@/lib/quartier/affiche-model';
+import type { Affiche, Opens } from '@/lib/quartier/affiche-model';
 import type { Stats } from '@/lib/quartier/engine';
 import { Memory, eligible } from '@/lib/quartier/memory';
 import type { Words } from '@/lib/quartier/memory';
@@ -125,6 +127,14 @@ export interface QuartierScreenProps {
   world?: () => Promise<LearnerWorld | null>;
   /** P12: the learner's story for «Ton carnet» (the people met, the days played, the news on or off); none: the quarter's own memory */
   carnet?: () => Promise<CarnetStory | null>;
+  /**
+   * `REVUE_QUARTIER_AFFICHE_ENABLED`: today's Papier for the quai's Morris column, read when the quai
+   * is built (a slow answer is waited for as the learner's quarter is; none, or null: the column's own
+   * posters). A tap on it, or «Lire» on its card, calls `onOpen` with its route.
+   */
+  affiche?: () => Promise<Affiche | null>;
+  /** an object of the quarter opens a route of the app (the page navigates there) */
+  onOpen?: (route: string) => void;
 }
 
 const ART: ArtSource = {
@@ -137,6 +147,9 @@ const AWAY_MS = 10 * 60 * 1000;
 
 /** How long the quai waits for the learner's own quarter before it is built without it. */
 const WORLD_WAIT_MS = 4000;
+
+/** How near an object that opens a route of the app (the Papier's poster) you stand for its card to show, in metres. */
+const OPEN_REACH = 4.5;
 
 /** The hand-drawn quarter: the quai de Valmy and Le Mistral. */
 const HOME = 'quai_de_valmy';
@@ -161,6 +174,7 @@ export const COPY = {
     asks: 'te demande',
     choice: 'À toi',
     goOn: 'Continuer',
+    read: 'Lire',
     leaveScene: 'Partir',
     carnet: 'Ton carnet',
     map: 'La carte',
@@ -210,6 +224,7 @@ export const COPY = {
     asks: 'te demande',
     choice: 'À toi',
     goOn: 'Continuer',
+    read: 'Lire',
     leaveScene: 'Partir',
     carnet: 'Ton carnet',
     map: 'La carte',
@@ -250,7 +265,7 @@ function episodeOf(page: StoryPage | null) {
   return episodeLabel(page?.number) ?? 'Le Quartier';
 }
 
-export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world, carnet }: QuartierScreenProps) {
+export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance: firstAmbiance = 'nuit', onExit, showStats = false, startPlace, cast, onReady, hidden = false, details, world, carnet, affiche, onOpen }: QuartierScreenProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const engine = React.useRef<Quartier | null>(null);
   const stage = React.useRef<Director | null>(null);
@@ -299,6 +314,11 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
   const walked = React.useRef<{ pos: [number, number]; look?: [number, number, number]; caption?: Words } | null>(null);
   // the door or the passage you stand at, and what it said when it stayed shut
   const [near, setNear] = React.useState<Way | null>(null);
+  // the object that opens a route of the app you stand by (the Papier's poster), and where it opens
+  const [opening, setOpening] = React.useState<Opens | null>(null);
+  const openRef = React.useRef(onOpen);
+  openRef.current = onOpen;
+  const free = React.useRef(false);
   const [shut, setShut] = React.useState<Words | null>(null);
   const copy = COPY[native];
   const here = placeOf(place);
@@ -372,6 +392,11 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           const specs = await Promise.all(Object.entries(DETAIL_FILES).filter(([id]) => !asked.has(id)).map(([, load]) => load()));
           laid.push(...setBy(specs.filter((one) => one.in === place), told));
         }
+        // today's Papier on the column: only on the quai, never held for longer than the quarter is
+        const poster =
+          affiche && place === HOME
+            ? await Promise.race([affiche().catch(() => null), new Promise<null>((done) => window.setTimeout(() => done(null), WORLD_WAIT_MS))])
+            : null;
         if (cancelled) return;
         setSite(spec);
         setRoom(inside);
@@ -382,6 +407,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
           site: spec ?? undefined,
           room: inside ?? undefined,
           details: laid,
+          affiche: poster,
           cast,
           onProgress: (share, label) => !cancelled && setLoading({ share, label }),
         });
@@ -422,6 +448,18 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         let wayAt = 0;
         let nearKey: string | null = null;
         unbind = eq.bindInput();
+        // a tap on an object that opens a route (the Papier's poster), while you are free to walk
+        const stopOpen = eq.on((hit) => {
+          const route = routeOfHit(hit, free.current);
+          if (route) openRef.current?.(route);
+        });
+        const unbindInput = unbind;
+        unbind = () => {
+          stopOpen();
+          unbindInput();
+        };
+        let openKey: string | null = null;
+        let openAt = 0;
         const last = eq.feet.clone();
         let statAt = 0;
         stopTick = eq.onTick((_dt, now) => {
@@ -437,6 +475,14 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
               nearKey = w?.key ?? null;
               setNear(w);
               setShut(null);
+            }
+          }
+          if (now - openAt > 0.2) {
+            openAt = now;
+            const o = eq.openingNear(OPEN_REACH);
+            if ((o?.id ?? null) !== openKey) {
+              openKey = o?.id ?? null;
+              setOpening(o?.opens ?? null);
             }
           }
           if (showStats && now - statAt > 0.5) {
@@ -535,6 +581,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     walked.current = carry ? null : onFoot ?? null;
     setNear(null);
     setShut(null);
+    setOpening(null);
     setScene(Boolean(carry));
     const to = placeOf(id);
     setPanel(null);
@@ -596,6 +643,7 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
     onPlayed.current?.();
   }, [phase, forged, scene]);
 
+  free.current = phase === 'roam' && !ui?.talk && !ui?.answer && !ui?.aside && !panel;
   const walkable = (phase === 'roam' || Boolean(ui?.goal) || Boolean(ui?.moment)) && !ui?.talk && !ui?.answer && !ui?.aside;
   // a line outside the script (why you leave, welcome back) takes the speaker's card
   const line: SpeechUi | null = ui?.aside ?? (ui?.speech && !ui.silent ? ui.speech : null);
@@ -764,13 +812,27 @@ export function QuartierScreen({ day, native: nativeProp, level = 'a2', ambiance
         </div>
       ) : null}
 
+      {opening && onOpen && ready && phase === 'roam' && !near && !ui?.goal && !ui?.talk && !ui?.answer && !ui?.aside ? (
+        <div className="qz-goal" data-opens={opening.route}>
+          <div className="qz-goal-label" lang="fr">
+            {opening.label.fr}
+            {translate ? <small>{opening.label[native]}</small> : null}
+          </div>
+          <div className="qz-goal-actions">
+            <button type="button" className="qz-primary" onClick={() => onOpen(opening.route)}>
+              {copy.read}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {walkable && ready ? <Stick onMove={(x, y) => engine.current?.setStick(x, y)} /> : null}
 
       {ui?.answer ? <AnswerSheet key={ui.answer.id} a={ui.answer} copy={copy} onSend={(t) => st?.answer(t)} onHelp={() => st?.askHelp?.()} /> : null}
 
       {ui?.talk ? <TalkSheet key={ui.talk.who} t={ui.talk} translate={translate} native={native} copy={copy} onSay={(t) => st?.talkSay(t)} onClose={() => st?.endTalk()} /> : null}
 
-      {phase === 'roam' && !ui?.talk && !ui?.goal && !near ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : ui?.canTalk === false ? copy.walkHint : copy.roamHint}</div> : null}
+      {phase === 'roam' && !ui?.talk && !ui?.goal && !near && !(opening && onOpen) ? <div className="qz-hint">{room ? (room.switches.length ? copy.roomHint : copy.litHint) : ui?.canTalk === false ? copy.walkHint : copy.roamHint}</div> : null}
       {phase === 'roam' && ui?.met ? (
         <div key={ui.met.at} className="qz-met" data-char={ui.met.char}>
           {ui.met.name}

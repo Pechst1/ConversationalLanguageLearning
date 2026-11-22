@@ -79,6 +79,7 @@ import {
 } from './revue-model';
 import { RvCloseCarteLink, RvCloseVignette, RvDispatch, RvKept } from './RvClose';
 import { RvComposer } from './RvComposer';
+import { RvGallery } from './RvGallery';
 import { RvCaption, RvHeadlineChoice, RvHeadlineWrite, RvMakePicker, RvQuestionDraft, RvShortReport } from './RvMake';
 import { RvSessionHead } from './RvSessionHead';
 import { RvStage, stageCast, stagePlateUrl } from './RvStage';
@@ -193,9 +194,11 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
         speakerId: 'romy_tremblay',
         knownGloss: known,
         knownGlossLanguage: known ? glossLanguage : null,
+        // «Garder» here keeps a Papier word, tied to this session (integration 2026-11-22).
+        revueSessionId: session.id,
       });
     },
-    [glossLanguage, glosses],
+    [glossLanguage, glosses, session.id],
   );
 
   const noteEvidence = useCallback((evidence: RvEvidence | null | undefined, mineId: string | null) => {
@@ -728,6 +731,8 @@ export function RvEncounter({ client, session: initial, language, onExit, onRele
       {/* 2026-10-19: the band scrolls away with the thread; only the head row stays pinned. */}
       {stage}
       <div className="rv-body">
+        {/* «Papier · photos»: the story's other pictures, while the learner reads the arrival. */}
+        {!hasSpoken && !ended && <RvGallery pictures={session.stage.pictures} mainUrl={session.stage.plateUrl} copy={copy} />}
         {session.dossier.evergreen && !ended && (
           <p className="rv-kicker">{copy.evergreen_label}</p>
         )}

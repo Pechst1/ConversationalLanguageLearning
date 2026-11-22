@@ -45,6 +45,7 @@ from app.schemas.revue import (
     RvComptoirIntox,
     RvComptoirKit,
     RvComptoirMark,
+    RvComptoirNote,
     RvComptoirOpinion,
     RvComptoirPage,
     RvComptoirPageIntox,
@@ -58,7 +59,8 @@ from app.schemas.revue import (
     RvDispatch,
     RvKept,
 )
-from app.services.revue import comptoir, voice
+from app.services import sentence_line
+from app.services.revue import comptoir, pourquoi, regle, voice
 from app.services.revue.dossier import (
     COMPTOIR_STANCES,
     ComptoirIntox,
@@ -86,6 +88,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from app.services.revue.encounter import RevueEncounter
 
 COMPTOIR_EDIT_PROMPT_VERSION = "comptoir-edit-v3"
+
+
+def edit_prompt_version() -> str:
+    """The ``comptoir_edit`` prompt in use: v4 with «Le pourquoi» on (``pourquoi.py``), else v3."""
+
+    return pourquoi.POURQUOI_PROMPT_VERSION if pourquoi.enabled() else COMPTOIR_EDIT_PROMPT_VERSION
 
 STEPS: tuple[str, ...] = ("read", "takes", "intox", "opinion", "page")
 REACTIONS: tuple[str, ...] = ("agree", "disagree")
@@ -511,7 +519,7 @@ def comptoir_view(loaded: Loaded) -> RvComptoirView:
             draft_fr=proof["draft"],
             proof=proof["proof"],
             marks=[RvComptoirMark(span_fr=str(m.get("span_fr")), start=int(m.get("start") or 0),
-                                  kind=str(m.get("kind")))  # type: ignore[arg-type]
+                                  kind=str(m.get("kind")), why=pourquoi.hint_of(m), **regle.view_fields(m))  # type: ignore[arg-type]
                    for m in proof["marks"] if isinstance(m, dict) and m.get("kind") in MARK_KINDS],
             tries=proof["tries"],
             max_tries=FIX_TRIES,
@@ -523,6 +531,8 @@ def comptoir_view(loaded: Loaded) -> RvComptoirView:
             ) if settled else None,
             comebacks=chips,
             comeback=comeback,
+            notes=[RvComptoirNote(**note) for note in pourquoi.notes_of(pourquoi.rounds_of(acts.opinion, acts.fixes),
+                                                                         proof["proof"]) if note["kind"] in MARK_KINDS],
         )
 
     return RvComptoirView(
@@ -706,7 +716,7 @@ def _opinion(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, *,
     state.append("comptoir", act="opinion", stance=stance, mode=body.mode, reason_index=body.reason_index,
                  learner_fr=learner, typed_fr=typed, proof=check["proof"], target_fr=check["target"],
                  marks=check["marks"], reply=reply, source=check["source"], cost_usd=check["cost"],
-                 prompt_version=COMPTOIR_EDIT_PROMPT_VERSION if band != "A1" else None, refused=check["refused"])
+                 prompt_version=edit_prompt_version() if band != "A1" else None, refused=check["refused"])
     return None
 
 
@@ -728,6 +738,7 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         if proof["tries"] < 1:
             raise _out_of_order(step, "opinion_fix")
         state.append("comptoir", act="opinion_fix", by="romy", proof="corrected", target_fr=proof["target"])
+        _settle(encounter, loaded, acts, "corrected")
         return None
     text = re.sub(r"\s+", " ", body.text or "").strip()
     stance = str(acts.opinion.get("stance")) if acts.opinion else "pour"
@@ -745,7 +756,7 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         row.update(proof="fixed", target_fr=proof["target"])
     else:
         check = _proofread(encounter, loaded, takes, band=band, stance=stance, learner_fr=learner)
-        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=COMPTOIR_EDIT_PROMPT_VERSION)
+        row.update(cost_usd=check["cost"], refused=check["refused"], prompt_version=edit_prompt_version())
         if check["proof"] == "as_written":
             row.update(proof="as_written", target_fr="")
         elif check["proof"] == "clean":
@@ -755,7 +766,17 @@ def _opinion_fix(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes
         else:
             row.update(proof="marked", target_fr=check["target"], marks=check["marks"])
     state.append("comptoir", act="opinion_fix", **row)
+    _settle(encounter, loaded, acts, str(row.get("proof")))
     return None
+
+
+def _settle(encounter: RevueEncounter, loaded: Loaded, acts: Acts, proof: str) -> None:
+    """«Le pourquoi»: once the marks are settled, the slips go to the learner's error memory
+    (``pourquoi.remember``; ``acts`` as they were before this settling fix). Switch on only."""
+
+    if pourquoi.enabled() and proof in {"fixed", "corrected"}:
+        pourquoi.remember(encounter.db, loaded.row.user_id, pourquoi.rounds_of(acts.opinion, acts.fixes), proof,
+                          session_id=str(loaded.row.id), dossier_id=loaded.dossier.id)
 
 
 def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, *, band: str, stance: str,
@@ -771,6 +792,9 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, 
     if not callable(edit):
         return out
     context = edit_context(loaded.dossier, takes, band=band, stance=stance, learner_fr=learner_fr)
+    language = pourquoi.explain_language(encounter, loaded) if pourquoi.enabled() else None
+    if language:
+        context[pourquoi.EXPLAIN_KEY] = language
     before = meter(encounter.provider)
     try:
         raw = edit(context)
@@ -784,8 +808,10 @@ def _proofread(encounter: RevueEncounter, loaded: Loaded, takes: ComptoirTakes, 
     out["refused"] = checked.get("_problems") or None
     out.update({key: checked[key] for key in ("reply_fr", "reply_en", "reply_de") if checked.get(key)})
     if checked.get("edited_fr"):
-        marks = proof_marks(learner_fr, checked["edited_fr"], checked.get("marks") or [])
-        out.update(target=checked["edited_fr"], marks=marks, proof="marked" if marks else "clean", source="model")
+        target, marks = regle.marked(encounter, loaded, learner_fr=learner_fr, edited=checked["edited_fr"],
+                                     hints=checked.get("marks") or [], raw_marks=raw.get("marks"), band=band,
+                                     language=language, takes=takes)
+        out.update(target=target, marks=marks, proof="marked" if marks else "clean", source="model")
     return out
 
 
@@ -815,12 +841,18 @@ def _proof_key(text: str) -> list[str]:
     return [_token_key(m.group(0), i) for i, m in enumerate(_TOKEN.finditer(text or ""))]
 
 
+#: A word that elides before a vowel, written in full: «que il», «de élèves», «le arbre», «si il».
+_ELIDED = re.compile(r"\b(qu|d|l|j|m|t|s|n|c|lorsqu|puisqu|jusqu)[ea]? (?=[aeiouyh])")
+
+
 def _mark_kind(wrong: list[str], right: list[str]) -> str:
     """The kind of slip, guessed from the words that differ (the model's hint wins)."""
 
     w, r = comptoir.ci(" ".join(wrong)), comptoir.ci(" ".join(right))
     if re.sub(r"[\s'-]", "", w) == re.sub(r"[\s'-]", "", r):
         return "orthographe"  # accents, capitals, elision
+    if _ELIDED.sub(r"\1'", w) == r:
+        return "orthographe"  # «que il» → «qu'il», «de élèves» → «d'élèves» (tirage 2026-11-22: was «mot»)
     if sorted(map(str.lower, wrong)) == sorted(map(str.lower, right)):
         return "ordre"
     if frozenset((w, r)) in _GENDER_PAIRS:
@@ -845,13 +877,46 @@ def _common_prefix(a: str, b: str) -> str:
     return a[:size]
 
 
+def _sentences_at(text: str) -> list[tuple[int, str]]:
+    """The learner's (or Romy's) sentences as the shared splitter reads them, each at its
+    place in ``text`` with the space before it: put back together they are ``text``."""
+
+    found: list[tuple[int, str]] = []
+    cursor = 0
+    for sentence in sentence_line.typed_sentences(text):
+        at = re.compile(r"\s+".join(map(re.escape, sentence.split()))).search(text, cursor)
+        if at is None:
+            return []
+        if _TOKEN.search(at.group(0)):
+            found.append((cursor, text[cursor:at.end()]))
+        cursor = at.end()
+    return found
+
+
 def proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Romy's marks: where ``learner_fr`` differs from her corrected ``target_fr``, word by
     word (typography, the first capital and the punctuation aside), as the learner's own words
     at their place (``span_fr``, ``start``) with the kind of slip, the model's hint when one
     covers those words, else guessed. A missing word marks the word before the gap. At most
-    :data:`MARKS_MAX`; empty when nothing differs."""
+    :data:`MARKS_MAX`; empty when nothing differs.
 
+    Sentence by sentence when both texts have as many (tirage 2026-11-22: three interview
+    questions, «est-ce que» dropped from one and added to the next, were diffed as one text
+    and marked «chevaux» as a missing word and «courent ? Quand» as word order)."""
+
+    mine, theirs = _sentences_at(learner_fr), _sentences_at(target_fr)
+    if len(mine) > 1 and len(mine) == len(theirs):
+        marks: list[dict[str, Any]] = []
+        for (offset, sentence), (_, corrected) in zip(mine, theirs, strict=True):
+            for mark in _proof_marks(sentence, corrected, hints):
+                marks.append({**mark, "start": mark["start"] + offset})
+                if len(marks) >= MARKS_MAX:
+                    return marks
+        return marks
+    return _proof_marks(learner_fr, target_fr, hints)
+
+
+def _proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     mine = list(_TOKEN.finditer(learner_fr))
     theirs = list(_TOKEN.finditer(target_fr))
     if not mine:
@@ -862,9 +927,12 @@ def proof_marks(learner_fr: str, target_fr: str, hints: list[dict[str, Any]] | N
     hinted: list[tuple[int, int, str]] = []
     for hint in hints or []:
         span = str(hint.get("span_fr") or "").lower()
-        at = lowered.find(span) if span else -1
-        if at >= 0 and hint.get("kind") in MARK_KINDS:
+        if not span or hint.get("kind") not in MARK_KINDS:
+            continue
+        at = lowered.find(span)
+        while at >= 0:  # every place the words stand: «que il» twice is the same slip twice
             hinted.append((at, at + len(span), str(hint["kind"])))
+            at = lowered.find(span, at + 1)
     marks: list[dict[str, Any]] = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, keys_a, keys_b, autojunk=False).get_opcodes():
         if op == "equal":

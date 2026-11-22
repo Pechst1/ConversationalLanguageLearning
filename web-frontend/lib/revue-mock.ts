@@ -55,6 +55,19 @@
  * screens (`POST …/comptoir`, the same replay rules as the server) and its close prints
  * «La page». The other stories stay chats.
  *
+ * «Le titre» / «L'intox express» (`titre: true` / `intox: true`; `/revue?mock=1&titre=1` or
+ * `&intox=1`, WIRE §11): «La Fête de la musique» leads and plays that assignment
+ * (`lib/revue-mock-rubriques.ts`), its card without the counter's question.
+ * «Le fil» (`fil: true`; `/revue?mock=1&fil=1`, WIRE §10): the recommended story is «Le bac»
+ * with its wire (`lib/revue-mock-fil.ts`), a session started on it plays the five screens
+ * (`POST …/fil`) and its close prints «La page». With `comptoir` too, Céline stays a counter.
+ * «Le pourquoi» (`pourquoi: true`; `&pourquoi=1`): Romy's marks at the counter and in «Raconter»
+ * carry their rule, the settled sentence its notes. «La règle» (`regle: true`; `&regle=1`): each
+ * mark names its grammar concept, the day's rule stamped. «Papier · photos» (`photos: true`;
+ * `&photos=1`): every story's stage carries a `pictures` list of three — its picture, a second
+ * illustration and a photo with its credit and links — neutral placeholders drawn here as data
+ * URIs (no network).
+ *
  * State lives in memory and in `sessionStorage` (try/catch), so reloading the page
  * replays the session — the resume contract, in miniature.
  */
@@ -72,6 +85,36 @@ import {
   type ComptoirContext,
   type MockComptoirState,
 } from './revue-mock-comptoir';
+import { FIL_CLOSE_LINE, applyFilAct, filClose, filView, newFilState, type FilContext, type MockFilState } from './revue-mock-fil';
+import {
+  INTOX_CLOSE_LINE,
+  TITRE_CLOSE_LINE,
+  applyIntoxAct,
+  applyTitreAct,
+  intoxClose,
+  intoxView,
+  newIntoxState,
+  newTitreState,
+  titreClose,
+  titreView,
+  type MockIntoxState,
+  type MockTitreState,
+  type RubriqueContext,
+} from './revue-mock-rubriques';
+import {
+  MICRO_CLOSE_LINE,
+  PHOTO_CLOSE_LINE,
+  applyMicroAct,
+  applyPhotoAct,
+  microClose,
+  microView,
+  newMicroState,
+  newPhotoState,
+  photoClose,
+  photoView,
+  type MockMicroState,
+  type MockPhotoState,
+} from './revue-mock-photo-micro';
 
 type Json = Record<string, any>;
 type Lang = 'en' | 'de' | 'fr';
@@ -447,7 +490,82 @@ const CELINE: MockDossier = {
     second_plate: '/assets/serial/locations/le_mistral-counter.webp',
   },
 };
-const ALL_DOSSIERS: MockDossier[] = [...DOSSIERS, CELINE];
+/** «Le fil»: «Le bac» (app/services/revue/evergreen/evergreen-bac.json, the parts the player reads). */
+const BAC: MockDossier = {
+  id: 'evergreen-bac',
+  title_fr: 'Le bac',
+  short_fr: 'Le bac',
+  summary_fr:
+    "Le baccalauréat a été créé en 1808 ; la première session a eu lieu en 1809. Le taux de réussite est passé de 75,5 % en 1990 à 95,7 % en 2023. À partir de 2027, le coefficient du Grand oral passe de 10 à 8.",
+  leads: {
+    headline_fr: 'Le bac, deux siècles plus tard',
+    a1: {
+      fr: 'En juin, les lycéens passent le bac. Le bac existe depuis 1808. Aujourd’hui, presque tous les candidats réussissent.',
+      en: 'In June, secondary school pupils sit the bac. The bac has existed since 1808. Today, almost all candidates pass.',
+      de: 'Im Juni legen die Schüler das Abitur ab. Das Abitur gibt es seit 1808. Heute bestehen fast alle Kandidaten.',
+    },
+    a2: {
+      fr: "En juin, les lycéens passent le baccalauréat, le « bac ». L'épreuve de philosophie est souvent la plus attendue. Depuis quelques années, presque tous les candidats réussissent, et tout le monde n'est pas d'accord sur ce que cela veut dire.",
+      en: "In June, secondary school pupils sit the baccalauréat, the “bac”. The philosophy paper is often the most awaited. For a few years now almost every candidate has passed, and not everyone agrees on what that means.",
+      de: 'Im Juni legen die Schüler das Abitur ab, das „bac“. Die Philosophieprüfung wird oft am meisten erwartet. Seit einigen Jahren bestehen fast alle Kandidaten, und nicht alle sind sich einig, was das bedeutet.',
+    },
+  },
+  topic: 'work',
+  place: { id: 'lycee', name_fr: "Une salle d'examen dans un lycée en juin", plate: '/assets/serial/locations/office_admin.webp', plate_place_id: 'office_admin', real: false, dress: 'coat' },
+  narration: ["Un matin de juin, devant un lycée.", 'Romy a son carnet ouvert.'],
+  place_note: null,
+  angle: { id: 'a1', fr: 'Le bac : deux siècles en quatre dates', purpose: 'understand_change' },
+  claims: [
+    { id: 'c1', kind: 'fact', fr: 'Le baccalauréat a été créé en 1808 ; la première session a eu lieu en 1809.', quote: "Le baccalauréat est créé en 1808, mais sa première édition n'a lieu qu'en 1809.", source_id: 'bac_wikipedia' },
+    { id: 'c3', kind: 'fact', fr: 'À partir de 2027, le coefficient du Grand oral passe de 10 à 8.', quote: 'le coefficient du Grand oral passe de 10 à 8', source_id: 'bac_wikipedia' },
+    { id: 'c4', kind: 'fact', fr: 'Le taux de réussite est passé de 75,5 % en 1990 à 95,7 % en 2023.', quote: 'Le taux de réussite global passe de 75,5 % en 1990 à 95,7 % en 2023', source_id: 'bac_wikipedia' },
+  ],
+  sources: [
+    { id: 'bac_wikipedia', name: 'Wikipédia, « Baccalauréat en France »', url: 'https://fr.wikipedia.org/w/index.php?title=Baccalaur%C3%A9at_en_France&oldid=239994941', published_at: '2026-10-02' },
+  ],
+  uncertainties: ['Les sources ne disent pas si le bac sera plus difficile en 2027.'],
+  vocabulary: [
+    { fr: 'le baccalauréat', claim_id: 'c1', en: 'the baccalauréat', de: 'das Abitur', gloss_fr: "l'examen de la fin du lycée" },
+    { fr: 'la session', claim_id: 'c1', en: 'the exam session', de: 'der Prüfungsdurchgang', gloss_fr: "la période de l'examen" },
+    { fr: 'le taux de réussite', claim_id: 'c4', en: 'the pass rate', de: 'die Erfolgsquote', gloss_fr: 'combien réussissent' },
+    { fr: 'le coefficient', claim_id: 'c3', en: 'the weighting', de: 'die Gewichtung', gloss_fr: "le poids d'une note" },
+  ],
+  headlines: [
+    { id: 'h1', text_fr: "Le bac n'existe plus en 2027" },
+    { id: 'h2', text_fr: 'Le bac, créé en 1808, change encore en 2027', correct: true },
+    { id: 'h3', text_fr: 'Le bac a été créé en 2023' },
+  ],
+  headline_claim: 'c1',
+  reader_question_fr: 'Est-ce que le bac sera plus difficile en 2027 ?',
+};
+const ALL_DOSSIERS: MockDossier[] = [...DOSSIERS, CELINE, BAC];
+
+/**
+ * «Papier · photos» (`photos: true`): neutral placeholders (data URIs, nothing fetched) for a
+ * story's second illustration and its Commons photo; the credits and links have the real shapes.
+ */
+const placeholder = (label: string, sky: string, ground: string) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 213" role="img" aria-label="${label}"><rect width="320" height="213" fill="${sky}"/><rect y="140" width="320" height="73" fill="${ground}"/><rect x="40" y="70" width="90" height="70" fill="#F1ECE1" opacity=".55"/><rect x="170" y="52" width="110" height="88" fill="#F1ECE1" opacity=".4"/><circle cx="262" cy="34" r="14" fill="#F1ECE1" opacity=".7"/></svg>`,
+  )}`;
+const PLACEHOLDER_SHOT = placeholder('Illustration (placeholder)', '#C9C1B1', '#8C8475');
+const PLACEHOLDER_PHOTO = placeholder('Photo (placeholder)', '#B7BCC4', '#6F757E');
+const mockPictures = (d: MockDossier, plateUrl: string) => [
+  { kind: 'illustration', url: plateUrl, width: 1536, height: 1024, alt_fr: '', caption_fr: null, credit_fr: 'Illustration · Le Papier', licence: null, licence_url: null, source_url: null },
+  { kind: 'illustration', url: `${PLACEHOLDER_SHOT}#${d.id}`, width: 1536, height: 1024, alt_fr: '', caption_fr: null, credit_fr: 'Illustration · Le Papier', licence: null, licence_url: null, source_url: null },
+  {
+    kind: 'photo',
+    url: `${PLACEHOLDER_PHOTO}#${d.id}`,
+    width: 1280,
+    height: 853,
+    alt_fr: d.place.name_fr,
+    caption_fr: d.place.name_fr,
+    credit_fr: 'Photo · Camille Exemple · CC BY-SA 4.0 · Wikimedia Commons',
+    licence: 'CC BY-SA 4.0',
+    licence_url: 'https://creativecommons.org/licenses/by-sa/4.0',
+    source_url: 'https://commons.wikimedia.org/wiki/File:Example.jpg',
+  },
+];
 /** The takes the mock's counter argues over, by dossier. */
 const TAKES: Record<string, typeof CELINE_TAKES> = { [CELINE.id]: CELINE_TAKES };
 
@@ -586,6 +704,14 @@ type MockSession = {
   vignette?: Json | null;
   /** «Au comptoir»: the session plays the five screens; the learner's acts so far. */
   comptoir?: MockComptoirState | null;
+  /** «Le fil»: the session plays the five screens; the learner's acts so far. */
+  fil?: MockFilState | null;
+  /** «Le titre» / «L'intox express» (WIRE §11): the learner's acts so far. */
+  titre?: MockTitreState | null;
+  intox?: MockIntoxState | null;
+  /** «La photo» / «Le micro» (WIRE §12): the learner's acts so far. */
+  photo?: MockPhotoState | null;
+  micro?: MockMicroState | null;
 };
 
 export type MockOptions = {
@@ -605,9 +731,43 @@ export type MockOptions = {
   pictures?: boolean;
   /** «Au comptoir» (WIRE §9): the switch on — the Céline story leads, with its takes (default false). */
   comptoir?: boolean;
+  /** «Le fil» (WIRE §10): the switch on — «Le bac» leads and plays the five screens (default false). */
+  fil?: boolean;
+  /** «Le titre» (WIRE §11, `&titre=1`): «La Fête de la musique» leads and plays «Le titre» (default false). */
+  titre?: boolean;
+  /** «L'intox express» (WIRE §11, `&intox=1`): «La Fête de la musique» leads and plays it (default false; `titre` wins). */
+  intox?: boolean;
+  /** «La photo» (WIRE §12, `&photo=1`): «La Fête de la musique» leads and plays «La photo» (default false). */
+  photo?: boolean;
+  /** «Le micro» (WIRE §12, `&micro=1`): «La Fête de la musique» leads and plays «Le micro» (default false). */
+  micro?: boolean;
+  /** «Le pourquoi»: Romy's marks carry their rule, the settled sentence its notes (default false). */
+  pourquoi?: boolean;
+  /** «La règle»: each mark names its grammar concept, the day's rule stamped (default false). */
+  regle?: boolean;
+  /** «Papier · photos»: every stage carries a `pictures` list of three, placeholders (default false). */
+  photos?: boolean;
+  /**
+   * «Papier · le choix» (`&choix=1`): the offer carries a front page of three stories with their `why`
+   * (in `language`, as the mother tongue): Céline at the counter, the Fête's headlines, the market as a
+   * chat. Turns «Au comptoir» and «Le titre» on, the two offered assignments (default false).
+   */
+  choix?: boolean;
 };
 
+/** «Papier · le choix»: the day's rule as the mock learner's rule card names it. */
+const CHOIX_RULE: Record<Lang, string> = { fr: 'Donner son avis', en: 'Giving your opinion', de: 'Seine Meinung sagen' };
+
 const STORAGE_KEY = 'revue-mock-v1';
+/** The assignments' French names (assignments.py). */
+const ASSIGNMENT_NAMES: Record<string, string> = {
+  comptoir: 'Au comptoir',
+  fil: 'Le fil',
+  titre: 'Le titre',
+  intox: "L'intox express",
+  photo: 'La photo',
+  micro: 'Le micro',
+};
 
 function fold(text: string): string {
   return text
@@ -679,7 +839,9 @@ function httpError(status: number, detail: unknown): HttpError {
   return error;
 }
 
-export function createMockRevueTransport(options: MockOptions = {}): RevueTransport & { reset: () => void } {
+export function createMockRevueTransport(given: MockOptions = {}): RevueTransport & { reset: () => void } {
+  // «Papier · le choix»: the two offered assignments, on.
+  const options: MockOptions = given.choix ? { ...given, comptoir: true, titre: true } : given;
   const language: Lang = options.language ?? 'en';
   const band: Band = options.band ?? 'A2';
   const latency = options.latency ?? 0;
@@ -687,6 +849,9 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
   const persist = options.persist ?? typeof window !== 'undefined';
   const pictureOf = (d: MockDossier) => (options.pictures ? d.picture ?? null : null);
   const takesOf = (d: MockDossier) => (options.comptoir ? TAKES[d.id] ?? null : null);
+  /** The assignment «La Fête de la musique» plays in the mock (`titre` wins over `intox`). */
+  const rubriqueMode = (): 'titre' | 'intox' | 'photo' | 'micro' | null =>
+    options.titre ? 'titre' : options.intox ? 'intox' : options.photo ? 'photo' : options.micro ? 'micro' : null;
   let sessions: Record<string, MockSession> = {};
 
   if (persist) {
@@ -706,7 +871,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     }
   };
 
-  const dossierById = (id: string) => (options.comptoir ? ALL_DOSSIERS : DOSSIERS).find((d) => d.id === id) ?? null;
+  const dossierById = (id: string) => (options.comptoir || options.fil ? ALL_DOSSIERS : DOSSIERS).find((d) => d.id === id) ?? null;
   const allSessions = () => Object.keys(sessions).map((id) => sessions[id]);
   const active = () => allSessions().find((s) => !s.closing) ?? null;
   const filed = () => allSessions().find((s) => Boolean(s.closing)) ?? null;
@@ -752,6 +917,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     ...(pictureOf(d)
       ? { plate_url_second: pictureOf(d)?.second_plate, plate_switched: Boolean(s && (s.guest || s.makeStarted || s.closing)) }
       : {}),
+    ...(options.photos ? { pictures: mockPictures(d, pictureOf(d)?.url ?? d.place.plate) } : {}),
     // A guest on stage stands right after Romy (WIRE §1, phase 2).
     cast: [
       { id: 'romy_tremblay', hold: 'notebook' },
@@ -770,7 +936,12 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     evergreen: d !== CELINE,
     stage: stageOf(d),
     // «Au comptoir»: the question of the day and the three regulars, while the switch is on.
-    ...(takesOf(d) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
+    ...(takesOf(d) && !(rubriqueMode() && d === FETE) ? { question_fr: takesOf(d)?.question.fr, cast: takesOf(d)?.guests.map((g) => g.id) } : {}),
+    // The chooser names the assignment dealt (2026-11-21): the Fête's, when the mock plays one.
+    ...(rubriqueMode() && d === FETE ? { assignment: { key: rubriqueMode(), name_fr: ASSIGNMENT_NAMES[rubriqueMode() as string] } } : {}),
+    // «Le fil» and «Au comptoir» are named too (the chooser names all six assignments, 2026-11-21).
+    ...(!rubriqueMode() && options.fil && d === BAC ? { assignment: { key: 'fil', name_fr: ASSIGNMENT_NAMES.fil } } : {}),
+    ...(!rubriqueMode() && !options.fil && options.comptoir && d === CELINE ? { assignment: { key: 'comptoir', name_fr: ASSIGNMENT_NAMES.comptoir } } : {}),
   });
   const supportOf = (s: MockSession) => {
     const a1 = s.band === 'A1' || s.supportLevel > 0;
@@ -891,6 +1062,49 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       },
       fail: (status, detail) => httpError(status, detail),
       words: vocabularyOf(d).map((v) => v.fr),
+      pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
+    };
+  };
+
+  /** «Le titre» / «L'intox express»: what the scripted loops need from the session around it. */
+  const rubriqueContext = (s: MockSession): RubriqueContext => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const lead = leadOf(s, d);
+    return {
+      band: s.band,
+      language: s.language,
+      closed: Boolean(s.closing),
+      titleFr: d.title_fr,
+      datelineFr: d.place.name_fr,
+      lead: { fr: lead.fr, tr: s.language === 'fr' ? null : ((lead as Json)[s.language] ?? null) },
+      sources: d.sources.map((src) => sourceOf(d, src.id)),
+      claim: (id) => {
+        const c = d.claims.find((row) => row.id === id);
+        return c ? claimWire(d, c) : null;
+      },
+      claimsFr: d.claims.map((c) => c.fr),
+      fail: (status, detail) => httpError(status, detail),
+      pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
+    };
+  };
+
+  /** «Le fil»: what the scripted loop needs from the session around it. */
+  const filContext = (s: MockSession): FilContext => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const lead = leadOf(s, d);
+    return {
+      band: s.band,
+      language: s.language,
+      closed: Boolean(s.closing),
+      titleFr: d.title_fr,
+      datelineFr: d.place.name_fr,
+      lead: { fr: lead.fr, tr: s.language === 'fr' ? null : ((lead as Json)[s.language] ?? null) },
+      sources: d.sources.map((src) => sourceOf(d, src.id)),
+      fail: (status, detail) => httpError(status, detail),
+      pourquoi: Boolean(options.pourquoi),
+      regle: Boolean(options.regle),
     };
   };
 
@@ -933,6 +1147,11 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       artifact: s.artifact,
       closing: s.closing,
       ...(s.comptoir ? { mode: 'comptoir', comptoir: comptoirView(s.comptoir, comptoirContext(s)) } : {}),
+      ...(s.fil ? { mode: 'fil', fil: filView(s.fil, filContext(s)) } : {}),
+      ...(s.titre ? { mode: 'titre', titre: titreView(s.titre, rubriqueContext(s)) } : {}),
+      ...(s.intox ? { mode: 'intox', intox: intoxView(s.intox, rubriqueContext(s)) } : {}),
+      ...(s.photo ? { mode: 'photo', photo: photoView(s.photo, rubriqueContext(s)) } : {}),
+      ...(s.micro ? { mode: 'micro', micro: microView(s.micro, rubriqueContext(s)) } : {}),
     };
   };
 
@@ -943,10 +1162,32 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const done = filed();
     return {
       week: WEEK,
-      recommended: cardOf(options.comptoir ? CELINE : MARCHE),
+      recommended: cardOf(rubriqueMode() ? FETE : options.fil ? BAC : options.comptoir ? CELINE : MARCHE),
       recommended_reason: 'interests',
-      alternatives: options.comptoir ? [cardOf(MARCHE), cardOf(FETE)] : [cardOf(GREVE), cardOf(FETE)],
+      alternatives: rubriqueMode()
+        ? [cardOf(options.fil ? BAC : options.comptoir ? CELINE : MARCHE), cardOf(GREVE)]
+        : options.fil
+          ? [cardOf(options.comptoir ? CELINE : MARCHE), cardOf(FETE)]
+          : options.comptoir
+            ? [cardOf(MARCHE), cardOf(FETE)]
+            : [cardOf(GREVE), cardOf(FETE)],
       evergreen_only: true,
+      ...(options.choix
+        ? {
+            choices: [
+              {
+                ...cardOf(CELINE),
+                assignment: { key: 'comptoir', name_fr: ASSIGNMENT_NAMES.comptoir },
+                why: { due_words: ['le concert', 'la chanteuse', 'revenir'], rule: { id: 'FR2_B11_OPINION', name: CHOIX_RULE[language], today: true }, interest: null, score: 10 },
+              },
+              { ...cardOf(FETE), why: { due_words: [], rule: null, interest: { topic: 'culture', word: 'musique' }, score: 5 } },
+              { ...cardOf(MARCHE), why: { due_words: ['le marché'], rule: null, interest: null, score: 2 } },
+            ],
+            why_language: language,
+            // the edition's day, as the server says it (the mock is the server here)
+            edition_date: new Date().toISOString().slice(0, 10),
+          }
+        : {}),
       resume: current
         ? {
             session_id: current.id,
@@ -1001,7 +1242,7 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       if (d) chosenBy = 'learner';
       else miss = true;
     }
-    d = d ?? (options.comptoir ? CELINE : MARCHE);
+    d = d ?? (rubriqueMode() ? FETE : options.fil ? BAC : options.comptoir ? CELINE : MARCHE);
     const s: MockSession = {
       id: `mock-${Math.random().toString(36).slice(2, 10)}`,
       dossierId: d.id,
@@ -1028,10 +1269,28 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
       intro: null,
       vignette: null,
       comptoir: null,
+      fil: null,
     };
+    // «Le titre» / «L'intox express» (WIRE §11): «La Fête de la musique» plays the dealt one, with no thread.
+    if (rubriqueMode() && d === FETE && !miss) {
+      if (rubriqueMode() === 'titre') s.titre = newTitreState();
+      else if (rubriqueMode() === 'photo') s.photo = newPhotoState();
+      else if (rubriqueMode() === 'micro') s.micro = newMicroState();
+      else s.intox = newIntoxState();
+      sessions[s.id] = s;
+      save();
+      return viewOf(s);
+    }
     // «Au comptoir» (WIRE §9.1): a story with takes starts at the counter, with no thread.
     if (takesOf(d) && !miss) {
       s.comptoir = newComptoirState();
+      sessions[s.id] = s;
+      save();
+      return viewOf(s);
+    }
+    // «Le fil» (WIRE §10): the story with a wire plays the wire, with no thread.
+    if (options.fil && d === BAC && !miss) {
+      s.fil = newFilState();
       sessions[s.id] = s;
       save();
       return viewOf(s);
@@ -1425,6 +1684,114 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     return { session: viewOf(s), error_fr: error };
   };
 
+  /** WIRE §10.3: one act on the wire. */
+  const filAct = (id: string, body: Json) => {
+    const s = sessionOr404(id);
+    if (!s.fil) throw httpError(409, { code: 'revue_not_fil' });
+    const error = applyFilAct(s.fil, body, filContext(s));
+    save();
+    return { session: viewOf(s), error };
+  };
+
+  /** WIRE §11.2: one act on «Le titre» or «L'intox express». */
+  const rubriqueAct = (id: string, body: Json) => {
+    const s = sessionOr404(id);
+    if (!s.titre && !s.intox && !s.photo && !s.micro) throw httpError(409, { code: 'revue_not_rubrique' });
+    const ctx = rubriqueContext(s);
+    const error = s.titre
+      ? applyTitreAct(s.titre, body, ctx)
+      : s.photo
+        ? applyPhotoAct(s.photo, body, ctx)
+        : s.micro
+          ? applyMicroAct(s.micro, body, ctx)
+          : applyIntoxAct(s.intox as MockIntoxState, body, ctx);
+    save();
+    return { session: viewOf(s), error };
+  };
+
+  /** «La page» of «Le titre» or «L'intox express»: no model call; settled first. */
+  const closeRubrique = (s: MockSession) => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const ctx = rubriqueContext(s);
+    let own = '';
+    if (s.titre) {
+      const out = titreClose(s.titre, ctx);
+      own = out.own;
+      s.artifact = { kind: 'titre', text_fr: out.printed, contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: TITRE_CLOSE_LINE, dispatch: out.dispatch, titre_page: out.page };
+    } else if (s.photo) {
+      const out = photoClose(s.photo, ctx);
+      own = out.own;
+      s.artifact = { kind: 'photo', text_fr: out.printed, contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: PHOTO_CLOSE_LINE, dispatch: out.dispatch, photo_page: out.page };
+    } else if (s.micro) {
+      const out = microClose(s.micro, ctx);
+      own = out.own;
+      s.artifact = { kind: 'micro', text_fr: out.page.lines.map((line: Json) => line.question_fr).join(' '), contribution: [], learner_fr: own, proof: out.proof };
+      s.closing = { romy_line_fr: MICRO_CLOSE_LINE, dispatch: out.dispatch, micro_page: out.page };
+    } else {
+      const out = intoxClose(s.intox as MockIntoxState, ctx);
+      own = out.own;
+      s.artifact = { kind: 'intox', text_fr: `${out.page.score} sur ${out.page.total}, ${d.title_fr}`, contribution: [], learner_fr: own || null };
+      s.closing = { romy_line_fr: INTOX_CLOSE_LINE, dispatch: out.dispatch, intox_page: out.page };
+    }
+    const kept = vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: own !== '' && fold(own).includes(fold(v.fr)) }));
+    const page = (s.closing.titre_page ?? s.closing.intox_page ?? s.closing.photo_page ?? s.closing.micro_page) as Json;
+    page.words = kept.map((row) => row.fr);
+    Object.assign(s.closing, {
+      kept: { words: kept, claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
+      question_kept_fr: null,
+      colophon_fr: 'La suite la semaine prochaine.',
+    });
+    s.vignette = {
+      id: `vig-${s.id}`,
+      session_id: s.id,
+      dossier_id: d.id,
+      week: WEEK.iso,
+      place_label_fr: d.place.name_fr.split(',')[0],
+      ring: s.titre || s.photo ? 'headline' : s.micro ? 'question' : 'report',
+      kept_contribution: Boolean(own),
+      pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
+      headline_fr: d.title_fr,
+      minted_at: stamp(),
+    };
+    s.closing.vignette = s.vignette;
+    s.closedAt = stamp();
+    save();
+  };
+
+  /** «La page» of the wire: no model call; the telling settled first. */
+  const closeFil = (s: MockSession) => {
+    const d = dossierById(s.dossierId) as MockDossier;
+    const { page, dispatch, printed, own, proof } = filClose(s.fil as MockFilState, filContext(s));
+    s.artifact = { kind: 'fil', text_fr: printed, contribution: [], learner_fr: own || null, proof };
+    const kept = vocabularyOf(d).map((v) => ({ ...glossOf(v, s.language), used: own !== '' && fold(own).includes(fold(v.fr)) }));
+    page.words = kept.map((row) => row.fr);
+    s.closing = {
+      romy_line_fr: FIL_CLOSE_LINE,
+      dispatch,
+      kept: { words: kept, claims: d.claims.slice(0, 2).map((c) => claimWire(d, c)) },
+      question_kept_fr: null,
+      colophon_fr: 'La suite la semaine prochaine.',
+      fil_page: page,
+    };
+    s.vignette = {
+      id: `vig-${s.id}`,
+      session_id: s.id,
+      dossier_id: d.id,
+      week: WEEK.iso,
+      place_label_fr: d.place.name_fr.split(',')[0],
+      ring: 'report',
+      kept_contribution: Boolean(own),
+      pictogram_svg: PICTOGRAMS[d.topic] ?? PICTOGRAMS.city,
+      headline_fr: d.title_fr,
+      minted_at: stamp(),
+    };
+    s.closing.vignette = s.vignette;
+    s.closedAt = stamp();
+    save();
+  };
+
   /** «La page» (spec §3 step 5): no model call; the opinion first. */
   const closeComptoir = (s: MockSession) => {
     const d = dossierById(s.dossierId) as MockDossier;
@@ -1470,6 +1837,8 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
     const s = sessionOr404(id);
     const d = dossierById(s.dossierId) as MockDossier;
     if (!s.closing && s.comptoir) closeComptoir(s);
+    if (!s.closing && s.fil) closeFil(s);
+    if (!s.closing && (s.titre || s.intox || s.photo || s.micro)) closeRubrique(s);
     if (!s.closing) {
       const made = s.artifact;
       const kind = made ? String(made.kind) : 'none';
@@ -1582,11 +1951,17 @@ export function createMockRevueTransport(options: MockOptions = {}): RevueTransp
         .sort((a, b) => String(b.minted_at).localeCompare(String(a.minted_at)));
       return { vignettes: minted };
     }
-    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close|comptoir))?$/);
+    const m = path.match(/^\/revue\/sessions\/([^/]+)(?:\/(turns|make|close|comptoir|fil|rubrique))?$/);
     if (m) {
       const id = decodeURIComponent(m[1]);
       if (method === 'GET' && !m[2]) return viewOf(sessionOr404(id));
       if (method === 'POST' && m[2] === 'comptoir' && options.comptoir) return comptoirAct(id, body);
+      if (method === 'POST' && m[2] === 'fil' && options.fil) return filAct(id, body);
+      if (method === 'POST' && m[2] === 'rubrique' && rubriqueMode()) return rubriqueAct(id, body);
+      if ((m[2] === 'turns' || m[2] === 'make') && (sessions[id]?.titre || sessions[id]?.intox)) {
+        throw httpError(409, { code: sessions[id]?.titre ? 'revue_titre_session' : 'revue_intox_session' });
+      }
+      if ((m[2] === 'turns' || m[2] === 'make') && sessions[id]?.fil) throw httpError(409, { code: 'revue_fil_session' });
       // WIRE §9.1: a comptoir session has no chat turn and no make.
       if ((m[2] === 'turns' || m[2] === 'make') && sessions[id]?.comptoir) throw httpError(409, { code: 'revue_comptoir_session' });
       if (method === 'POST' && m[2] === 'turns') return turn(id, body);

@@ -589,3 +589,87 @@ def test_a_chat_session_answers_409(api: TestClient, monkeypatch) -> None:
     response = api.post(f"/api/v1/revue/sessions/{session['id']}/comptoir", headers=headers,
                         json={"act": "vote", "value": "pour"})
     assert response.status_code == 409 and response.json()["detail"]["code"] == "revue_not_comptoir"
+
+
+def test_marks_on_several_questions_stay_inside_their_own_question() -> None:
+    """First real run (2026-11-22): «est-ce que» dropped from question 1 and added to question 2
+    was diffed as one text: «chevaux» marked as a missing word, «courent ? Quand» as word order."""
+
+    learner = "Combien de chevaux est-ce que courent ? Quand la course commence ? Combien d'argent le gagner reçoit ?"
+    target = "Combien de chevaux courent ? Quand est-ce que la course commence ? Combien d'argent le gagnant reçoit-il ?"
+    marks = comptoir_loop.proof_marks(learner, target)
+    spans = [(m["span_fr"], m["kind"]) for m in marks]
+    assert spans == [("est-ce que", "mot"), ("Quand", "manque"), ("gagner reçoit", "mot")]
+    for mark in marks:
+        assert learner[mark["start"]:mark["start"] + len(mark["span_fr"])] == mark["span_fr"]
+        assert "?" not in mark["span_fr"]
+    # «Le pourquoi» reads the corrected stretch at the same places, inside the same question.
+    from app.services.revue import pourquoi
+
+    fixes = pourquoi.mark_fixes(learner, target)
+    assert {mark["start"] for mark in marks} <= set(fixes)
+    assert all("?" not in fix["fix"] for fix in fixes.values())
+    assert fixes[learner.index("gagner")]["fix"] == "gagnant reçoit-il"
+    # One sentence, or a different count of sentences: the whole text is diffed as before.
+    assert comptoir_loop.proof_marks("Je suis pour, parce que c'est bon.", "Je suis pour, parce que c'est bien.") == [
+        {"span_fr": "bon", "start": 30, "kind": "mot"}]
+
+
+def test_marks_stay_inside_their_question_when_the_learner_writes_in_small_letters() -> None:
+    """The shared splitter (#896) opens a sentence only on a capital; a learner's own typing
+    may not have one, and its questions must still line up with Romy's, one by one."""
+
+    learner = "combien de chevaux est-ce que courent ? quand la course commence ?"
+    target = "Combien de chevaux courent ? Quand est-ce que la course commence ?"
+    spans = [m["span_fr"] for m in comptoir_loop.proof_marks(learner, target)]
+    assert "est-ce que" in spans and "quand" in spans
+    assert all("?" not in span for span in spans)
+    # The pieces put back together are the text as it was typed: marks keep their places.
+    assert "".join(piece for _, piece in comptoir_loop._sentences_at("Oui.  non\nmerci !")) == "Oui.  non\nmerci !"
+    # A title's stop ends no sentence («M. Dupont»), with or without a capital after it.
+    assert len(comptoir_loop._sentences_at("Je pense que M. dupont a raison. et toi ?")) == 2
+
+
+def test_a_photo_caption_in_small_letters_still_counts_two_sentences() -> None:
+    from app.services.revue import photo_loop
+
+    assert photo_loop._sentences("je vois un cheval. la course est dimanche.") == [
+        "je vois un cheval.", "la course est dimanche."]
+    assert photo_loop._sentences("Je vois M. Dupont. Il court.") == ["Je vois M. Dupont.", "Il court."]
+
+
+def test_an_elision_written_in_full_is_spelling_every_time_it_stands() -> None:
+    """A real A2 opinion (2026-11-22): «parce que il … a dit que il» — the first «que il» was
+    marked Rechtschreibung (the model's hint), the second Wortwahl (guessed)."""
+
+    learner = "À mon avis, il faut garder le roman, parce que il n'y a pas de preuve et l'auteur a dit que il a écrit le livre seul."
+    target = "À mon avis, il faut garder le roman, parce qu'il n'y a pas de preuve et l'auteur a dit qu'il a écrit le livre seul."
+    for hints in ([], [{"span_fr": "que il", "kind": "orthographe"}]):
+        marks = comptoir_loop.proof_marks(learner, target, hints)
+        assert [(m["span_fr"], m["kind"]) for m in marks] == [("que il", "orthographe"), ("que il", "orthographe")]
+    assert comptoir_loop.proof_marks("beaucoup de élèves", "beaucoup d'élèves")[0]["kind"] == "orthographe"
+
+
+def test_a2_close_keeps_a_word_bank_word_without_a_claim(db: Session) -> None:
+    """Integration 2026-11-22: a reason that uses a word of the takes' word bank and none of the
+    plan's words closed with a 500 (the kept word had no claim). It closes; the word is the
+    learner's own, kept with no claim reference."""
+
+    revue = Revue(db, FakeRevueProvider())
+    row = revue.start(make_user(db, level="A2.1", native="de"), week=WEEK)
+    act(revue, row, act="vote", value="contre")
+    for guest in (ROMY, MARGAUX, GUS):
+        act(revue, row, act="react", guest_id=guest, value="agree")
+    act(revue, row, act="intox_who", guest_id=GUS)
+    act(revue, row, act="intox_fix", value="six jours sur sept")
+    plan_words = [str(v.get("fr") or "") for v in (row.plan or {}).get("vocabulary") or []]
+    assert not any("chariot" in w for w in plan_words), plan_words
+    view = act(revue, row, act="opinion", value="contre", text="il y a trop de chariots").session.comptoir
+    if view.opinion.proof == "marked":
+        act(revue, row, act="opinion_fix", value="romy")
+    act(revue, row, act="comeback", index=0)
+    _, closing = revue.close(row)
+    db.refresh(row)
+    assert row.status == "closed"
+    bank = [w for w in closing.kept.words if "chariot" in w.fr]
+    assert bank and bank[0].used and bank[0].claim_id is None

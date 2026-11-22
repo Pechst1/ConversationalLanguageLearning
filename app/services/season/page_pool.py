@@ -89,7 +89,10 @@ LIFE_KEYS: dict[str, Any] = {
 #: the owner's decision of 10 November, «Seite geteilt, Lernstoff im Training»).
 #: P8: ``yesterday_hook`` too, the hook this learner's last day ended on (a shared page
 #: cannot take it up, and the frame's hash stays what it was).
-DROPPED_KEYS = frozenset({"memory", "grammar_plan", "story_words", "mots_a_placer", "yesterday_hook"})
+#: ``papier_echo`` too (REVUE_ECHO_ENABLED): this learner's last Papier, a life a shared page has not.
+DROPPED_KEYS = frozenset(
+    {"memory", "grammar_plan", "story_words", "mots_a_placer", "yesterday_hook", "papier_echo"}
+)
 #: The engine's own handles: never prompted, kept for the guards the writing runs.
 RUNTIME_KEYS = frozenset({"_season", "lexicon", "lexical_coverage", "grammar", "words", "_contract_missing_slots"})
 #: A day with one of these is written for its learner.

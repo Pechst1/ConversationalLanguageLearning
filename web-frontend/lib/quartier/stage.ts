@@ -1081,6 +1081,8 @@ export class Stage implements Director {
   /* ---- input and the frame --------------------------------------------------------------- */
 
   private hit(hit: Hit) {
+    // an object that opens a route of the app (today's Papier on the column) is the screen's
+    if (hit.kind === 'spot' && hit.opens) return;
     if (this.ui.aside && !this.away) {
       this.tap();
       return;

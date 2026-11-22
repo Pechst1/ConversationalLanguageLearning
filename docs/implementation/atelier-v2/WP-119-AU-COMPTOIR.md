@@ -440,3 +440,28 @@ https://claude.ai/artifact/XfjoQVX9J6c7wqNWcJ11HT («Order of work», Phase 0). 
 Not in Phase 0, and still open: a `reader_question` can credit Romy's seed question as the learner's when they
 send it unchanged. Phases 1–3 of the review (the job in six moves with Le reportage, then the rubriques and
 progression, then Le Quartier) are not started.
+
+## 10. «Papier · Le pourquoi»: corrections that teach (2026-11-20)
+
+Behind `REVUE_POURQUOI_ENABLED` (default off; off is byte-for-byte §9: the v3 prompt, its payload, the
+events and the view). Code: `app/services/revue/pourquoi.py`; client: `RvProofMarks`, `RvProofNotes`,
+`pourquoi.ts` under `web-frontend/components/revue/comptoir/` (reusable by any player with a fix step).
+
+- **The why.** The same `comptoir_edit` call (prompt `comptoir-edit-v4`, `explain_language` passed as data:
+  `user_correction_language`, the mother tongue folded onto en/de/fr) gives each mark `why_hint` (no corrected
+  form) and `why_full` (may quote it). Both are checked (`pourquoi.check_why`): the requested language, ≤ 22
+  words, `correction_contract.note_states_a_rule`, `note_quotes_hold`, no app words or ids, and the hint carries
+  neither the corrected stretch nor any word the correction adds. Any failure drops both whys; the mark keeps its
+  kind. A why attaches only when exactly one model mark covers the app's mark.
+- **The fix step** shows the hint: each underlined word is a button (44 px area), one why open under the
+  sentence. **Once settled** (`fixed`/`corrected`; never after a failed check) the opinion carries `notes`: the
+  full why, «Dans l'article : …» (`example_fr`: a sentence of the lead, summary or an honest take — never the
+  intox — that carries the corrected stretch with its neighbour word, or alone when it holds a content word), and
+  one quiet line when a `rule_id` exists (the Correcteur's `RULES` id from `_diff_rule`, kept only when the mark's
+  kind agrees).
+- **It comes back.** At settle each slip shown (its latest round: `missed` if still marked when Romy corrected
+  it, else `repaired`) goes to `ErrorMemoryService.record_erratum` with `source_type="revue"` («Le Papier»),
+  `task_error_type` = the rule id or the kind, the sentence as `context_fr`, the full why as `why_wrong` — after
+  `fault_quality.learner_own_fault` (a doubled word in the sentence is an editing artefact: nothing stored). The
+  error memory's own keys merge two slips of one pattern into one row. No new scheduling.
+- **Not verified:** the v4 prompt has never been run on a real model; the fake provider writes the whys.

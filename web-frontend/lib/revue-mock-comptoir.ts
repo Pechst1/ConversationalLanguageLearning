@@ -188,6 +188,7 @@ const LAST_WORDS: Record<string, T> = {
  */
 const EDITS: Array<[RegExp, string, string]> = [
   [/\b()[Ll]e(?= gens\b)/g, 'les', 'accord'],
+  [/\b()[Ii]l(?= sont\b)/g, 'ils', 'accord'],
   [/\b(sont )content\b/g, 'contents', 'accord'],
   [/\b(voix est (?:tr[eè]s )?)beau\b/g, 'belle', 'genre'],
   [/\b()tres\b/g, 'très', 'orthographe'],
@@ -225,6 +226,10 @@ export type ComptoirContext = {
   sources: Json[];
   claim: (id: string) => Json | null;
   fail: (status: number, detail: unknown) => Error;
+  /** «Le pourquoi» on (`&pourquoi=1`): the marks carry their rule, the settled opinion its notes. */
+  pourquoi?: boolean;
+  /** «La règle» on (`&regle=1`): each mark names its grammar concept, the day's rule stamped. */
+  regle?: boolean;
 };
 
 const key = (band: Band) => (band === 'A1' ? 'a1' : band === 'A2' ? 'a2' : 'b1') as 'a1' | 'a2' | 'b1';
@@ -354,7 +359,7 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
       learner_fr: state.opinion.learner_fr,
       draft_fr: state.opinion.draft_fr,
       proof: state.opinion.proof,
-      marks: settled ? [] : state.opinion.marks,
+      marks: settled ? [] : marksWire(state.opinion.marks, language, Boolean(ctx.pourquoi), Boolean(ctx.regle)),
       tries: state.opinion.tries,
       max_tries: FIX_TRIES,
       printed_fr: printedOf(state.opinion),
@@ -364,6 +369,8 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
         ? { text_fr: state.comeback.text_fr, index: state.comeback.index ?? null, last_word: tr(state.comeback.last_word, language) }
         : null,
     };
+    const notes = notesWire(state.opinion.rounds ?? [], String(state.opinion.proof), language, ctx.lead.fr, Boolean(ctx.pourquoi), Boolean(ctx.regle));
+    if (notes.length) opinion.notes = notes;
   }
   return {
     step,
@@ -387,8 +394,9 @@ export function comptoirView(state: MockComptoirState, ctx: ComptoirContext): Js
   };
 }
 
-/** Romy's corrected sentence (kept back as the target) and her marks on the learner's words. */
-function proofread(text: string): { target: string; marks: Json[] } {
+/** Romy's corrected sentence (kept back as the target) and her marks on the learner's words
+ * (each with its `fix_fr`, kept in the mock's state: never on the wire). */
+export function proofread(text: string): { target: string; marks: Json[] } {
   let out = text;
   const marks: Json[] = [];
   for (const [pattern, fixed, kind] of EDITS) {
@@ -398,7 +406,7 @@ function proofread(text: string): { target: string; marks: Json[] } {
       const start = match.index + match[1].length;
       const end = match.index + match[0].length;
       if (marks.length < MARKS_MAX && !marks.some((m) => start < Number(m.start) + String(m.span_fr).length && Number(m.start) < end)) {
-        marks.push({ span_fr: text.slice(start, end), start, kind });
+        marks.push({ span_fr: text.slice(start, end), start, kind, fix_fr: fixed });
       }
       match = pattern.exec(text);
     }
@@ -407,6 +415,115 @@ function proofread(text: string): { target: string; marks: Json[] } {
   marks.sort((a, b) => Number(a.start) - Number(b.start));
   out = out.charAt(0).toUpperCase() + out.slice(1);
   return { target: typography(sentenceEnd(out)), marks };
+}
+
+/**
+ * «Le pourquoi» (`&pourquoi=1`, `REVUE_POURQUOI_ENABLED`): the rule of each mark in the
+ * learner's mother tongue, from the backend's fake table (`encounter._FAKE_WHYS`): the hint
+ * (never the corrected form) while the learner fixes, the full why once settled.
+ */
+const WHYS: Record<string, Record<Lang, [string, string]>> = {
+  accord: {
+    en: ['In French the article and the adjective agree with their noun in number.', 'In French the article and the adjective agree with their noun in number: «{fix}».'],
+    de: ['Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen.', 'Im Französischen richten sich Artikel und Adjektiv in der Zahl nach dem Nomen: «{fix}».'],
+    fr: ["L'article et l'adjectif s'accordent en nombre avec le nom.", "L'article et l'adjectif s'accordent en nombre avec le nom : «{fix}»."],
+  },
+  genre: {
+    en: ['The adjective takes the gender of the noun it describes.', 'The adjective takes the gender of the noun it describes: «{fix}».'],
+    de: ['Das Adjektiv richtet sich im Geschlecht nach seinem Nomen.', 'Das Adjektiv richtet sich im Geschlecht nach seinem Nomen: «{fix}».'],
+    fr: ["L'adjectif prend le genre du nom qu'il décrit.", "L'adjectif prend le genre du nom qu'il décrit : «{fix}»."],
+  },
+  orthographe: {
+    en: ['This word takes an accent on its vowel: check the spelling.', 'This word takes an accent on its vowel: «{fix}».'],
+    de: ['Dieses Wort hat einen Akzent auf dem Vokal: prüf die Schreibung.', 'Dieses Wort hat einen Akzent auf dem Vokal: «{fix}».'],
+    fr: ["Ce mot prend un accent sur la voyelle : vérifie l'orthographe.", 'Ce mot prend un accent sur la voyelle : «{fix}».'],
+  },
+};
+const RULES: Record<string, string> = { accord: 'plural_s', genre: 'adj_gender', orthographe: 'accent' };
+
+/**
+ * «La règle» (`&regle=1`, `REVUE_TUTOR_MARKS_ENABLED`): the grammar concept of each mark, as
+ * the catalogue names it (`french_core_grammar_v2.tsv`), with the mock learner's day's rule
+ * (adjective agreement) and a recent one (the -er verbs' spelling); a mark under one of them
+ * explains itself with the rule card's own line.
+ */
+type MockConcept = { id: string; name: Record<Lang, string>; rule: Record<Lang, string>; day?: boolean; recent?: boolean };
+const CONCEPTS: Record<string, MockConcept> = {
+  adjective: {
+    id: 'FR2_A11_ADJ_AGREEMENT',
+    day: true,
+    name: { fr: 'Les adjectifs : accord et place', en: 'Adjectives: agreement and position', de: 'Adjektive: Angleichung und Stellung' },
+    rule: {
+      fr: "L'adjectif s'accorde avec le nom (+e au féminin, +s au pluriel) et se place souvent après.",
+      en: 'Adjectives match the noun (+e for feminine, +s for plural) and usually come after it.',
+      de: 'Adjektive passen sich an (+e weiblich, +s Plural), auch nach être, und stehen meist nach dem Nomen.',
+    },
+  },
+  plural: {
+    id: 'FR2_A11_NOUN_PLURALS',
+    name: { fr: 'Le pluriel des noms : -s, -x, -aux', en: 'Plural nouns: -s, -x, -aux', de: 'Plural der Nomen: -s, -x, -aux' },
+    rule: { fr: '', en: '', de: '' },
+  },
+  spelling: {
+    id: 'FR2_A12_ER_SPELLING',
+    recent: true,
+    name: {
+      fr: 'Les verbes en -er qui changent : nous mangeons, j’achète, j’appelle',
+      en: '-er verbs that change spelling: nous mangeons, j’achète, j’appelle',
+      de: '-er-Verben mit Schreibänderung: nous mangeons, j’achète, j’appelle',
+    },
+    rule: {
+      fr: 'Certains verbes en -er changent pour garder leur son : nous mangeons, j’achète, j’appelle, je paie.',
+      en: 'Some -er verbs change spelling to keep their sound: nous mangeons, j’achète, j’appelle, je paie.',
+      de: 'Manche -er-Verben ändern die Schreibung für den Klang: nous mangeons, j’achète, j’appelle, je paie.',
+    },
+  },
+};
+const DETERMINERS = new Set('le la les un une des du ce cette ces mon ma mes son sa ses'.split(' '));
+
+function conceptOf(mark: Json): MockConcept | null {
+  if (mark.kind === 'orthographe') return CONCEPTS.spelling;
+  if (mark.kind === 'accord' || mark.kind === 'genre') return DETERMINERS.has(fold(String(mark.span_fr))) ? CONCEPTS.plural : CONCEPTS.adjective;
+  return null;
+}
+
+/** The concept fields of a mark (`&regle=1`), and the day's rule's own line for its why. */
+function ruleWire(mark: Json, language: Lang): { fields: Json; line: string | null } {
+  const concept = conceptOf(mark);
+  if (!concept) return { fields: {}, line: null };
+  const fields = { concept_id: concept.id, concept_name: concept.name[language], is_day_rule: Boolean(concept.day), is_recent_rule: Boolean(concept.recent) };
+  return { fields, line: concept.day || concept.recent ? concept.rule[language] || null : null };
+}
+
+/** The marks as the fix step shows them: never `fix_fr`; the hint only with «Le pourquoi» on. */
+export function marksWire(marks: Json[], language: Lang, pourquoi: boolean, regle = false): Json[] {
+  return marks.map((mark) => {
+    const rule = regle ? ruleWire(mark, language) : { fields: {}, line: null };
+    const why = pourquoi ? (rule.line ?? WHYS[String(mark.kind)]?.[language]?.[0]) : undefined;
+    return { span_fr: mark.span_fr, start: mark.start, kind: mark.kind, ...(why ? { why } : {}), ...rule.fields };
+  });
+}
+
+/** Once settled (`fixed` / `corrected`): each mark the learner saw, once, with its full why,
+ * «Dans l'article : …» when `story` has a sentence with the fix, and its rule. */
+export function notesWire(rounds: Json[][], proof: string, language: Lang, story: string, pourquoi: boolean, regle = false): Json[] {
+  if (!pourquoi || (proof !== 'fixed' && proof !== 'corrected')) return [];
+  const seen = new Map<string, Json>();
+  for (const marks of rounds) for (const mark of marks) seen.set(`${fold(String(mark.span_fr))}|${mark.kind}`, mark);
+  return Array.from(seen.values()).map((mark) => {
+    const fix = String(mark.fix_fr || '');
+    const rule = regle ? ruleWire(mark, language) : { fields: {}, line: null };
+    const full = rule.line ?? WHYS[String(mark.kind)]?.[language]?.[1];
+    const example = fix ? sentences(story).find((row) => new RegExp(`(^|[^\\p{L}])${fix}([^\\p{L}]|$)`, 'iu').test(row)) : undefined;
+    return {
+      span_fr: mark.span_fr,
+      kind: mark.kind,
+      why: full ? full.replace('{fix}', fix) : null,
+      example_fr: example ?? null,
+      rule_id: RULES[String(mark.kind)] ?? null,
+      ...rule.fields,
+    };
+  });
 }
 
 /** comptoir_loop._proof_key: typography, the first capital and the punctuation aside. */
@@ -510,6 +627,7 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
       proof: proof.proof,
       target_fr: proof.target,
       marks: proof.marks,
+      rounds: proof.marks.length ? [proof.marks] : [],
       tries: 0,
       reply: { by: desk.by, ...desk.line },
     };
@@ -542,6 +660,7 @@ export function applyComptoirAct(state: MockComptoirState, body: Json, ctx: Comp
     opinion.target_fr = check.target;
     opinion.marks = check.marks;
     opinion.proof = !check.marks.length ? 'fixed' : opinion.tries >= FIX_TRIES ? 'corrected' : 'marked';
+    if (opinion.proof === 'marked') opinion.rounds = [...(opinion.rounds ?? []), check.marks];
     return null;
   }
   if (act === 'comeback') {
@@ -607,5 +726,6 @@ export function comptoirClose(state: MockComptoirState, ctx: ComptoirContext & {
 export const COMPTOIR_CLOSE_LINE = 'Merci ! Ta voix est dans le micro-trottoir.';
 
 /** The Céline story's picture in the mock: the concept page's drawn concert (a stand-in for the morning's print). */
+// A `#` in a data URI ends it at the fragment: the colours are escaped (the picture drew as broken).
 export const CELINE_PICTURE_URL =
-  "data:image/svg+xml,%3Csvg viewBox=%220 0 320 180%22 xmlns=%22http://www.w3.org/2000/svg%22 role=%22img%22 aria-label=%22Illustration: a singer on stage in front of a crowd holding up phone lights%22%3E %3Crect width=%22320%22 height=%22180%22 fill=%22#1b2a5c%22/%3E %3Cg fill=%22#f5efe1%22 opacity=%22.7%22%3E%3Ccircle cx=%2222%22 cy=%2218%22 r=%221.2%22/%3E%3Ccircle cx=%2248%22 cy=%2240%22 r=%221%22/%3E%3Ccircle cx=%22290%22 cy=%2222%22 r=%221.3%22/%3E%3Ccircle cx=%22270%22 cy=%2252%22 r=%221%22/%3E%3Ccircle cx=%22300%22 cy=%2270%22 r=%221%22/%3E%3Ccircle cx=%2234%22 cy=%2270%22 r=%221%22/%3E%3C/g%3E %3Cpath d=%22M28 118 L38 52 L41 52 L44 30 L46 30 L49 52 L52 52 L62 118 Z M36 92 L54 92 L52 86 L38 86 Z%22 fill=%22#14204a%22/%3E %3Cpolygon points=%2296,0 112,0 176,118 128,118%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Cpolygon points=%22210,0 226,0 196,118 146,118%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Ccircle cx=%22160%22 cy=%2284%22 r=%2234%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Crect x=%220%22 y=%22118%22 width=%22320%22 height=%2210%22 fill=%22#14110d%22/%3E %3Crect x=%220%22 y=%22128%22 width=%22320%22 height=%223%22 fill=%22#d8321a%22/%3E %3Cpath d=%22M151 80 Q160 76 169 80 L180 118 L140 118 Z%22 fill=%22#f5efe1%22/%3E %3Crect x=%22157.5%22 y=%2274%22 width=%225%22 height=%227%22 fill=%22#e3b48c%22/%3E %3Ccircle cx=%22160%22 cy=%2269%22 r=%227%22 fill=%22#e3b48c%22/%3E %3Cpath d=%22M152.5 70 Q153 60 160 60.5 Q168 60 168 70 Q166 64 160 64 Q154 64 152.5 70 Z%22 fill=%22#5a3420%22/%3E %3Cpath d=%22M168 82 L176 74%22 stroke=%22#e3b48c%22 stroke-width=%223%22 stroke-linecap=%22round%22/%3E %3Crect x=%22173%22 y=%2270%22 width=%223%22 height=%227%22 rx=%221.2%22 fill=%22#14110d%22 transform=%22rotate(35 174 73)%22/%3E %3Cg fill=%22#14110d%22%3E %3Ccircle cx=%2218%22 cy=%22152%22 r=%229%22/%3E%3Ccircle cx=%2244%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%2272%22 cy=%22154%22 r=%229%22/%3E%3Ccircle cx=%2298%22 cy=%22149%22 r=%229%22/%3E%3Ccircle cx=%22126%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22152%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%22180%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22206%22 cy=%22149%22 r=%229%22/%3E%3Ccircle cx=%22234%22 cy=%22154%22 r=%229%22/%3E%3Ccircle cx=%22260%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%22288%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22312%22 cy=%22149%22 r=%229%22/%3E %3Crect x=%220%22 y=%22160%22 width=%22320%22 height=%2220%22/%3E %3C/g%3E %3Cg stroke=%22#14110d%22 stroke-width=%225%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M50 150 L58 128%22/%3E%3Cpath d=%22M146 150 L138 130%22/%3E%3Cpath d=%22M212 152 L222 131%22/%3E%3Cpath d=%22M266 150 L274 129%22/%3E%3Cpath d=%22M104 151 L98 132%22/%3E%3C/g%3E %3Cg fill=%22#f3c318%22%3E%3Crect x=%2256%22 y=%22122%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22135%22 y=%22124%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22220%22 y=%22125%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22272%22 y=%22123%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%2295%22 y=%22126%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3C/g%3E %3C/svg%3E";
+  "data:image/svg+xml,%3Csvg viewBox=%220 0 320 180%22 xmlns=%22http://www.w3.org/2000/svg%22 role=%22img%22 aria-label=%22Illustration: a singer on stage in front of a crowd holding up phone lights%22%3E %3Crect width=%22320%22 height=%22180%22 fill=%22#1b2a5c%22/%3E %3Cg fill=%22#f5efe1%22 opacity=%22.7%22%3E%3Ccircle cx=%2222%22 cy=%2218%22 r=%221.2%22/%3E%3Ccircle cx=%2248%22 cy=%2240%22 r=%221%22/%3E%3Ccircle cx=%22290%22 cy=%2222%22 r=%221.3%22/%3E%3Ccircle cx=%22270%22 cy=%2252%22 r=%221%22/%3E%3Ccircle cx=%22300%22 cy=%2270%22 r=%221%22/%3E%3Ccircle cx=%2234%22 cy=%2270%22 r=%221%22/%3E%3C/g%3E %3Cpath d=%22M28 118 L38 52 L41 52 L44 30 L46 30 L49 52 L52 52 L62 118 Z M36 92 L54 92 L52 86 L38 86 Z%22 fill=%22#14204a%22/%3E %3Cpolygon points=%2296,0 112,0 176,118 128,118%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Cpolygon points=%22210,0 226,0 196,118 146,118%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Ccircle cx=%22160%22 cy=%2284%22 r=%2234%22 fill=%22#f3c318%22 opacity=%22.22%22/%3E %3Crect x=%220%22 y=%22118%22 width=%22320%22 height=%2210%22 fill=%22#14110d%22/%3E %3Crect x=%220%22 y=%22128%22 width=%22320%22 height=%223%22 fill=%22#d8321a%22/%3E %3Cpath d=%22M151 80 Q160 76 169 80 L180 118 L140 118 Z%22 fill=%22#f5efe1%22/%3E %3Crect x=%22157.5%22 y=%2274%22 width=%225%22 height=%227%22 fill=%22#e3b48c%22/%3E %3Ccircle cx=%22160%22 cy=%2269%22 r=%227%22 fill=%22#e3b48c%22/%3E %3Cpath d=%22M152.5 70 Q153 60 160 60.5 Q168 60 168 70 Q166 64 160 64 Q154 64 152.5 70 Z%22 fill=%22#5a3420%22/%3E %3Cpath d=%22M168 82 L176 74%22 stroke=%22#e3b48c%22 stroke-width=%223%22 stroke-linecap=%22round%22/%3E %3Crect x=%22173%22 y=%2270%22 width=%223%22 height=%227%22 rx=%221.2%22 fill=%22#14110d%22 transform=%22rotate(35 174 73)%22/%3E %3Cg fill=%22#14110d%22%3E %3Ccircle cx=%2218%22 cy=%22152%22 r=%229%22/%3E%3Ccircle cx=%2244%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%2272%22 cy=%22154%22 r=%229%22/%3E%3Ccircle cx=%2298%22 cy=%22149%22 r=%229%22/%3E%3Ccircle cx=%22126%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22152%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%22180%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22206%22 cy=%22149%22 r=%229%22/%3E%3Ccircle cx=%22234%22 cy=%22154%22 r=%229%22/%3E%3Ccircle cx=%22260%22 cy=%22148%22 r=%229%22/%3E%3Ccircle cx=%22288%22 cy=%22153%22 r=%229%22/%3E%3Ccircle cx=%22312%22 cy=%22149%22 r=%229%22/%3E %3Crect x=%220%22 y=%22160%22 width=%22320%22 height=%2220%22/%3E %3C/g%3E %3Cg stroke=%22#14110d%22 stroke-width=%225%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M50 150 L58 128%22/%3E%3Cpath d=%22M146 150 L138 130%22/%3E%3Cpath d=%22M212 152 L222 131%22/%3E%3Cpath d=%22M266 150 L274 129%22/%3E%3Cpath d=%22M104 151 L98 132%22/%3E%3C/g%3E %3Cg fill=%22#f3c318%22%3E%3Crect x=%2256%22 y=%22122%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22135%22 y=%22124%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22220%22 y=%22125%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%22272%22 y=%22123%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3Crect x=%2295%22 y=%22126%22 width=%225%22 height=%228%22 rx=%221%22/%3E%3C/g%3E %3C/svg%3E".replace(/#/g, '%23');

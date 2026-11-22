@@ -799,3 +799,135 @@ punctuation aside), with the kind of slip, the model's hint winning where it cov
   («tel que tu l'as écrit»), never «relu par Romy». An A1 learner who types instead of the tiles: `as_written`.
 - A1's tiles: `clean` (correct by construction), plain «Dans le journal».
 `POST /close` needs a settled opinion (`409 revue_comptoir_out_of_order` while `marked`).
+
+## 10. «Le fil» and the assignment desk (owner 2026-11-20)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED` (off: nothing below exists for any session). A new session is dealt one
+assignment its story carries (`app/services/revue/assignments.py`): `"comptoir"` (takes, §9) or `"fil"` (a wire),
+never the mode of the learner's last two Papier sessions (else the least recent; the chat when the story carries
+none). The deal is recorded on the first `choice` event (`mode="fil"`) and kept for the session's life.
+
+### 10.1 What changes on the existing shapes
+
+- `RvSessionView.mode`: `"chat" | "comptoir" | "fil"`; `RvSessionView.fil: RvFilView | null` (null unless `"fil"`).
+- `RvMade.kind` and the Relevé's made kinds gain `"fil"` (the learner's telling; never offered as a make).
+- `RvClosing.fil_page: RvFilPage | null`.
+- Chat turns and makes on a fil session: `409 revue_fil_session`.
+
+### 10.2 `RvFilView`
+
+`step: "read" | "order" | "words" | "tell" | "page"`, `steps` (always the five), `band`, `title_fr`, `read`
+(as `RvComptoirRead`), then each step's part from its step on:
+
+- `order`: `strips: [{key, text, label}]` in the order shown (keys `a`–`d`, shuffled per session, never already in
+  order, never a claim id), `tries`, `max_tries` (2), `placed`, `hint: {key, after_key} | null` (after a wrong try:
+  the first strip out of place happens after `after_key`), `resolved`, `correct`, `solution` (keys in true order,
+  only once resolved).
+- `words`: `input: "place"` (A1: four chips on four strips) `| "choose"` (A2+: `options`, three ids per strip, one
+  per role), `strips` (true order), `connectors: [{id, fr, tr, role}]` (`tr`/`role` only once resolved), `tries`,
+  `picked`, `misses: [{position, id, fr, tr, role, needs}]`, `resolved`, `correct`, `solution`.
+- `tell`: `input: "tiles" | "frames" | "free"`, `phrase`, `tiles: [{key, text}]` (A1), `connectors`, `frames` (A2),
+  `min_words`, `min_connectors` (B1+: 2), then once told `learner_fr`, `draft_fr`, `proof`, `marks`, `tries`,
+  `max_tries`, `printed_fr` (as §9.5).
+
+### 10.3 `POST /revue/sessions/{id}/fil` — one act
+
+Body `{act, order?, picks?, parts?, texts?, text?, value?, mode?}` → `RvFilResult {session, error: {code, key?,
+after_key?, count?} | null}`. Acts: `open`; `order {order: [4 keys]}`; `words {picks: [4 ids]}`; `tell` (A1 `parts:
+[word id, tile key, word id, tile key]`, A2 `texts: [2]`, B1+ `text`); `tell_fix {text | value: "romy"}`. A paid
+route. 404 while `REVUE_ENABLED` is off; 409 `revue_not_fil` on another session; 409 `revue_fil_out_of_order` with
+`step`; 422 `revue_fil_bad_act`. A repeated act records nothing. `error.code` (nothing recorded, the client says it
+in the learner's language): `tell_order`, `tell_same`, `tell_last_first`, `tell_starts_middle`, `tell_first_second`,
+`tell_pick_all`, `pick_all`, `too_short` (`count`), `need_connectors` (`count`), `nothing_changed`.
+
+### 10.4 `RvFilPage` («La page», at the close; no model call)
+
+`{title_fr, dateline_fr, strips: [{connector_fr, text_fr}] ×4, mine_fr, proof, phrase_fr, words}`. The artifact is
+`kind: "fil"` (`text_fr` = printed, `learner_fr` = only what the learner typed).
+
+## 11. «Le titre» and «L'intox express» (2026-11-20)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED`, as §10. Two more assignments register with the dealer: `"titre"` (the story
+has headlines, `EditorialDossier.titre`) and `"intox"` (it has five statements, `EditorialDossier.intox`), both
+written once per story each morning by one desk call each (`titre.py`, `intox.py`, one retry, refused when a check
+fails, skipped where the comptoir skipped), or shipped by hand with an evergreen (`evergreen/titre/`,
+`evergreen/intox/`). Played without a model call except Romy's edit of a written headline.
+
+### 11.1 What changes on the existing shapes
+
+- `RvSessionView.mode`: `+ "titre" | "intox"`; `RvSessionView.titre: RvTitreView | null`, `.intox: RvIntoxView | null`.
+- `RvMade.kind` and the Relevé's made kinds gain `"titre"` and `"intox"`.
+- `RvClosing.titre_page: RvTitrePage | null`, `RvClosing.intox_page: RvIntoxPage | null`.
+- Chat turns and makes: `409 revue_titre_session` / `revue_intox_session`.
+
+### 11.2 `POST /revue/sessions/{id}/rubrique` — one act, either assignment
+
+Body `RvRubriqueRequest {act, key?, value?, words?, parts?, text?, mode?}` → `RvRubriqueResult {session, error:
+{code, key?, count?} | null}`. The route plays the assignment the session was dealt (`rubriques.LOOPS`); a paid
+route; 404 while `REVUE_ENABLED` is off; 409 `revue_not_rubrique` on any other session (a fil session keeps
+`/fil`); 409 `revue_<mode>_out_of_order` with `step`; 422 `revue_<mode>_bad_act`. A repeated act records nothing.
+
+### 11.3 «Le titre»: `RvTitreView`
+
+`step: "read" | "three" | "trap" | "build" | "page"`, `steps`, `band`, `title_fr`, `read`, then:
+
+- `three`: `by` (Gus: he proposes all three, so who says it gives nothing away), `headlines: [{key, text, role?,
+  why?, claim?}]` (keys `a`–`c` per session; `role`, `why` and the settling `claim` only for a wrong headline the
+  learner picked, and for both once resolved), `tries`, `max_tries` (2), `picked`, `resolved`, `correct`,
+  `solution` (the honest key, only once resolved). Act `pick {key}`.
+- `trap`: the exaggerated headline, `words: [{index, fr}]`, `tries`, `picked`, `fine` (tapped words the claims do
+  say, after a miss), `resolved`, `correct`, `solution` (indices, once resolved), `why`, `claim`. Act `trap {words:
+  [indices]}`: right when every tapped word is one of the stored `wrong_fr` and one carries its meaning.
+- `build`: `input: "tiles" | "frame" | "free"`, `phrase`, `subjects`, `facts` (A1), `frame` (A2), `max_words` (12),
+  `avoid_fr`, then as §10.2's `tell` (`learner_fr`, `draft_fr`, `proof`, `marks`, `tries`, `printed_fr`). Acts
+  `build {parts: [subject, fact]}` (A1, no model call) or `build {text}`, then `build_fix {text | value: "romy"}`.
+  `error.code`: `pick_tiles`, `too_short`, `too_long` (`count`), `says_too_much`, `number_not_in_claims`,
+  `nothing_changed`, `pick_words`.
+- `RvTitrePage {headline_fr, proof, dateline_fr, lead_fr, honest_fr, phrase_fr, words}`; artifact `kind: "titre"`.
+
+### 11.4 «L'intox express»: `RvIntoxView`
+
+`step: "read" | "round" | "fix" | "page"`, `steps`, `band`, `title_fr`, `read` (always present: the lead stays one
+tap away), then:
+
+- `round`: `cards: [{key, text, answer?, true?, correct?, why?, quote?, wrong_fr?}]` (keys `a`–`e` per session;
+  everything past `text` only once that card is answered; `quote: {quote_fr, settles_fr, source_name}` on a false
+  card or a miss), `current`, `score`, `answered`, `total`. Act `answer {key: current, value: "vrai" | "faux"}`,
+  one each, in order.
+- `fix`: `input: "pick" | "write"`, `phrase`, `items: [{key, text, wrong_fr, options (A1–A2), quote, tries,
+  max_tries, attempts, resolved, correct, right_fr?, fixed?}]` (`right_fr`/`fixed` only once resolved). Act `fix
+  {key, value}` (A1–A2) or `fix {key, text}` (B1+, graded as the comptoir's correction; `too_short`).
+- `RvIntoxPage {title_fr, dateline_fr, lines: [{text_fr, was_false, wrong_fr, answered_right, learner_fr,
+  fixed_right}], score, total, fixed, phrase_fr, words}`; artifact `kind: "intox"` (`text_fr` «4 sur 5, …»).
+
+## 12. «La photo» and «Le micro» (2026-11-21)
+
+Behind `REVUE_ASSIGNMENTS_ENABLED`, as §10–11. Two more assignments register with the dealer (six in all):
+`"photo"` (`EditorialDossier.photo`, a `PhotoDesk`, dealt only while the story's gallery still holds its two or more
+pictures with the basis the desk read, `photo.bind`) and `"micro"` (`EditorialDossier.micro`, a `MicroDesk`). One desk
+call per story each morning (`photo.py`, `micro.py`, one retry, refused when a check fails, skipped where the comptoir
+skipped; the photo desk waits, without a call, for two pictures); hand-written for `evergreen-bac` and
+`evergreen-fete-de-la-musique` (`evergreen/photo/`, `evergreen/micro/`).
+
+- `RvStoryCard.assignment: {key, name_fr}` (omitted with the switch off): the chooser names the assignment dealt.
+- `RvSessionView.mode: + "photo" | "micro"`, `.photo: RvPhotoView | null`, `.micro: RvMicroView | null`;
+  `RvClosing.photo_page`, `.micro_page`; `RvMade.kind` + `"photo"`, `"micro"`; 409 `revue_photo_session` /
+  `revue_micro_session` on chat turns.
+- Acts on `POST …/rubrique` (`RvRubriqueRequest` gains `keys`): «La photo» `open`, `choose {key}`, `seen {words}`,
+  `caption {key}`, `caption_fix {value | text}`, `build {key, parts | text}`, `build_fix {text | value: "romy"}`;
+  «Le micro» `open`, `prepare {keys: [3]}`, `ask {text | key}`, `note {key, value | text}`, `review`,
+  `review_fix {text | value: "romy"}`. 409 `revue_<mode>_out_of_order`, 422 `revue_<mode>_bad_act`; a repeat records
+  nothing. `error.code` adds `pick_three`, `not_a_question`, `keep_questions`, `two_sentences`,
+  `name_what_you_see`, `say_the_news`, `wrong_fact`, `pick_picture`.
+- `RvPhotoView {step: read|planche|legende|build|page, planche {pictures, tries, picked, shows, resolved, correct,
+  solution, seen {words, picked, elsewhere, missing, resolved, correct, solution}}, legende {picture, captions [{key,
+  text, role?, why?}], …, fix}, build {input, phrase, choices, facts, frame, …proof}}`. Nothing says which picture or
+  caption it is before it is earned.
+- `RvMicroView {step: read|prepare|interview|notes|review|page, prepare {holes, chosen, need}, interview {witness,
+  input, phrase, holes, tiles, frames, turns [{question_fr, answer, kind: answer|again|shrug, spent, hole_key}], spent,
+  total, free, done}, notes {input, items}, review {input, questions, hints [{index, code}], …proof}}`. No answer line
+  before it is asked; no slip before «Relis tes questions». Only an ambiguous question asks the model
+  (`provider.micro_match`), which picks a stored candidate's key or «none».
+- `RvPhotoPage {title_fr, dateline_fr, picture, caption_fr, proof, phrase_fr, words}`, `RvMicroPage {title_fr,
+  dateline_fr, witness, byline_fr, lines [{question_fr, answer_fr, source_name}], notes, proof, phrase_fr, words}`;
+  no model call at the close; the witness remembers (`knowledge.remember`).

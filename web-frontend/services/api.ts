@@ -2297,6 +2297,8 @@ class ApiService {
     speaker_id?: string | null;
     panel_id?: string | null;
     line_key?: string | null;
+    /** Kept inside a Papier: a Papier word, tied to this session. */
+    revue_session_id?: string | null;
   }): Promise<{ word_id: number; word: string; gloss: string; example_fr: string; already_kept: boolean }> {
     return this.post('/vocabulary/keep', payload, { suppressGlobalError: true } as SilentRequestConfig);
   }

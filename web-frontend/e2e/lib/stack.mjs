@@ -3,6 +3,7 @@
 // owner's ports (3000, 8000, 8010, 8011) or databases: ports are picked free, the
 // database name is atelier_walk_<timestamp>, and everything is torn down at the end.
 import { spawn, spawnSync } from 'node:child_process';
+import http from 'node:http';
 import { existsSync, mkdirSync, createWriteStream, readFileSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -115,10 +116,55 @@ export function productionStoryFlags(text = readFileSync(path.join(REPO_ROOT, 'r
   return flags;
 }
 
-/** The walk API's environment: the caller's, the throwaway database, then production's story flags. */
-export function walkApiEnv({ dbUrl, tokenMinutes = 1, comptoir = false, web, base = process.env, storyFlags = productionStoryFlags() }) {
+/** The proxy variables a walk process never inherits: through them a provider is reachable. */
+const PROXY_VARIABLES = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy'];
+
+/**
+ * Integration 2026-11-22: the walk's speech, on a local fake. The provider keys are fake, but an
+ * environment whose proxy injects real credentials made one real speech call from a walk. This
+ * answers `POST …/audio/speech` (and ElevenLabs' `…/text-to-speech/…`) with half a second of
+ * silent MP3 and everything else with a 404, on 127.0.0.1; `calls()` counts the lines spoken.
+ */
+export async function startFakeSpeech() {
+  // MPEG-1 Layer III, 128 kbit/s, 44.1 kHz: 417-byte frames whose side info is all zero (silence).
+  const frame = Buffer.alloc(417);
+  frame.set([0xff, 0xfb, 0x90, 0x00]);
+  const clip = Buffer.concat(Array.from({ length: 19 }, () => frame));
+  let spoken = 0;
+  const server = http.createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      if (req.method === 'POST' && /\/(audio\/speech|text-to-speech\/)/.test(req.url || '')) {
+        spoken += 1;
+        res.writeHead(200, { 'content-type': 'audio/mpeg', 'content-length': clip.length });
+        res.end(clip);
+        return;
+      }
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'walk: no provider here' } }));
+    });
+  });
+  const port = await freePort();
+  await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
   return {
-    ...base,
+    url: `http://127.0.0.1:${port}`,
+    calls: () => spoken,
+    stop: () => new Promise((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** The walk API's environment: the caller's, the throwaway database, then production's story flags. */
+export function walkApiEnv({ dbUrl, tokenMinutes = 1, comptoir = false, web, base = process.env, storyFlags = productionStoryFlags(), speech = null }) {
+  const inherited = { ...base };
+  // No proxy: nothing this process sends can reach a provider through one (and so spend money).
+  for (const key of PROXY_VARIABLES) delete inherited[key];
+  const local = ['127.0.0.1', 'localhost', inherited.NO_PROXY || inherited.no_proxy || ''].filter(Boolean).join(',');
+  return {
+    ...inherited,
+    NO_PROXY: local,
+    no_proxy: local,
+    // Speech goes to the walk's local fake (`startFakeSpeech`), the OpenAI way.
+    ...(speech ? { OPENAI_API_BASE: `${speech}/v1`, TTS_PROVIDER: 'openai', ELEVENLABS_API_KEY: '' } : {}),
     DATABASE_URL: dbUrl,
     ACCESS_TOKEN_EXPIRE_MINUTES: String(tokenMinutes),
     ...(comptoir ? { REVUE_COMPTOIR_ENABLED: 'true' } : {}),
@@ -160,6 +206,7 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
       console.error(`[walk] could not drop ${dbName}: ${e.message}`);
     }
     if (stack.distDir) rmSync(stack.distDir, { recursive: true, force: true });
+    if (stack.speech) await stack.speech.stop().catch(() => {});
   };
   stack.stop = stop;
 
@@ -190,13 +237,15 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     stack.migrateSeconds = (Date.now() - t0) / 1000;
 
     const web = `http://localhost:${webPort}`;
+    const speech = await startFakeSpeech();
+    stack.speech = speech;
     const apiLog = log('api');
     // WP-120 phase D: `revue` starts the same API with La Revue on (e2e/lib/carte_server.py).
     // «Au comptoir» (`comptoir`, implies `revue`): the same server with its switch on.
     const server = revue || comptoir ? 'web-frontend/e2e/lib/carte_server.py' : 'scripts/dev_walk_server.py';
     const api = spawn(python(), [server, '--port', String(apiPort)], {
       cwd: REPO_ROOT,
-      env: walkApiEnv({ dbUrl, tokenMinutes, comptoir, web }),
+      env: walkApiEnv({ dbUrl, tokenMinutes, comptoir, web, speech: speech.url }),
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
