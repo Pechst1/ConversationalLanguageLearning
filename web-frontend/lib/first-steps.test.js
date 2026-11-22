@@ -187,3 +187,60 @@ test('#469 a drill’s sticker is named by its place in the day order, not by it
     assert.notEqual(steps.stickerFor(ruleDrill), steps.stickerFor(wordDrill), 'one sticker per place, so one does not hide the other');
   }
 });
+
+test('#469 #975 a drill’s sticker follows its role in the day: own slip, rule to review, today’s rule, word', () => {
+  // The planner says what each drill is for (`prompt.role`); the sticker reads it,
+  // not the shape of the target. Walks of 21-22 Nov: day 2's own slip on être
+  // opened with «Die Wörter», and a slip rule («Un, une, des», concept 4) on a day
+  // whose rule is concept 40 opened with «Quick drills on today's rule».
+  const ownSlip = { kind: 'recall', prompt: { role: 'mistake', target: { kind: 'error', id: 'err-1' } } };
+  // A step planned before the role was sent: an error target is still the learner's own slip.
+  const ownSlipUnroled = { kind: 'recall', prompt: { target: { kind: 'error', id: 'err-2' } } };
+  const dueRule = { kind: 'recall', prompt: { role: 'review', target: { kind: 'grammar', id: '4' } } };
+  const dayRule = { kind: 'recall', prompt: { role: 'day_rule', target: { kind: 'grammar', id: '40' } } };
+  const wordDrill = { kind: 'recall', prompt: { target: { kind: 'vocabulary', id: 'w-1' } } };
+  const words = { de: /Wörter/, en: /words/i, fr: /mots/i };
+  const today = { de: /heute|des Tages/i, en: /today/i, fr: /du jour|aujourd/i };
+  for (const language of ['de', 'en', 'fr']) {
+    const copy = steps.firstStepsCopy(language);
+    const text = (step) => {
+      const key = steps.stickerFor(step);
+      return key ? `${copy.stickers[key].title} ${copy.stickers[key].body}` : '';
+    };
+    for (const [name, step] of [['own slip', ownSlip], ['own slip (no role)', ownSlipUnroled], ['rule to review', dueRule]]) {
+      const said = text(step);
+      assert.ok(said, `${language}: the ${name} has a sticker`);
+      assert.doesNotMatch(said, words[language], `${language}: the ${name} is introduced as the words: «${said}»`);
+      assert.doesNotMatch(said, today[language], `${language}: the ${name} is introduced as today's rule: «${said}»`);
+    }
+    assert.notEqual(steps.stickerFor(ownSlip), steps.stickerFor(dueRule), 'a slip and a due rule are told apart');
+    assert.match(text(dayRule), today[language], `${language}: today's rule keeps its sticker`);
+    assert.match(text(wordDrill), words[language], `${language}: a word drill is the words`);
+  }
+});
+
+test('#975 a drill’s header names its role: a rule to review or a slip is not headed as the day’s rule', () => {
+  const frame = require('../components/atelier-v2/journey/drill-frame.ts');
+  const { journeyCopy } = require('../components/atelier-v2/journey/journey-copy.ts');
+  const recall = (id, role, target) => ({
+    id, kind: 'recall', prompt: { role, task_type: 'choice', options: [], target },
+  });
+  const dayRule = recall('s2', 'day_rule', { kind: 'grammar', id: '40', label_native: 'Avoir' });
+  const ownSlip = recall('s4', 'mistake', { kind: 'error', id: 'e-1' });
+  const dueRule = recall('s5', 'review', { kind: 'grammar', id: '4', label_native: 'Un, une, des' });
+  const day = [{ id: 's0', kind: 'scene' }, { id: 's1', kind: 'rule' }, dayRule, { id: 's3', kind: 'resolution' }, ownSlip, dueRule];
+  for (const language of ['de', 'en', 'fr']) {
+    const copy = journeyCopy(language);
+    const review = frame.stepBlockName(dueRule, day, copy);
+    const slip = frame.stepBlockName(ownSlip, day, copy);
+    assert.ok(review && slip, `${language}: both are named`);
+    assert.notEqual(review, copy.drill_rule, `${language}: the due rule is headed as the day's rule`);
+    assert.notEqual(review, slip, `${language}: «${review}» heads a slip and a due rule alike`);
+    assert.doesNotMatch(
+      frame.drillHeaderLabel(dueRule, language, copy) ?? '',
+      new RegExp(`^${copy.drill_recall} `),
+      `${language}: the due rule's caption is the plain «${copy.drill_recall}»`,
+    );
+    assert.equal(frame.stepBlockName(dayRule, day, copy), copy.drill_rule, `${language}: a drill on today's rule is the rule step`);
+  }
+});

@@ -4027,6 +4027,7 @@ def _plan_journey_once(
                     **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
                     **recall_met(entry.candidate),
                     **recall_speaker_prompt(recall, scenario),
+                    **recall_role(recall.target, entry.candidate, day_rule_id(introduction, forge)),
                 },
                 private_task=replace(recall, estimated_seconds=cost),
                 target=entry.target,
@@ -5868,7 +5869,47 @@ def recall_met(candidate: LearningCandidate | None) -> dict[str, Any]:
     return {"met": {"place_label_fr": label}} if label else {}
 
 
-def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | None = None) -> PlannedStep:
+def day_rule_id(introduction: dict[str, Any] | None, forge: dict[str, Any] | None) -> str | None:
+    """The concept the day teaches (its rule card, else its folded La Forge), as a target id."""
+
+    for source in (introduction, forge):
+        concept = (source or {}).get("concept_id") if isinstance(source, dict) else None
+        if concept not in (None, ""):
+            return str(concept)
+    return None
+
+
+def recall_role(
+    target: TargetRef, candidate: LearningCandidate | None, day_rule: str | None
+) -> dict[str, str]:
+    """#469/#975: ``{"role": …}``, what a drill is for in the day, for ``RecallPrompt.role``.
+
+    The device used to read it off the target's kind: every grammar drill was «today's
+    rule» and every other drill «the words», so P6's due rule («Un, une, des» on a day
+    teaching concept 40) said «Quick drills on today's rule», and a learner's own slip
+    said «Your words». The planner is what knows: an erratum is the learner's own
+    ``mistake``; a grammar item on the day's concept (or the introduction's guided
+    items) is the ``day_rule``; any other grammar item is a rule to ``review``. A word
+    drill has no role and its prompt is unchanged (``{}``).
+    """
+
+    if target.kind is TargetKind.ERROR:
+        return {"role": "mistake"}
+    if target.kind is not TargetKind.GRAMMAR:
+        return {}
+    introduced = bool((getattr(candidate, "metadata", None) or {}).get("introduction"))
+    if introduced or (day_rule is not None and str(target.id) == day_rule):
+        return {"role": "day_rule"}
+    return {"role": "review"}
+
+
+def _recall_step(
+    ordinal: int,
+    item: PracticeItem,
+    scenario: ScenarioBrief | None = None,
+    *,
+    day_rule: str | None = None,
+) -> PlannedStep:
     # #155: who says the line the item is cut from, kept with the item and sent.
     recall = item.task
     speaker_id = recall.speaker_id or (recall_speaker(recall, scenario) if scenario is not None else None)
@@ -5891,6 +5932,7 @@ def _recall_step(ordinal: int, item: PracticeItem, scenario: ScenarioBrief | Non
         **({"slip_fr": recall.slip_fr} if recall.slip_fr else {}),
         **recall_met(item.entry.candidate),
         **recall_speaker_prompt(recall, scenario),
+        **recall_role(recall.target, item.entry.candidate, day_rule),
     }
     if recall.task_type in LISTENING_RECALL_FORMATS:
         # WP-91: with a clip the phrase (or the dictated line) is heard first.
@@ -6754,8 +6796,10 @@ def _plan_practice_day(
     # WP-93 (W5): Rappel → Règle + Essai (+ Forge) → Scène → Réponse →
     # Bouclé → Fin (→ Lecture). Ordinals are numbered once, at the end.
     steps: list[PlannedStep] = []
+    # #975: the concept the day teaches; a drill on any other rule is a review.
+    day_rule = day_rule_id(introduction, forge)
     for item in placed("warmup"):
-        steps.append(_recall_step(len(steps), item, scenario))
+        steps.append(_recall_step(len(steps), item, scenario, day_rule=day_rule))
     intro_target: TargetRef | None = None
     intro_entry: SelectedTarget | None = None
     # GRAMMAR-DAY-ONE (#81): an authored page is read first; the unit it uses is
@@ -6799,6 +6843,7 @@ def _plan_practice_day(
                         task=guided, cost=guided_cost,
                     ),
                     scenario,
+                    day_rule=day_rule,
                 )
             )
         used_targets.append(intro_entry)
@@ -6926,7 +6971,7 @@ def _plan_practice_day(
     # WP-109 «Une seule maison»: the episode is never interrupted. The builds and
     # the word from today (WP-93 put them after the reply) follow the ending.
     for item in [*placed("mid"), *placed("post")]:
-        steps.append(_recall_step(len(steps), item, scenario))
+        steps.append(_recall_step(len(steps), item, scenario, day_rule=day_rule))
     if desk_step is not None:
         steps.append(desk_step)
     steps.extend(read_steps)

@@ -246,6 +246,9 @@ export type JourneyCopyKey =
   | 'drill_recall'
   | 'drill_warmup'
   | 'drill_retry'
+  // #975: a drill on a rule that is not today's, and on the learner's own slip.
+  | 'drill_review'
+  | 'drill_mistakes'
   // P5 (owner, 2026-11-13): a miss asked again later says where and why, not what.
   | 'drill_miss_where'
   | 'drill_miss_choice'
@@ -486,6 +489,8 @@ const EN: CopyTable = {
   drill_recall: 'Recall',
   drill_warmup: 'Before the scene',
   drill_retry: 'Once more',
+  drill_review: 'Rule to review',
+  drill_mistakes: 'From your mistakes',
   drill_miss_where: 'What is off',
   drill_miss_choice: 'Not this answer',
   drill_solution_later: 'This one comes back at the end of the set. Find it yourself first; the solution comes after.',
@@ -714,6 +719,8 @@ const DE: CopyTable = {
   drill_recall: 'Wiederholung',
   drill_warmup: 'Vor der Szene',
   drill_retry: 'Noch einmal',
+  drill_review: 'Regel zum Wiederholen',
+  drill_mistakes: 'Aus deinen Fehlern',
   drill_miss_where: 'Was nicht stimmt',
   drill_miss_choice: 'Nicht diese Antwort',
   drill_solution_later: 'Diese Aufgabe kommt am Ende der Reihe noch einmal. Finde es zuerst selbst; die Lösung kommt danach.',
@@ -942,6 +949,8 @@ const FR: CopyTable = {
   drill_recall: 'Rappel',
   drill_warmup: 'Avant la scène',
   drill_retry: 'Encore une fois',
+  drill_review: 'Règle à revoir',
+  drill_mistakes: 'Tes erreurs',
   drill_miss_where: 'Ce qui ne va pas',
   drill_miss_choice: 'Pas cette réponse',
   drill_solution_later: 'Cette question revient à la fin de la série. Cherche d’abord toi-même ; la solution vient après.',
