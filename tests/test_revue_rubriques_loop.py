@@ -541,6 +541,71 @@ def test_b1_writes_freely_and_a_failing_edit_prints_it_as_written(db: Session) -
     assert build.proof == "as_written" and build.printed_fr == "Une fête gratuite, mais du bruit pour les voisins"
 
 
+class Starved(FakeRevueProvider):
+    """The production provider (``OpenAIRevueProvider.titre_edit``) over a service whose first
+    ``fails`` answers come back empty (22 Nov, a real run: reasoning ate the budget), then the
+    fake's edit as the model's JSON."""
+
+    def __init__(self, fails: int) -> None:
+        super().__init__()
+        self.fails, self.service_calls = fails, 0
+
+    def titre_edit(self, context):
+        from types import SimpleNamespace
+
+        from app.services.llm_service import LLMProviderError
+
+        answer = json.dumps(FakeRevueProvider.titre_edit(self, context), ensure_ascii=False)
+        owner = self
+
+        class Service:
+            def generate_chat_completion(self, messages, **kwargs):
+                owner.service_calls += 1
+                if owner.service_calls <= owner.fails:
+                    raise LLMProviderError("openai: OpenAI response did not include content")
+                return SimpleNamespace(content=answer, cost=0.001)
+
+        return enc.OpenAIRevueProvider(_service=Service()).titre_edit(context)
+
+
+def test_an_empty_edit_is_asked_once_more_and_romy_s_marks_are_shown(db: Session) -> None:
+    starved = Starved(fails=1)
+    revue, row = start(db, "titre", provider=starved, level="A2.1", native="de")
+    solve_three(revue, row)
+    solve_trap(revue, row)
+    build = act(revue, row, act="build", text="est gratuite et le gens sont content").session.titre.build
+    assert starved.service_calls == 2
+    assert build.proof == "marked" and {m.kind for m in build.marks} == {"accord"} and build.printed_fr is None
+
+
+def test_an_edit_that_never_came_back_prints_as_written_and_romy_never_says_it_is_right(db: Session) -> None:
+    """22 Nov (real run): «Daryz essaie de gagne le course une deuxième fois» printed unread
+    under «tel que tu l'as écrit», then «Merci ! Ton titre est en une, et il dit vrai.»"""
+
+    starved = Starved(fails=99)
+    revue, row = start(db, "titre", provider=starved, level="A2.1", native="de")
+    solve_three(revue, row)
+    solve_trap(revue, row)
+    build = act(revue, row, act="build", text="est gratuite et le gens sont content").session.titre.build
+    assert starved.service_calls == 2, "asked once more, then the learner's headline stands"
+    assert build.proof == "as_written" and build.printed_fr == "La Fête de la musique est gratuite et le gens sont content"
+    _, closing = revue.close(row)
+    assert closing.titre_page.proof == "as_written"
+    line = closing.romy_line_fr
+    assert line == titre_loop.ROMY_CLOSE_LINE_AS_WRITTEN and line != titre_loop.ROMY_CLOSE_LINE
+    assert "dit vrai" not in line and "relire" in line, "she says she could not read it, never that it is right"
+    assert [e["text_fr"] for e in events(row, "turn_romy") if e.get("beat") == "close"] == [line]
+
+
+def test_a_headline_romy_read_still_closes_on_her_thanks(db: Session) -> None:
+    revue, row = start(db, "titre", level="A2.1", native="de")
+    solve_three(revue, row)
+    solve_trap(revue, row)
+    act(revue, row, act="build", text="est gratuite et le gens sont content")
+    act(revue, row, act="build_fix", text="La Fête de la musique est gratuite et les gens sont contents")
+    assert revue.close(row)[1].romy_line_fr == titre_loop.ROMY_CLOSE_LINE
+
+
 # ---------------------------------------------------------------------------
 # The route
 # ---------------------------------------------------------------------------

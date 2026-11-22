@@ -681,6 +681,48 @@ def test_openai_provider_asks_for_json_and_parses_it() -> None:
         enc.OpenAIRevueProvider(_service=_StubLLM("not json")).reply({})
 
 
+class _StarvedLLM:
+    """The service as a reasoning model answers when its reasoning eats the whole budget: the
+    first ``fails`` calls raise «did not include content» (as ``LLMService`` words it, 22 Nov,
+    gpt-6-luna on «Le titre»), then ``content``."""
+
+    def __init__(self, content: str, fails: int = 1) -> None:
+        self.content, self.fails, self.calls = content, fails, []
+
+    def generate_chat_completion(self, messages, **kwargs):
+        from types import SimpleNamespace
+
+        from app.services.llm_service import LLMProviderError
+
+        self.calls.append(kwargs)
+        if len(self.calls) <= self.fails:
+            raise LLMProviderError("openai: OpenAI response did not include content")
+        return SimpleNamespace(content=self.content, cost=0.002)
+
+
+def test_an_edit_that_came_back_empty_is_asked_once_more_with_a_larger_budget() -> None:
+    """22 Nov (real run): ``titre_edit`` came back empty and the learner's headline printed
+    unread. Every Revue edit call (the counter, the wire, the headline, the caption and the
+    interview) asks once more with a larger budget; never a loop, never for the other tasks."""
+
+    edit = '{"edited_fr": "La fête est gratuite", "marks": []}'
+    context = {"band": "A2", "learner_fr": "La fête est gratuite", "kind": "photo"}
+    for name in ("comptoir_edit", "fil_edit", "titre_edit", "rubrique_edit"):
+        stub = _StarvedLLM(edit)
+        provider = enc.OpenAIRevueProvider(_service=stub)
+        assert getattr(provider, name)(dict(context))["edited_fr"] == "La fête est gratuite", name
+        assert len(stub.calls) == 2, name
+        assert stub.calls[0]["max_tokens"] == 1600 and stub.calls[1]["max_tokens"] > 2 * 1600, name
+    starved = _StarvedLLM(edit, fails=99)
+    with pytest.raises(enc.RevueProviderError):
+        enc.OpenAIRevueProvider(_service=starved).titre_edit(dict(context))
+    assert len(starved.calls) == 2, "once more, never a loop"
+    other = _StarvedLLM('{"reply_fr": "Bonjour."}')
+    with pytest.raises(enc.RevueProviderError):
+        enc.OpenAIRevueProvider(_service=other).reply({"max_words": 30, "band": "A2"})
+    assert len(other.calls) == 1, "only the edit calls ask again"
+
+
 def test_model_down_gives_the_authored_line(db: Session) -> None:
     user = make_user(db)
     down = enc.OpenAIRevueProvider(_service=_StubLLM(error=RuntimeError("provider down")))

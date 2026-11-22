@@ -296,6 +296,38 @@ test('«Le titre» A2 (de) with «Le pourquoi»: the marks open their rule, the 
   assert.match(visibleText(html), /Nomen: «les gens»/);
 });
 
+// 22 Nov (a real run): the edit call came back empty, the learner's headline printed unread
+// under «tel que tu l'as écrit» and Romy closed on «… et il dit vrai». An unread proof now
+// says so in the learner's language, and her closing line for it never says it is right.
+const AS_WRITTEN_CLOSE_FR = 'Merci ! Ton titre est en une, tel que tu l’as écrit : je n’ai pas pu le relire cette fois.';
+
+test('«Le titre»: a headline Romy could not read says so, and her thanks never say it is right', () => {
+  const { COMPTOIR_LINES, unreadLine, closeLineIn } = require('../comptoir/comptoir-copy.ts');
+  for (const language of ['fr', 'en', 'de']) assert.ok(COMPTOIR_LINES.proof_unread[language], language);
+  assert.equal(unreadLine('as_written', false), COMPTOIR_LINES.proof_unread);
+  assert.equal(unreadLine('as_written', true), null, 'A1 tiles are never checked');
+  assert.equal(unreadLine('clean', false), null);
+  assert.equal(
+    closeLineIn(AS_WRITTEN_CLOSE_FR, 'de').tr,
+    'Danke! Deine Schlagzeile steht auf der Titelseite, so wie du sie geschrieben hast: Ich konnte sie diesmal nicht korrekturlesen.',
+  );
+  assert.equal(closeLineIn(AS_WRITTEN_CLOSE_FR, 'fr').tr, null);
+  assert.equal(closeLineIn('Une ligne inconnue.', 'en').tr, null);
+
+  const raw = JSON.parse(JSON.stringify(SESSIONS.titre_a2_marked));
+  Object.assign(raw.titre.build, { proof: 'as_written', marks: [], printed_fr: raw.titre.build.draft_fr });
+  const text = visibleText(render(h(RvRubrique, { client: {}, session: types.parseSessionView(raw), onExit: () => {} })));
+  assert.match(text, /je n’ai pas pu te relire cette fois/);
+  assert.match(text, /tel que tu l’as écrit/);
+
+  const page = JSON.parse(JSON.stringify(SESSIONS.titre_a1_page));
+  page.closing.romy_line_fr = AS_WRITTEN_CLOSE_FR;
+  const html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(page), onExit: () => {} }));
+  assert.match(html, /je n’ai pas pu le relire cette fois/);
+  assert.match(html, /I couldn’t proofread it this time/);
+  assert.doesNotMatch(html, /il dit vrai/);
+});
+
 // Follow-up (integration): «Lire» shows the story's other pictures as the other assignments do.
 test('«Le titre» and «L’intox express»: «Lire» shows the story’s other pictures, each with its credit', () => {
   for (const name of ['titre_a1_read', 'intox_a1_round']) {
