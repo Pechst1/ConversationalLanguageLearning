@@ -8467,7 +8467,10 @@ export interface components {
          *     * ``radio`` — the Radio bulletin of ``dossier_id`` (``GET /revue/radio/{id}``),
          *       listen first, then the dictée, then «C'est entendu»;
          *     * ``correcteur`` — ``CorrecteurDesk`` on a new draft of ``dossier_id``
-         *       (``POST /revue/correcteur/{id}``).
+         *       (``POST /revue/correcteur/{id}``);
+         *     * ``papier`` (``REVUE_PLANNED_STEP_ENABLED``) — the Papier itself, on the Papier
+         *       day only, after its ending: the player opens the week's Papier there
+         *       (``RvJourneyPapier``); ``seconds`` is what the plan priced it at.
          */
         DeskPrompt: {
             /**
@@ -12954,6 +12957,20 @@ export interface components {
             prompt: components["schemas"]["RulePrompt"];
             status: components["schemas"]["StepStatus"];
         };
+        /**
+         * RvAffiche
+         * @description ``REVUE_QUARTIER_AFFICHE_ENABLED``: today's edition as the Quartier's Morris column
+         *     shows it — the story's headline (our French: the lead desk's headline, else the dossier
+         *     title) and whether this period's Papier is filed (the poster's «lu»).
+         */
+        RvAffiche: {
+            /** Done */
+            done: boolean;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Headline Fr */
+            headline_fr: string;
+        };
         /** RvAngle */
         RvAngle: {
             /** Fr */
@@ -14546,25 +14563,13 @@ export interface components {
             /** Text Fr */
             text_fr: string;
         };
-        /**
-         * RvAffiche
-         * @description ``REVUE_QUARTIER_AFFICHE_ENABLED``: today's edition as the Quartier's Morris column
-         *     shows it — the story's headline (our French: the lead desk's headline, else the dossier
-         *     title) and whether this period's Papier is filed (the poster's «lu»).
-         */
-        RvAffiche: {
-            /** Dossier Id */
-            dossier_id: string;
-            /** Done */
-            done: boolean;
-            /** Headline Fr */
-            headline_fr: string;
-        };
         /** RvOffer */
         RvOffer: {
             affiche?: components["schemas"]["RvAffiche"] | null;
             /** Alternatives */
             alternatives: components["schemas"]["RvStoryCard"][];
+            /** Choices */
+            choices?: components["schemas"]["RvStoryCard"][] | null;
             /** Evergreen Only */
             evergreen_only: boolean;
             filed?: components["schemas"]["RvFiled"] | null;
@@ -14576,6 +14581,8 @@ export interface components {
             recommended_reason: "topic_least_recent" | "interests" | "first";
             resume?: components["schemas"]["RvResume"] | null;
             week: components["schemas"]["RvWeek"];
+            /** Why Language */
+            why_language?: ("en" | "de" | "fr") | null;
         };
         /**
          * RvPhotoBuild
@@ -15162,6 +15169,7 @@ export interface components {
             thread: (components["schemas"]["RvNarrationItem"] | components["schemas"]["RvSummaryItem"] | components["schemas"]["RvLineItem"] | components["schemas"]["RvGuestItem"] | components["schemas"]["RvMineItem"] | components["schemas"]["RvClaimsItem"] | components["schemas"]["RvUncertaintyItem"] | components["schemas"]["RvShiftItem"] | components["schemas"]["RvMadeItem"])[];
             titre?: components["schemas"]["RvTitreView"] | null;
             week: components["schemas"]["RvWeek"];
+            why?: components["schemas"]["RvWhy"] | null;
         };
         /** RvShiftItem */
         RvShiftItem: {
@@ -15351,6 +15359,7 @@ export interface components {
              * @enum {string}
              */
             topic: "food" | "culture" | "city" | "sport" | "nature" | "work" | "politics";
+            why?: components["schemas"]["RvWhy"] | null;
         };
         /**
          * RvSummaryItem
@@ -15916,6 +15925,45 @@ export interface components {
             label: string;
             /** Range */
             range: string;
+        };
+        /**
+         * RvWhy
+         * @description «Papier · le choix» (2026-11-22): why pedagogy offered a story — the learner's due words its
+         *     French contains, the rule it gives occasion to use, the interest it meets, and its score.
+         */
+        RvWhy: {
+            /** Due Words */
+            due_words: string[];
+            interest?: components["schemas"]["RvWhyInterest"] | null;
+            rule?: components["schemas"]["RvWhyRule"] | null;
+            /**
+             * Score
+             * @default 0
+             */
+            score?: number;
+        };
+        /**
+         * RvWhyInterest
+         * @description The learner's interest a story meets: the story's topic when it matched, and their word.
+         */
+        RvWhyInterest: {
+            /** Topic */
+            topic: string;
+            /** Word */
+            word: string;
+        };
+        /**
+         * RvWhyRule
+         * @description The grammar rule a story gives occasion to use: its id, its name in the mother tongue,
+         *     and whether it is the day's own (else the most recent of the week's).
+         */
+        RvWhyRule: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Today */
+            today: boolean;
         };
         /** RvWordEvidence */
         RvWordEvidence: {
