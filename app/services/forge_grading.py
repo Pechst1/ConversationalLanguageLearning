@@ -101,7 +101,11 @@ def token_diff(learner: Any, target: Any, *, positions: bool = False) -> list[di
     its target word in the key, so its neighbours are read at that place (#596).
     """
 
-    left, right = tokens(learner), tokens(target)
+    from app.services.answer_acceptance import in_key_spelling
+
+    right = tokens(target)
+    # #966: a word in its other accepted spelling («clef» for «clé») is no difference.
+    left = in_key_spelling(tokens(learner), right)
     if left == right:
         return []
     if sorted(strip_accents(token) for token in left) == sorted(strip_accents(token) for token in right) and [
@@ -529,13 +533,20 @@ def matches_accepted(text: Any, accepted: Any) -> bool:
     """Is ``text`` one of the accepted answers, up to typography?
 
     Case, punctuation, apostrophe and quote variants (’ ‘ « » "), and spacing are
-    folded; accents are not — «a» for «à» is a slip, not a match.
+    folded; accents are not — «a» for «à» is a slip, not a match. A word in its
+    other accepted spelling («clef» / «clé», #966) is the same word.
     """
+
+    from app.services.answer_acceptance import in_key_spelling
 
     said = tokens(text)
     if not said:
         return False
-    return any(tokens(answer) == said for answer in accepted or [] if str(answer or "").strip())
+    # #966: «Ils cherchent leurs clefs.» is «Ils cherchent leurs clés.» in its other spelling.
+    return any(
+        in_key_spelling(said, key) == key
+        for key in (tokens(answer) for answer in accepted or [] if str(answer or "").strip())
+    )
 
 
 def accent_reading(text: Any, accepted: Any, *, accents: str = "lenient") -> Any:

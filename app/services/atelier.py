@@ -218,6 +218,11 @@ def _test_out_local_grade(
     QA-CLOSE: a detector hit is not enough — the sentence must also be acceptable
     in the rule (``forge_grading.free_use_acceptable``): «Je n'ai pas une maison»
     uses the negation and still fails the negation test-out.
+
+    #562: an answer the key accepts (``local_status`` right: an accepted answer, up to
+    a spelling accent or another accepted spelling) is right here too, as on every
+    other judge. The detector reads the rule's forms as written, so it missed «Vous
+    etes au Mistral ?»: the key had read it right and the rule check said «Noch nicht».
     """
 
     if not str(text or "").strip():
@@ -226,6 +231,8 @@ def _test_out_local_grade(
     similarity = local_check.get("model_similarity")
     if acceptable is not None and not acceptable.get("acceptable", True):
         verdict, score = "incorrect", 1.0
+    elif local_check.get("local_status") == LOCAL_RIGHT:
+        verdict, score = "correct", 4.0
     elif detector == "hit" or (detector == "unknown" and isinstance(similarity, (int, float)) and similarity >= 0.8):
         verdict, score = "correct", 4.0
     elif detector == "miss":
