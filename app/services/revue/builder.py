@@ -63,7 +63,7 @@ from app.services.revue.leads import LEAD_RULES, LEADS_SPEC, repair_leads
 from app.services.revue.sources import text_hash
 
 #: v2 (WP-119 §8.4): the dossier carries the story picture's ``visual``; v3: its ``kind`` and the picture rules.
-BUILDER_VERSION = "revue-builder-v3"
+BUILDER_VERSION = "revue-builder-v4"
 #: What the provider may read of one article (the rest is not needed for six claims).
 ARTICLE_CHARS_FOR_PROVIDER = 6000
 #: The angle purposes a dossier offers, in the order the builder asks for them (§5.2).
@@ -275,7 +275,9 @@ Rules: every quote is copied character for character from that item's text; a fa
 write absolute dates; happening must overlap week_monday..week_sunday and relevant_until must be on or after
 week_sunday; a place brief is the place's NAME + three distinctive, checkable landmarks + the light, never a
 type of place, and names no person; participation is how the learner would take part (helps at a stall, works
-on a site, formal role) — "none" when they only watch. 
+on a site, formal role) — "none" when they only watch. In a claim's French, write every number in digits
+(«16 chevaux», «100 voiles», «4 autres prix»: the desks copy numbers from the claims in digits), and keep the
+absolute date the quote gives («Le 25 septembre 2026, l'Académie…»): the order of events rests on them.
 """ + PICTURE_RULES + "\n" + LEAD_RULES
 
 

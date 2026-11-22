@@ -11,6 +11,7 @@ import pytest
 
 from app.services.revue import checks
 from app.services.revue.builder import (
+    BUILDER_INSTRUCTIONS,
     BUILDER_VERSION,
     FakeDossierProvider,
     SourceItem,
@@ -226,7 +227,8 @@ def with_visual(**visual) -> dict:
 
 
 def test_the_builder_writes_the_story_pictures_brief_and_repairs_it() -> None:
-    assert BUILDER_VERSION == "revue-builder-v3"
+    assert BUILDER_VERSION == "revue-builder-v4"
+    assert "every number in digits" in BUILDER_INSTRUCTIONS and "absolute date the quote gives" in BUILDER_INSTRUCTIONS
     result = build(with_visual())
     assert result.ok, result.rejected
     visual = result.dossier.visual

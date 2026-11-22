@@ -54,7 +54,7 @@ from app.services.revue.dossier import (
     fold,
 )
 
-COMPTOIR_PROMPT_VERSION = "comptoir-takes-v3"
+COMPTOIR_PROMPT_VERSION = "comptoir-takes-v4"
 
 ROMY_ID = "romy_tremblay"
 GUS_ID = "augustin_de_roncourt"
@@ -250,7 +250,9 @@ COMPTOIR_RULES = """RULES
   sits word for word inside that guest's a1, a2 AND b1, naturally, as if he believed it, and in nobody else's
   take. right_fr: the true value, copied from the French of claim claim_id (2 to 6 words, the same kind:
   «plus de 500 000 personnes»). distractor_fr: another TRUE value of the same kind copied from another claim
-  (a number for a number, a place for a place), for the learner to choose between it and right_fr. ask: the
+  (a number for a number, a place for a place), for the learner to choose between it and right_fr: when right_fr
+  holds a number or a year («dès l'été 2027»), the distractor holds a number too («cent voiles»), never a month
+  or a season alone («dès juin»); change another claim's detail when no second number exists. ask: the
   question that sends the learner back to the facts («Combien de spectateurs, en vrai ?»). caught: what the liar
   says when he is caught, in character, 14 words at most. null when no claim has a number, a date, a place or a
   name to change.

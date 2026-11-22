@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
 )
 from app.services.revue.fil import _content, _stems
 
-INTOX_PROMPT_VERSION = "intox-express-v1"
+INTOX_PROMPT_VERSION = "intox-express-v2"
 
 STATEMENT_MAX_WORDS: dict[str, int] = {"a1": 8, "a2": 12, "b1": 16}
 #: A fixed statement may be a little longer than the false one (the true value can be).
@@ -88,18 +88,23 @@ where T = {"fr": str, "en": str, "de": str} (en and de translate the French fait
 wrong_fr, right_fr, distractor_fr and fixed only on a false statement"""
 
 INTOX_RULES = """RULES
-- fit: "skip" when the story is a death, a war, a crime with victims, an election or a party's politics, or
-  anything where a true-or-false game would be cruel; also when the claims hold too little to say five things.
-  Otherwise "express".
+- fit: "skip" ONLY when the story is a death, a war, a crime with victims, an election or a party's politics, or
+  anything where a true-or-false game would be cruel, or when there are fewer than three claims. Otherwise
+  "express": three or four claims are enough, because one claim can carry two statements (one true, one false,
+  or two different facts of it) — the EXAMPLE below makes five statements from four claims.
 - statements: exactly five short statements about the story, THREE true and TWO false, in any order. Each comes
   from ONE claim (claim_id) and uses its words. a1: one present-tense sentence, 8 words at most, the most common
   words. a2: 12 words at most. b1: 16 words at most. Never about a person's private life (family, love, health,
   home, money, religion).
 - A true statement says only what its claim says; no number its claim does not carry.
 - A false statement changes exactly ONE element of its claim and nothing else: a number, a day, a place, or who
-  (swap). wrong_fr: the changed words exactly as they stand in each of a1, a2 and b1 (6 words at most); they must
+  (swap). The false value stays plausible, of the claim's own kind and unit, so only a reader of the facts can
+  tell («2 500 mètres» for «2 400 mètres», «le 8 octobre» for «le 6 octobre»); never an absurd one («5 millions
+  de mètres») nor one borrowed from another claim's unit. wrong_fr: the changed words exactly as they stand in each of a1, a2 and b1 (6 words at most); they must
   appear in NO claim. right_fr: the true words, copied exactly from the claim. distractor_fr: ANOTHER value of the
-  same kind copied from the claims (a day for a day, a who for a who), neither the true nor the false one. fixed:
+  same kind copied from the claims (a day for a day, a who for a who), neither the true nor the false one,
+  character for character as a claim writes it (never a value from the articles); when the claims hold no
+  second value of that kind, change another element instead. fixed:
   the statement at each band as it should read, with right_fr in place of wrong_fr.
 - why: one line, 20 words at most, that says what settles the statement («La mairie annonce les travaux le 3
   mars.»; on a false one «…, pas le 20 mars.»).

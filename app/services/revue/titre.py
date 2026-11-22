@@ -53,7 +53,7 @@ from app.services.revue.dossier import (
 from app.services.revue.fil import new_names
 from app.services.revue.intox import grounded
 
-TITRE_PROMPT_VERSION = "titre-desk-v1"
+TITRE_PROMPT_VERSION = "titre-desk-v2"
 
 HEADLINE_MAX_WORDS: dict[str, int] = {"a1": 7, "a2": 9, "b1": 12}
 WHY_MAX_WORDS = 20
@@ -109,8 +109,11 @@ TITRE_RULES = """RULES
   - honest: says what the claims say, nothing more. No number and no name the claims do not carry. claim_id: the
     claim it rests on.
   - exaggerated: the honest news said with MORE than the claims say, in exactly one way (stretch): a wider place
-    («partout en France» for one city), «always / everyone» («toujours», «tout le monde», «tous»), a bigger number,
-    or a certainty the story lacks («c'est officiel», «c'est sûr»). wrong_fr: the words that say too much, exactly
+    («partout en France» for one city), «always / everyone» («toujours», «tout le monde», «tous»), a bigger number
+    in digits («30 chevaux» for sixteen), or a certainty the story lacks with one of «c'est officiel», «c'est
+    sûr», «c'est certain», «c'est prouvé», «définitivement», «sans aucun doute», «confirmé». Never «sûrement» or
+    «probablement»: in French they mean "probably", not a certainty. A changed verb («sont installés» for «doivent
+    être installés») is not a stretch. wrong_fr: the words that say too much, exactly
     as they stand in its a1, a2 AND b1 (6 words at most); they must appear in NO claim. claim_id: the claim that
     shows it says too much.
   - off: sounds true and is true, but is about a detail of the story and misses the news. claim_id: the claim the
@@ -118,7 +121,8 @@ TITRE_RULES = """RULES
   - why (exaggerated and off only): what the headline claims that the article does not say, 20 words at most.
 - build: what a beginner builds a headline from: subjects (2 or 3, 5 words at most each, «La Fête de la musique»)
   and facts (2 to 4, 6 words at most each, «est gratuite»): EVERY subject followed by EVERY fact must make a true
-  headline; never the exaggerated words; never a vocative or an exclamation. frame: an A2 headline's opening (5
+  headline; never the exaggerated words; never a vocative or an exclamation. Each fact uses its claim's own verb
+  and words («augmentent de 9,9 %» when the claim says «augmentent», never a synonym such as «progressent»). frame: an A2 headline's opening (5
   words at most) that the learner completes.
 - phrase: a headline pattern of each band (a1 «La fête est…», a2 «… et …», b1 «… : … mais …», b2 «Selon…, …»).
 - Facts: only what the claims say. Numbers in digits, copied exactly from the claims (the exaggerated number
