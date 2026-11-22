@@ -195,20 +195,25 @@ def kept_waiting_ids(db: Session, user: Any) -> list[int]:
     reviews are frozen at the first read and cut by priority, so «valise», promised
     «es kommt morgen wieder», was in no deck on days 2 to 5. Each one now opens the
     next deck dealt after it was kept, whatever the review list would have cut.
+    With ``REVUE_WORDS_IN_DECK_ENABLED`` a word kept in a Papier (``kept_from_revue``)
+    opens it too.
     """
 
     from sqlalchemy import select
 
     from app.db.models.progress import UserVocabularyProgress
-    from app.services.kept_words import KEPT_PROVENANCE
+    from app.services.kept_words import kept_provenances
 
     if not getattr(user, "id", None):
         return []
+    provenances = kept_provenances()
     rows = db.execute(
         select(UserVocabularyProgress.word_id)
         .where(
             UserVocabularyProgress.user_id == user.id,
-            UserVocabularyProgress.provenance == KEPT_PROVENANCE,
+            UserVocabularyProgress.provenance == provenances[0]
+            if len(provenances) == 1
+            else UserVocabularyProgress.provenance.in_(provenances),
             UserVocabularyProgress.last_review_date.is_(None),
             (UserVocabularyProgress.reps.is_(None)) | (UserVocabularyProgress.reps == 0),
         )
