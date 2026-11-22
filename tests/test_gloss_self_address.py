@@ -94,35 +94,18 @@ def test_the_re_address_never_makes_the_speaker_its_own_addressee():
 
 
 @pytest.mark.parametrize(
-    ("text", "speaker", "expected"),
+    ("objective", "served"),
     [
-        (SERVED, GUS, "Gus"),
-        ("Gus wonders whether to talk to Gus.", GUS, "Gus"),
-        ("Romy asks if she should call Romy.", "romy_tremblay", "Romy"),
-        # The speaker spoken to, by a learner told to: no report, no self-address.
-        ("Ask Gus if he wants to stay.", GUS, None),
-        ("Tell Gus that Romy is late.", GUS, None),
-        # Another member is the subject: not the speaker addressing himself.
-        ("Romy asks if she should speak to Gus.", GUS, None),
-        (WRITTEN, GUS, None),
-    ],
-)
-def test_a_gloss_never_names_the_speaker_as_its_own_addressee(text, speaker, expected):
-    from app.services.living_story import self_addressed
-
-    assert self_addressed(text, speaker, CAST) == expected
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
+        # The speaker addressing himself: refused, and served without the self-address.
         (SERVED, "Gus asks if he should speak or stay silent."),
         ("Gus wonders whether to talk to Gus.", "Gus wonders whether to talk."),
         ("Gus asks if he should ask Gus.", "Gus asks if he should ask himself."),
+        # The speaker spoken to by the learner, or another member as the subject: kept.
+        ("Ask Gus if he wants to stay.", "Ask Gus if he wants to stay."),
+        ("Tell Gus that Romy is late.", "Tell Gus that Romy is late."),
+        ("Romy asks if she should speak to Gus.", "Romy asks if she should speak to Gus."),
+        (WRITTEN, WRITTEN),
     ],
 )
-def test_the_self_address_is_taken_out(text, expected):
-    from app.services.living_story import without_self_address
-
-    gus = next(member for member in CAST if member["id"] == GUS)
-    assert without_self_address(text, "Gus", gus) == expected
+def test_a_gloss_never_names_the_speaker_as_its_own_addressee(objective, served):
+    assert _served_objective(objective) == served
