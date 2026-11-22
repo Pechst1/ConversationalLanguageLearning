@@ -319,13 +319,19 @@ def prefer(keys: Sequence[str], dossier: EditorialDossier, focus: Focus) -> list
 
 
 def front_page(ordered: Sequence[Any], *, rubric: Callable[[Any], str | None], topic: Callable[[Any], str],
-               count: int = 3) -> list[Any]:
+               count: int = 3, identity: Callable[[Any], Any] | None = None) -> list[Any]:
     """Up to ``count`` of ``ordered`` (best first): the best, then each time the best one whose
-    rubric and topic are both new, else whose rubric is, else whose topic is, else the next."""
+    rubric and topic are both new, else whose rubric is, else whose topic is, else the next.
+    ``identity``: items that are the same story in another rubric — one of them at most."""
 
     chosen: list[Any] = []
     rest = list(ordered)
     while rest and len(chosen) < count:
+        if identity is not None:
+            taken = {identity(item) for item in chosen}
+            rest = [item for item in rest if identity(item) not in taken]
+            if not rest:
+                break
         rubrics = {rubric(item) for item in chosen}
         topics = {topic(item) for item in chosen}
 
@@ -335,6 +341,15 @@ def front_page(ordered: Sequence[Any], *, rubric: Callable[[Any], str | None], t
         best = min(rest, key=lambda item: (novelty(item), rest.index(item)))
         chosen.append(best)
         rest.remove(best)
+    if identity is not None and len(chosen) > 1 and len({rubric(item) for item in chosen}) == 1:
+        # One rubric for the whole page while a chosen story carries another: the lowest one
+        # shown is printed in that other rubric (one desk three times is no front page).
+        for index in range(len(chosen) - 1, -1, -1):
+            other = next((item for item in ordered if identity(item) == identity(chosen[index])
+                          and rubric(item) != rubric(chosen[index])), None)
+            if other is not None:
+                chosen[index] = other
+                break
     return chosen
 
 

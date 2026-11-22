@@ -1184,6 +1184,8 @@ export function createMockRevueTransport(given: MockOptions = {}): RevueTranspor
               { ...cardOf(MARCHE), why: { due_words: ['le marché'], rule: null, interest: null, score: 2 } },
             ],
             why_language: language,
+            // the edition's day, as the server says it (the mock is the server here)
+            edition_date: new Date().toISOString().slice(0, 10),
           }
         : {}),
       resume: current

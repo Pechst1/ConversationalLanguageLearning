@@ -328,3 +328,72 @@ def test_the_learner_starts_the_story_they_chose(db: Session, monkeypatch, revue
         assert session["plan"]["chosen_by"] == "learner"
         assert session["mode"] == chosen["assignment"]["key"], "the rubric shown is the one played"
         assert session.get("why") == chosen.get("why")
+
+
+# ---------------------------------------------------------------------------
+# Integration 2026-11-22 (the real stack): honest whys, mixed desks, the server's day
+# ---------------------------------------------------------------------------
+
+
+def test_a_fresh_learner_gets_no_empty_why_and_the_page_says_nothing(db: Session, monkeypatch) -> None:
+    """Found on the real stack: the why record of a fresh learner is empty (no due card, no
+    rule yet, no interest) — nothing was lost between the ranking and the payload. A card then
+    carries no ``why`` at all, so the page says nothing rather than an empty promise."""
+
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", True)
+    focus(monkeypatch)
+    choices = RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), WEEK).model_dump(mode="json")["choices"]
+    assert choices and all("why" not in card for card in choices)
+    focus(monkeypatch, due=("le lycéen",))
+    choices = RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), WEEK).model_dump(mode="json")["choices"]
+    assert choices[0]["why"]["due_words"] == ["le lycéen"], "a real reason survives to the payload"
+
+
+def test_the_front_page_mixes_desks_when_a_story_carries_le_titre(db: Session, monkeypatch) -> None:
+    """On the real stack all three were «Au comptoir»: each story is dealt on its own, and the
+    counter came up three times. A story that carries «Le titre» is shown in it then."""
+
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", True)
+    focus(monkeypatch)
+    # every story dealt the counter when it has takes (the real stack's draw)
+    dealt = assignments.deal
+    monkeypatch.setattr(assignments, "deal", lambda offered, recent, **kw: "comptoir" if "comptoir" in offered
+                        else dealt(offered, recent, **kw))
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    choices = revue.week_offer(user, WEEK).model_dump(mode="json")["choices"]
+    carry_titre = [d.id for d in evergreens_for_week(WEEK)
+                   if "titre" in assignments.available(revue._material(d, d.comptoir))]
+    assert carry_titre, "the evergreens carry «Le titre» material"
+    rubrics = [card["assignment"]["key"] for card in choices]
+    assert len(set(rubrics)) >= 2, rubrics
+    assert len({card["dossier_id"] for card in choices}) == len(choices)
+
+
+def test_the_story_starts_in_the_rubric_the_front_page_showed(db: Session, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", True)
+    focus(monkeypatch)
+    user = make_user(db)
+    revue = RevueEncounter(db, FakeRevueProvider())
+    choices = revue.week_offer(user, WEEK).model_dump(mode="json")["choices"]
+    chosen = next(card for card in choices if card["assignment"]["key"] == "titre")
+    row = revue.start(user, week=WEEK, dossier_id=chosen["dossier_id"], assignment="titre")
+    assert dossier_choice(row)["mode"] == "titre"
+    with pytest.raises(enc.RevueError):
+        RevueEncounter(db, FakeRevueProvider()).start(make_user(db), week=WEEK, dossier_id=chosen["dossier_id"],
+                                                       assignment="photo")
+
+
+def test_the_front_page_carries_the_servers_day_for_its_edition(db: Session, monkeypatch) -> None:
+    from app.services.revue.weekly import PARIS
+
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", True)
+    focus(monkeypatch)
+    offer = RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), enc.current_period())
+    assert offer.model_dump(mode="json")["edition_date"] == datetime.now(UTC).astimezone(PARIS).date().isoformat()
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", False)
+    assert "edition_date" not in RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), WEEK).model_dump(mode="json")

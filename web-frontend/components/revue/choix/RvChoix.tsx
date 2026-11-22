@@ -21,30 +21,49 @@ import { capitalised, choixCopy, whyLine, whyParts } from './choix-copy';
 export type RvChoixProps = {
   choices: RvStoryCard[];
   week: RvWeek;
+  /** The edition's day, the server's (`offer.editionDate`); else the daily period's own date. */
+  editionDate?: string | null;
   /** The language the `why` lines are said in (the mother tongue). */
   whyLanguage: RvLanguage;
   /** The chrome language (the hint). */
   language: RvLanguage;
-  onPick: (dossierId: string) => void;
+  /** The story tapped, and the rubric it was shown in (the session plays that one). */
+  onPick: (dossierId: string, assignment: string | null) => void;
   /** The story being started (its press shows it). */
   pending?: string | null;
   copy: RevueCopy;
 };
 
-function todayIso(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+/** The masthead's day: the server's for the edition, else a daily period's own date; never the device clock. */
+function editionDay(editionDate: string | null | undefined, week: RvWeek): string | null {
+  if (editionDate) return editionDate;
+  return /^\d{4}-\d{2}-\d{2}$/.test(week.iso) ? week.iso : null;
 }
 
-/** The plate, or the hatched blank when it is missing or fails to load. */
-function ChoixPicture({ story }: { story: RvStoryCard }) {
-  const plate = story.plateUrl ?? story.stage.plateUrl;
+/**
+ * The picture each card prints (integration 2026-11-22): only its own — the story's painted
+ * picture, or its real place's plate — and never one already on the page; a stand-in or a
+ * repeat leaves a typographic card.
+ */
+export function choixPictures(choices: readonly RvStoryCard[]): (string | null)[] {
+  const used = new Set<string>();
+  return choices.map((story) => {
+    const ownPicture = story.stage.plateKind === 'story' || story.stage.placeIsReal;
+    const plate = ownPicture ? story.plateUrl ?? story.stage.plateUrl : null;
+    if (!plate || used.has(plate)) return null;
+    used.add(plate);
+    return plate;
+  });
+}
+
+/** The card's own plate, or the hatched blank when it fails to load; nothing without one. */
+function ChoixPicture({ plate }: { plate: string | null }) {
   const src = plate ? resolveMediaUrl(plate) ?? plate : null;
   const [failed, setFailed] = useState(false);
+  if (!src) return null;
   return (
-    <span className="pp-choix__pic" aria-hidden="true" data-blank={!src || failed ? '' : undefined}>
-      {src && !failed && (
+    <span className="pp-choix__pic" aria-hidden="true" data-blank={failed ? '' : undefined}>
+      {!failed && (
         // eslint-disable-next-line @next/next/no-img-element -- a painted plate, already sized
         <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
       )}
@@ -95,14 +114,16 @@ function Why({ story, language, lead = false }: { story: RvStoryCard; language: 
   );
 }
 
-export function RvChoix({ choices, week, whyLanguage, language, onPick, pending = null, copy }: RvChoixProps) {
-  const [lead, ...rest] = choices.slice(0, 3);
+export function RvChoix({ choices, week, editionDate = null, whyLanguage, language, onPick, pending = null, copy }: RvChoixProps) {
+  const shown = choices.slice(0, 3);
+  const [lead, ...rest] = shown;
+  const pictures = choixPictures(shown);
   if (!lead) return null;
   const busy = pending !== null;
   const headline = (story: RvStoryCard) => (story.questionFr && story.assignment?.key === 'comptoir' ? story.questionFr : story.titleFr);
   return (
     <div className="rv-chooser pp-choix" data-choix={choices.length}>
-      <PpOpening edition={{ dateIso: todayIso(), weekIso: week.iso }} section={PAPIER_FR.choix_section} step={null} />
+      <PpOpening edition={{ dateIso: editionDay(editionDate, week), weekIso: week.iso }} section={PAPIER_FR.choix_section} step={null} />
       <p className="pp-choix__hint">{choixCopy(language).hint}</p>
       <button
         type="button"
@@ -110,9 +131,9 @@ export function RvChoix({ choices, week, whyLanguage, language, onPick, pending 
         data-dossier={lead.dossierId}
         data-pending={pending === lead.dossierId ? '' : undefined}
         disabled={busy}
-        onClick={() => onPick(lead.dossierId)}
+        onClick={() => onPick(lead.dossierId, lead.assignment?.key ?? null)}
       >
-        <ChoixPicture story={lead} />
+        <ChoixPicture plate={pictures[0]} />
         <Kicker story={lead} copy={copy} lead />
         <span className="pp-choix__hl" lang="fr">
           {headline(lead)}
@@ -129,7 +150,7 @@ export function RvChoix({ choices, week, whyLanguage, language, onPick, pending 
       </button>
       {rest.length > 0 && (
         <div className="pp-choix__cols" data-n={rest.length}>
-          {rest.map((story) => (
+          {rest.map((story, index) => (
             <button
               key={story.dossierId}
               type="button"
@@ -137,14 +158,18 @@ export function RvChoix({ choices, week, whyLanguage, language, onPick, pending 
               data-dossier={story.dossierId}
               data-pending={pending === story.dossierId ? '' : undefined}
               disabled={busy}
-              onClick={() => onPick(story.dossierId)}
+              onClick={() => onPick(story.dossierId, story.assignment?.key ?? null)}
             >
               <Kicker story={story} copy={copy} />
-              <ChoixPicture story={story} />
+              <ChoixPicture plate={pictures[index + 1]} />
               <span className="pp-choix__hl" lang="fr">
                 {headline(story)}
               </span>
               <Why story={story} language={whyLanguage} />
+              {/* the same affordance as the lead's: every story says it opens */}
+              <span className="pp-choix__go" lang="fr" aria-hidden="true">
+                {PAPIER_FR.choix_read}
+              </span>
             </button>
           ))}
         </div>

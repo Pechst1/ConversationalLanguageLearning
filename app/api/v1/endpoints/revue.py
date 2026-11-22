@@ -147,6 +147,7 @@ def start_session(
             dossier_id=body.dossier_id,
             free_request=body.free_request,
             angle_id=body.angle_id,
+            **({"assignment": body.assignment} if body.assignment else {}),
         )
         return encounter.view(row)
     except RevueError as error:

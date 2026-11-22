@@ -1872,6 +1872,13 @@ def session_view(loaded: Loaded) -> RvSessionView:
     )
 
 
+def choix_says(why: dict[str, Any] | None) -> bool:
+    """Does a ``why`` record give a reason (integration 2026-11-22)? A fresh learner's has none
+    (no due card, no rule yet, no interest): then the page and the session say nothing."""
+
+    return bool(why and (why.get("due_words") or why.get("rule") or why.get("interest")))
+
+
 def _why_of(state: ConversationState) -> Any:
     """«Papier · le choix»: the ``why`` record kept on the session's dossier choice, if any."""
 
@@ -1879,7 +1886,7 @@ def _why_of(state: ConversationState) -> Any:
 
     for event in _choices(state, "dossier")[:1]:
         raw = event.payload.get("why")
-        if isinstance(raw, dict):
+        if isinstance(raw, dict) and choix_says(raw):
             try:
                 return RvWhy.model_validate(raw)
             except ValueError:
@@ -2373,10 +2380,22 @@ class RevueEncounter:
             evergreen_only=bool(cards) and all(d.evergreen for d in ordered[:3]),
             resume=resume,
             filed=filed,
-            **self._front_page(user, ordered, cards),
+            **self._front_page(user, ordered, cards, week),
         )
 
-    def _front_page(self, user: Any, ordered: list[EditorialDossier], cards: list[RvStoryCard]) -> dict[str, Any]:
+    def _front_page_rubric(self, user: Any, week: str, ordered: list[EditorialDossier], dossier_id: str) -> str | None:
+        """The rubric the front page shows ``dossier_id`` in, when there is a front page."""
+
+        from app.services.revue import choix
+
+        if not choix.choice_enabled():
+            return None
+        cards = [self._card_for(user, d) for d in ordered[:3]]
+        page = self._front_page(user, ordered, cards, week).get("choices") or []
+        card = next((c for c in page if c.dossier_id == dossier_id), None)
+        return card.assignment.key if card is not None and card.assignment is not None else None
+
+    def _front_page(self, user: Any, ordered: list[EditorialDossier], cards: list[RvStoryCard], week: str) -> dict[str, Any]:
         """«Papier · le choix» (``REVUE_CHOICE_ENABLED``): the offer's ``choices`` — up to three
         stories from the top of the ranking, different rubrics where possible, each with its
         ``why`` — and the language their lines are said in. Off: nothing (the offer as before)."""
@@ -2387,20 +2406,41 @@ class RevueEncounter:
 
         if not choix.choice_enabled():
             return {}
+        from app.services.revue import assignments
+        from app.services.revue.weekly import PARIS, is_daily_period
+
         pool = [*cards, *(self._card_for(user, d) for d in ordered[len(cards):CHOICE_POOL])]
         if any(card.assignment is not None for card in pool):
             # a story no offered assignment carries would be a chat: never on the front page
             pool = [card for card in pool if card.assignment is not None]
+        # Mixed desks (integration 2026-11-22): each story is dealt on its own, and on the real
+        # stack the counter came up three times. The other rubrics a story carries stand behind
+        # its dealt one, so the page can show it in «Le titre» when that makes the page mixed.
+        by_id = {d.id: d for d in ordered[:CHOICE_POOL]}
+        variants = list(pool)
+        if assignments.assignments_enabled():
+            for card in pool:
+                dossier = by_id.get(card.dossier_id)
+                if dossier is None or card.assignment is None:
+                    continue
+                for key in assignments.available(self._material(dossier, dossier.comptoir)):
+                    if key != card.assignment.key:
+                        variants.append(self._card_for(user, dossier, key=key))
 
         def rubric(card: RvStoryCard) -> str | None:
             return card.assignment.key if card.assignment is not None else None
 
-        picked = choix.front_page(pool, rubric=rubric, topic=lambda card: card.topic)
+        picked = choix.front_page(variants, rubric=rubric, topic=lambda card: card.topic,
+                                  identity=lambda card: card.dossier_id)
         choices = []
         for card in picked:
             why = self.why_for(card.dossier_id)
-            choices.append(card.model_copy(update={"why": RvWhy.model_validate(why)}) if why else card)
-        return {"choices": choices, "why_language": normalize_control_language(user_mother_tongue(user))}
+            # A record with nothing in it says nothing (a fresh learner: no due card, no rule yet).
+            choices.append(card.model_copy(update={"why": RvWhy.model_validate(why)}) if choix_says(why) else card)
+        # The masthead's day is the server's: the daily period's own, else today in Paris.
+        edition = week if is_daily_period(week) else datetime.now(UTC).astimezone(PARIS).date().isoformat()
+        return {"choices": choices, "why_language": normalize_control_language(user_mother_tongue(user)),
+                "edition_date": edition}
 
     def match(self, user: Any, text: str, week: str | None = None) -> RvMatchResult:
         week = week or current_period()
@@ -2426,6 +2466,7 @@ class RevueEncounter:
         dossier_id: str | None = None,
         free_request: str | None = None,
         angle_id: str | None = None,
+        assignment: str | None = None,
     ) -> RevueSession:
         week = week or current_period()
         rows = self._sessions(user, week=week)
@@ -2468,7 +2509,11 @@ class RevueEncounter:
         why = self.why_for(dossier.id)
         picked = {"why": why} if why is not None else {}
         takes, desk_cost = self._takes_at_start(dossier, week)
-        takes, dealt = self._deal(user, dossier, takes)
+        if assignment is None and dossier_id:
+            # «Papier · le choix»: a story picked from the front page plays the rubric it showed
+            # there, even when the client does not say it.
+            assignment = self._front_page_rubric(user, week, ordered, dossier.id)
+        takes, dealt = self._deal(user, dossier, takes, wanted=assignment)
         plan = self._plan(user, dossier, angle_id=angle_id, chosen_by=chosen_by)
         state = ConversationState()
         if dealt is not None:
@@ -2536,7 +2581,7 @@ class RevueEncounter:
             logger.bind(dossier=dossier.id).warning("revue comptoir: takes at start failed ({}); a chat", exc)
             return None, 0.0
 
-    def _deal(self, user: Any, dossier: EditorialDossier, takes: Any) -> tuple[Any, Any]:
+    def _deal(self, user: Any, dossier: EditorialDossier, takes: Any, *, wanted: str | None = None) -> tuple[Any, Any]:
         """«Le Papier · les rubriques» (2026-11-20): the takes, or the dealt assignment and its
         material (``(mode, material)``), the new session plays. Off
         (``REVUE_ASSIGNMENTS_ENABLED``): the takes as before and nothing dealt. On: the dealer
@@ -2548,7 +2593,13 @@ class RevueEncounter:
         if not assignments.assignments_enabled():
             return takes, None
         material = self._material(dossier, takes)
-        dealt = self._dealt(user, material)
+        if wanted is not None:
+            # «Papier · le choix»: the rubric the front page showed is the one played.
+            if wanted not in assignments.available(material):
+                raise RevueError(409, "revue_assignment_unavailable", dossier_id=dossier.id, assignment=wanted)
+            dealt: str | None = wanted
+        else:
+            dealt = self._dealt(user, material)
         if dealt == "comptoir":
             return takes, None
         if dealt is None:
@@ -2588,7 +2639,7 @@ class RevueEncounter:
         return assignments.deal(offered, recent, seed=assignments.seed_for(user.id, material.dossier.id),
                                 **({"prefer": prefer} if prefer else {}))
 
-    def _card_for(self, user: Any, dossier: EditorialDossier) -> RvStoryCard:
+    def _card_for(self, user: Any, dossier: EditorialDossier, key: str | None = None) -> RvStoryCard:
         """The chooser's card, as the session will play: a story dealt «Le fil», «Le titre»,
         «L'intox express» (or the chat) carries no «question du jour» and no regulars, so the
         card never promises the counter (seen in a browser, 2026-11-20). The same material as
@@ -2600,7 +2651,8 @@ class RevueEncounter:
         card = story_card(dossier, self.db)
         if not assignments.assignments_enabled():
             return card
-        dealt = self._dealt(user, self._material(dossier, dossier.comptoir))
+        # ``key``: the front page shows the story in another rubric it carries (mixed desks).
+        dealt = key or self._dealt(user, self._material(dossier, dossier.comptoir))
         row = assignments.assignment(dealt) if dealt else None
         # the chooser names the assignment dealt (2026-11-21), the counter's included
         named = {"assignment": RvCardAssignment(key=row.key, name_fr=row.name_fr)} if row is not None else {}

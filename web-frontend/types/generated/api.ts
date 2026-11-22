@@ -10558,6 +10558,8 @@ export interface components {
             line_key?: string | null;
             /** Panel Id */
             panel_id?: string | null;
+            /** Revue Session Id */
+            revue_session_id?: string | null;
             /** Sentence */
             sentence: string;
             /** Speaker Id */
@@ -14570,6 +14572,8 @@ export interface components {
             alternatives: components["schemas"]["RvStoryCard"][];
             /** Choices */
             choices?: components["schemas"]["RvStoryCard"][] | null;
+            /** Edition Date */
+            edition_date?: string | null;
             /** Evergreen Only */
             evergreen_only: boolean;
             filed?: components["schemas"]["RvFiled"] | null;
@@ -15325,6 +15329,8 @@ export interface components {
         RvStartRequest: {
             /** Angle Id */
             angle_id?: string | null;
+            /** Assignment */
+            assignment?: string | null;
             /** Dossier Id */
             dossier_id?: string | null;
             /** Free Request */

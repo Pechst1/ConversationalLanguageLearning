@@ -386,12 +386,15 @@ class RvOffer(RevueModel):
     #: ``why`` lines are said in (the mother tongue). Both omitted with the switch off.
     choices: list[RvStoryCard] | None = None
     why_language: Language | None = None
+    #: The front page's edition day (``YYYY-MM-DD``, the server's day in Paris): its masthead
+    #: prints it, never the browser's clock. Omitted with the switch off.
+    edition_date: str | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_choices(self, handler: Any):  # noqa: ANN202 - no return type: the schema stays the fields
         data = handler(self)
         if isinstance(data, dict):
-            for key in ("choices", "why_language"):
+            for key in ("choices", "why_language", "edition_date"):
                 if data.get(key) is None:
                     data.pop(key, None)
         return data
@@ -417,6 +420,9 @@ class RvStartRequest(RevueRequest):
     dossier_id: str | None = Field(None, min_length=1, max_length=120)
     free_request: str | None = Field(None, max_length=300)
     angle_id: str | None = Field(None, min_length=1, max_length=40)
+    #: «Papier · le choix»: the rubric the front page showed this story in; the session plays
+    #: it when the story carries it (else 409). Omitted: the dealer decides, as before.
+    assignment: str | None = Field(None, min_length=1, max_length=20, pattern=r"^[a-z]+$")
 
 
 class RvDossierView(RevueModel):

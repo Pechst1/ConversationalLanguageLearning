@@ -116,3 +116,54 @@ test('the mock offers three and starts the tapped one in the rubric it showed', 
   const plain = await createMockRevueClient({ language: 'de', persist: false }).week();
   assert.equal(plain.offer.choices, null, 'without ?choix=1 the mock is as before');
 });
+
+// ---------------------------------------------------------------------------
+// Integration 2026-11-22 (the real stack, g1-03): the server's day on the masthead, a picture
+// only where it is the card's own, the same headline affordance on all three, the rubric shown
+// is the one started.
+// ---------------------------------------------------------------------------
+
+const { choixPictures } = require('./RvChoix.tsx');
+
+const own = (url) => ({ plate_url: url, stage: { place_id: 'p', place_fr: 'Paris', plate_url: url, place_is_real: true, cast: [] } });
+const standIn = (url) => ({ plate_url: url, stage: { place_id: 'p', place_fr: 'Paris', plate_url: url, place_is_real: false, cast: [] } });
+
+test('the masthead prints the server’s day for the edition, never the browser clock', () => {
+  const offer = types.parseOffer({ week: WEEK, recommended: card('a'), recommended_reason: 'first', alternatives: [], evergreen_only: false,
+    choices: [card('a')], why_language: 'de', edition_date: '2026-11-25' });
+  assert.equal(offer.editionDate, '2026-11-25');
+  const html = render(h(RvChoix, { choices: offer.choices, week: offer.week, editionDate: offer.editionDate, whyLanguage: 'de', language: 'de', onPick: () => {}, copy: revueCopy('de') }));
+  assert.match(visibleText(html), /mercredi 25 novembre/i);
+  assert.equal(types.parseOffer({ week: WEEK, recommended: card('a'), recommended_reason: 'first', alternatives: [], evergreen_only: false }).editionDate, null);
+});
+
+test('a card without its own picture is a typographic card; no picture twice on the page', () => {
+  const offer = types.parseOffer({ week: WEEK, recommended: card('a'), recommended_reason: 'first', alternatives: [], evergreen_only: false,
+    choices: [card('a', own('/p/lead.png')), card('b', own('/p/market.png')), card('c', own('/p/market.png'))] });
+  assert.deepEqual(choixPictures(offer.choices), ['/p/lead.png', '/p/market.png', null], 'the repeat is dropped');
+  assert.deepEqual(choixPictures(types.parseOffer({ week: WEEK, recommended: card('a'), recommended_reason: 'first', alternatives: [],
+    evergreen_only: false, choices: [card('a', standIn('/p/x.png')), card('b', { plate_url: null, stage: { place_id: 'p', place_fr: 'Paris', plate_url: '/p/s.png', plate_kind: 'story', place_is_real: false, cast: [] } })] }).choices),
+  [null, '/p/s.png'], 'a stand-in is no picture; the story’s own painted one is');
+  const html = render(h(RvChoix, { choices: offer.choices.slice(0, 3), week: offer.week, whyLanguage: 'de', language: 'de', onPick: () => {}, copy: revueCopy('de') }));
+  assert.equal((html.match(/class="pp-choix__pic"/g) || []).length, 2, 'the third card is typographic');
+  assert.equal((html.match(/class="pp-choix__go"/g) || []).length, 3, 'every headline carries the same «Lire →»');
+});
+
+test('the tapped story starts in the rubric the page showed', async () => {
+  assert.deepEqual(types.startBodyWire({ dossierId: 'a', assignment: 'titre' }), { dossier_id: 'a', assignment: 'titre' });
+  const picked = [];
+  const offer = types.parseOffer({ week: WEEK, recommended: card('a'), recommended_reason: 'first', alternatives: [], evergreen_only: false,
+    choices: [card('a', { assignment: { key: 'titre', name_fr: 'Le titre' } })] });
+  const tree = RvChoix({ choices: offer.choices, week: offer.week, whyLanguage: 'de', language: 'de', onPick: (...args) => picked.push(args), copy: revueCopy('de') });
+  const find = (node) => {
+    if (!node || typeof node !== 'object') return null;
+    if (node.props?.className === 'pp-choix__lead') return node;
+    for (const child of [].concat(node.props?.children ?? [])) {
+      const hit = find(child);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  find(tree).props.onClick();
+  assert.deepEqual(picked, [['a', 'titre']]);
+});

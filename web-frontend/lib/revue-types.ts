@@ -256,6 +256,8 @@ export type RvOffer = {
   choices: RvStoryCard[] | null;
   /** The language the choices' `why` lines are said in (the mother tongue). */
   whyLanguage: RvLanguage | null;
+  /** The front page's edition day (`YYYY-MM-DD`, the server's): its masthead prints it. */
+  editionDate?: string | null;
   /** `REVUE_QUARTIER_AFFICHE_ENABLED`: today's edition on the Quartier's Morris column. */
   affiche?: RvAffiche | null;
 };
@@ -432,7 +434,8 @@ export type RvMakeResult =
 export type RvCloseResult = { session: RvSessionView; closing: RvClosing };
 
 // Request bodies (camelCase in, snake_case on the wire — see revue-api.ts).
-export type RvStartBody = { week?: string; dossierId?: string; freeRequest?: string; angleId?: string };
+/** `assignment`: the rubric the front page showed the story in (the session plays it). */
+export type RvStartBody = { week?: string; dossierId?: string; freeRequest?: string; angleId?: string; assignment?: string };
 export type RvTurnBody = { text: string; mode?: 'text' | 'voice'; clientTurnId?: string };
 export type RvMakeBody =
   | { kind: 'headline_choice'; action: 'pick'; optionId: string }
@@ -844,6 +847,7 @@ export function parseOffer(raw: Json): RvOffer {
     evergreenOnly: Boolean(raw.evergreen_only),
     choices: Array.isArray(raw.choices) ? list(raw.choices, parseStoryCard).slice(0, 3) : null,
     whyLanguage: raw.why_language === 'en' || raw.why_language === 'de' || raw.why_language === 'fr' ? raw.why_language : null,
+    editionDate: typeof raw.edition_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.edition_date) ? raw.edition_date : null,
     resume: resume
       ? {
           sessionId: str(resume.session_id),
@@ -1104,6 +1108,7 @@ export function startBodyWire(body: RvStartBody): Json {
   if (body.dossierId) wire.dossier_id = body.dossierId;
   if (body.freeRequest) wire.free_request = body.freeRequest;
   if (body.angleId) wire.angle_id = body.angleId;
+  if (body.assignment) wire.assignment = body.assignment;
   return wire;
 }
 

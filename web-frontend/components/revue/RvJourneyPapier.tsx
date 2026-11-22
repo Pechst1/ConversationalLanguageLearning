@@ -108,9 +108,9 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
   }, [client]);
 
   /** Start the story (`null`: Romy's pick); «resume it instead» / «filed» opens that session. */
-  const open = async (active: RevueClient, dossierId: string | null) => {
+  const open = async (active: RevueClient, dossierId: string | null, assignment: string | null = null) => {
     try {
-      setState({ kind: 'session', session: await active.start(dossierId ? { dossierId } : {}) });
+      setState({ kind: 'session', session: await active.start(dossierId ? { dossierId, ...(assignment ? { assignment } : {}) } : {}) });
     } catch (error) {
       // «Resume it instead» / «filed this week»: open that session (as /revue does).
       if (
@@ -125,10 +125,10 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
     }
   };
 
-  const pick = (dossierId: string) => {
+  const pick = (dossierId: string, assignment: string | null = null) => {
     if (state.kind !== 'choose' || state.picked) return;
     setState({ ...state, picked: dossierId });
-    void open(client ?? revueClient(), dossierId).catch(() => setState({ kind: 'error' }));
+    void open(client ?? revueClient(), dossierId, assignment).catch(() => setState({ kind: 'error' }));
   };
 
   useEffect(() => {
@@ -167,6 +167,7 @@ export function RvJourneyPapier({ language, onDone, client: given }: RvJourneyPa
           <RvChoix
             choices={state.offer.choices ?? []}
             week={state.offer.week}
+            editionDate={state.offer.editionDate ?? null}
             whyLanguage={state.offer.whyLanguage ?? chrome}
             language={chrome}
             pending={state.picked}

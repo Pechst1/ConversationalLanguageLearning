@@ -157,9 +157,9 @@ export default function RevuePage() {
 
   /** A start refused with «resume it instead» / «filed this week» opens that session. */
   const startOrResume = useCallback(
-    async (active: RevueClient, dossierId: string | null) => {
+    async (active: RevueClient, dossierId: string | null, assignment: string | null = null) => {
       try {
-        showSession(await active.start(dossierId ? { dossierId } : {}));
+        showSession(await active.start(dossierId ? { dossierId, ...(assignment ? { assignment } : {}) } : {}));
       } catch (error) {
         if (error instanceof RevueError && error.sessionId && (error.code === 'revue_session_active' || error.code === 'revue_week_filed')) {
           showSession(await active.session(error.sessionId));
@@ -239,11 +239,11 @@ export default function RevuePage() {
     void router.push(HOME);
   }, [readOnly, router]);
 
-  const pick = async (dossierId: string | null) => {
+  const pick = async (dossierId: string | null, assignment: string | null = null) => {
     if (!client || state.kind !== 'choose' || state.starting) return;
     setState({ ...state, starting: true, picked: dossierId });
     try {
-      await startOrResume(client, dossierId);
+      await startOrResume(client, dossierId, assignment);
     } catch {
       setState({ kind: 'error' });
     }
@@ -298,10 +298,11 @@ export default function RevuePage() {
           <RvChoix
             choices={state.offer.choices}
             week={state.offer.week}
+            editionDate={state.offer.editionDate ?? null}
             whyLanguage={state.offer.whyLanguage ?? language}
             language={language}
             pending={state.starting ? state.picked ?? null : null}
-            onPick={(id) => void pick(id)}
+            onPick={(id, assignment) => void pick(id, assignment)}
             copy={copy}
           />
         </div>
