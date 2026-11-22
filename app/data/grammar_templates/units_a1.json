@@ -339,9 +339,9 @@
   "slots": {"S": "pron:=on", "N1": "pron:=nous_m", "N3": "pron:=ils", "V": "verb:!modal,!en_only,!coi,!event,!pron,!stative,!mishap", "O": "comp:!adv_pre,!manner@V"},
   "frames": [
    {"id": "on-shall", "fr": "[[{S|sv:V} // on {N1|v:V} // on {N3|v:V}]] {O} {T} ?", "en": "Shall we {S|en_vc:V:O:base} {T.en}?", "de": "{S|g_cl:V:O:o=inv:adv=T}?", "slots": {"T": "time_future"}, "weight": 3},
-   {"id": "on-cast-et-moi", "fr": "{C} et moi, [[{S|sv:V} // on {N1|v:V} // on {N3|v:V}]] {O}.", "en": "{C} and I {S|en_vc:V:O}.", "de": "{C} und ich {S|g_cl:V:O:o=nosubj}.", "slots": {"C": "cast"}, "weight": 3},
-   {"id": "on-nous", "fr": "Nous, [[{S|sv:V} // on {N1|v:V} // on {N3|v:V}]] {O}.", "en": "We {S|en_vc:V:O}.", "de": "Wir {S|g_cl:V:O:o=nosubj}.", "weight": 2},
-   {"id": "on-est", "fr": "{C} et moi, [[on est // on sommes // on sont]] {A|agree:N1}.", "en": "{C} and I are {A.en}.", "de": "{C} und ich sind {A.deu}.", "slots": {"C": "cast", "A": "adj:=prêt|fatigué|content|occupé|malade|heureux|calme"}}
+   {"id": "on-cast-et-moi", "fr": "{C} et moi, [[{S|sv:V} // on {N1|v:V} // on {N3|v:V}]] {O}.", "en": "{C} and I {S|en_vc:V:O}.", "de": "{C} und ich {S|g_cl:V:O:o=nosubj}.", "accepted": ["{C} et moi, nous {N1|v:V} {O}.", "{C} et moi {N1|v:V} {O}."], "slots": {"C": "cast"}, "weight": 3},
+   {"id": "on-nous", "fr": "Nous, [[{S|sv:V} // on {N1|v:V} // on {N3|v:V}]] {O}.", "en": "We {S|en_vc:V:O}.", "de": "Wir {S|g_cl:V:O:o=nosubj}.", "accepted": ["Nous {N1|v:V} {O}."], "weight": 2},
+   {"id": "on-est", "fr": "{C} et moi, [[on est // on sommes // on sont]] {A|agree:N1}.", "en": "{C} and I are {A.en}.", "de": "{C} und ich sind {A.deu}.", "accepted": ["{C} et moi, nous sommes {A|agree:N1}.", "{C} et moi sommes {A|agree:N1}."], "slots": {"C": "cast", "A": "adj:=prêt|fatigué|content|occupé|malade|heureux|calme"}}
   ]
  },
  "FR2_A12_QUEL_EXCLAMATIF": {
