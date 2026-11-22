@@ -266,7 +266,10 @@ export function inPaperLabel(proof: RvComptoirProof, tiles: boolean): string {
 export type ComptoirLine = { fr: string; en: string; de: string };
 
 /** Romy's authored lines on the client, French with their translations. `{name}`: a regular's name. */
-export const COMPTOIR_LINES: Record<'intox_ask' | 'intox_wrong' | 'intox_found' | 'intox_reveal' | 'opinion_ask' | 'proof_marked', ComptoirLine> = {
+export const COMPTOIR_LINES: Record<
+  'intox_ask' | 'intox_wrong' | 'intox_found' | 'intox_reveal' | 'opinion_ask' | 'proof_marked' | 'proof_unread',
+  ComptoirLine
+> = {
   intox_ask: {
     fr: "Attends… quelqu'un a dit un truc faux. Qui ?",
     en: 'Wait… someone said something false. Who?',
@@ -285,7 +288,40 @@ export const COMPTOIR_LINES: Record<'intox_ask' | 'intox_wrong' | 'intox_found' 
     en: 'Almost! Look at the underlined words and fix them.',
     de: 'Fast! Schau dir die unterstrichenen Wörter an und korrigiere sie.',
   },
+  /** Her check did not run (`as_written`, 22 Nov): said so, never «relu». */
+  proof_unread: {
+    fr: 'Désolée, je n’ai pas pu te relire cette fois : c’est imprimé tel que tu l’as écrit.',
+    en: 'Sorry, I couldn’t proofread it this time: it’s printed as you wrote it.',
+    de: 'Tut mir leid, ich konnte es diesmal nicht korrekturlesen: Es wird so gedruckt, wie du es geschrieben hast.',
+  },
 };
+
+/**
+ * Romy's line over a proof her check never read (`as_written` outside A1's tiles, which are
+ * correct by construction): the learner is told, never left to think she read it.
+ */
+export function unreadLine(proof: RvComptoirProof | null | undefined, tiles: boolean): ComptoirLine | null {
+  return proof === 'as_written' && !tiles ? COMPTOIR_LINES.proof_unread : null;
+}
+
+/**
+ * The server's closing lines (`romy_line_fr`) the client knows the translations of, by their
+ * French. «Le titre» printed unread (titre_loop.ROMY_CLOSE_LINE_AS_WRITTEN, 22 Nov) never says
+ * the headline is right.
+ */
+export const CLOSE_LINES: readonly ComptoirLine[] = [
+  {
+    fr: 'Merci ! Ton titre est en une, tel que tu l’as écrit : je n’ai pas pu le relire cette fois.',
+    en: 'Thanks! Your headline is on the front page as you wrote it: I couldn’t proofread it this time.',
+    de: 'Danke! Deine Schlagzeile steht auf der Titelseite, so wie du sie geschrieben hast: Ich konnte sie diesmal nicht korrekturlesen.',
+  },
+];
+
+/** A closing line in French with its translation when the client knows it (none for French). */
+export function closeLineIn(fr: string, language: RvLanguage): { fr: string; tr: string | null } {
+  const known = CLOSE_LINES.find((line) => line.fr === fr);
+  return { fr, tr: known && language !== 'fr' ? known[language] : null };
+}
 
 /** A line in French and in the learner's gloss language (null for French). */
 export function lineIn(line: ComptoirLine, language: RvLanguage, vars: Record<string, string> = {}): { fr: string; tr: string | null } {

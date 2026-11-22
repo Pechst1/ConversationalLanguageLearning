@@ -28,7 +28,7 @@ import type { RvStance } from '@/lib/revue-types';
 import { fill } from '../revue-copy';
 import { RvComposer } from '../RvComposer';
 import { RvTranslate } from '../RvThread';
-import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from './comptoir-copy';
+import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel, unreadLine } from './comptoir-copy';
 import { SIDE_LABELS_FR, a1Sentence, castName, insertWord, wordDiff } from './comptoir-model';
 import { ComptoirBubble, MineLine, RomyLine, type ComptoirStepProps } from './RvComptoirParts';
 import { RvProofMarks } from './RvProofMarks';
@@ -224,8 +224,10 @@ export function RvComptoirOpinion(props: ComptoirStepProps) {
     const printed = opinion.printedFr ?? opinion.draftFr;
     const label = inPaperLabel(opinion.proof, input === 'tiles');
     const replier = opinion.reply ? view.cast.find((member) => member.id === opinion.reply?.by) ?? null : null;
+    const unread = unreadLine(opinion.proof, input === 'tiles');
     suite = (
       <>
+        {unread && <RomyLine line={unread} props={props} anchor="start" />}
         <section className="ct-paper" data-ct-anchor="start" data-proof={opinion.proof} aria-label={label}>
           <p className="ct-paper__k" lang="fr">
             {label}

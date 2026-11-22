@@ -322,10 +322,11 @@ test('«Le titre»: a headline Romy could not read says so, and her thanks never
 
   const page = JSON.parse(JSON.stringify(SESSIONS.titre_a1_page));
   page.closing.romy_line_fr = AS_WRITTEN_CLOSE_FR;
+  page.status = 'active'; // the close as the learner meets it (a session reopened later shows the page alone)
   const html = render(h(RvRubrique, { client: {}, session: types.parseSessionView(page), onExit: () => {} }));
-  assert.match(html, /je n’ai pas pu le relire cette fois/);
-  assert.match(html, /I couldn’t proofread it this time/);
-  assert.doesNotMatch(html, /il dit vrai/);
+  const shown = visibleText(html);
+  assert.match(shown, /je n’ai pas pu le relire cette fois/);
+  assert.doesNotMatch(shown, /il dit vrai/);
 });
 
 // Follow-up (integration): «Lire» shows the story's other pictures as the other assignments do.

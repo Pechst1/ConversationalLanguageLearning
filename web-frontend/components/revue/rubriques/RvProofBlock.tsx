@@ -10,7 +10,7 @@ import React from 'react';
 import { Action } from '@/components/atelier-v2/ui';
 import type { RvComptoirMark, RvComptoirNote, RvComptoirProof } from '@/lib/revue-types';
 
-import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from '../comptoir/comptoir-copy';
+import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel, unreadLine } from '../comptoir/comptoir-copy';
 import { wordDiff } from '../comptoir/comptoir-model';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { RvProofMarks } from '../comptoir/RvProofMarks';
@@ -56,7 +56,7 @@ export function ProofBlock({
   }
   const printed = printedFr ?? draftFr;
   const label = inPaperLabel(proof, tiles);
-  return (
+  const paper = (
     <section className="ct-paper" data-ct-anchor="start" data-proof={proof} aria-label={label}>
       <p className="ct-paper__k" lang="fr">
         {label}
@@ -77,6 +77,15 @@ export function ProofBlock({
       <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
       <RvProofNotes notes={notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
     </section>
+  );
+  const unread = unreadLine(proof, tiles);
+  return unread ? (
+    <>
+      <RomyLine line={unread} props={props} anchor="start" />
+      {paper}
+    </>
+  ) : (
+    paper
   );
 }
 

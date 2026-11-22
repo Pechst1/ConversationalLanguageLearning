@@ -98,6 +98,19 @@ class ProviderCircuitOpenError(LLMProviderError):
     """The provider failed repeatedly; calls are refused until it cools down."""
 
 
+#: How the providers word an answer with no content (``_generate_once``): on a reasoning model
+#: the completion budget includes the hidden reasoning, and a tight one leaves none for the
+#: answer. :meth:`LLMService.generate_chat_completion` joins the providers' errors into one
+#: message, so the words are what survives.
+EMPTY_CONTENT_MESSAGE = "did not include content"
+
+
+def is_empty_content(exc: BaseException) -> bool:
+    """The call failed because the answer came back empty (a larger budget may fix it)."""
+
+    return EMPTY_CONTENT_MESSAGE in str(exc)
+
+
 # ---------------------------------------------------------------------------
 # WP-70 — prices. Every priced call must carry a price; an unknown model is
 # billed at the highest known rate (and logged once), never at $0.
@@ -547,7 +560,7 @@ class OpenAIProvider:
         choice = data.get("choices", [{}])[0]
         content = choice.get("message", {}).get("content")
         if not content:
-            raise LLMProviderError("OpenAI response did not include content")
+            raise LLMProviderError(f"OpenAI response {EMPTY_CONTENT_MESSAGE}")
 
         usage = data.get("usage", {})
         result = LLMResult(
@@ -851,7 +864,7 @@ class AnthropicProvider:
         content_chunks = [chunk.get("text", "") for chunk in contents if chunk.get("type") == "text"]
         content = "\n".join(filter(None, content_chunks)).strip()
         if not content:
-            raise LLMProviderError(f"Anthropic response did not include content (stop_reason: {stop_reason})")
+            raise LLMProviderError(f"Anthropic response {EMPTY_CONTENT_MESSAGE} (stop_reason: {stop_reason})")
         if wants_json:
             content = _unfenced_json(content)
 
@@ -1182,6 +1195,7 @@ class LLMService:
 
 __all__ = [
     "CircuitBreaker",
+    "EMPTY_CONTENT_MESSAGE",
     "IMAGE_PRICES_PER_IMAGE",
     "LLMProviderError",
     "LLMResult",
@@ -1196,6 +1210,7 @@ __all__ = [
     "estimate_image_cost_usd",
     "estimate_text_cost_usd",
     "estimate_tts_cost_usd",
+    "is_empty_content",
     "provider_for_model",
     "reset_circuit_breakers",
     "text_price_for",

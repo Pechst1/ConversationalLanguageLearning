@@ -18,6 +18,7 @@ import json
 import uuid
 from collections.abc import Generator, Iterator
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -595,6 +596,8 @@ def test_an_edit_that_never_came_back_prints_as_written_and_romy_never_says_it_i
     assert line == titre_loop.ROMY_CLOSE_LINE_AS_WRITTEN and line != titre_loop.ROMY_CLOSE_LINE
     assert "dit vrai" not in line and "relire" in line, "she says she could not read it, never that it is right"
     assert [e["text_fr"] for e in events(row, "turn_romy") if e.get("beat") == "close"] == [line]
+    client = Path(__file__).resolve().parents[1] / "web-frontend/components/revue/comptoir/comptoir-copy.ts"
+    assert f"fr: '{line}'" in client.read_text(encoding="utf-8"), "the client carries its de/en (CLOSE_LINES)"
 
 
 def test_a_headline_romy_read_still_closes_on_her_thanks(db: Session) -> None:

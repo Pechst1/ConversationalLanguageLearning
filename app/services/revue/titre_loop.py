@@ -90,6 +90,10 @@ _TRAP_STOP = frozenset("le la les l de du des d un une a au aux en dans sur et".
 _WORD = re.compile(r"[\w'’-]+")
 
 ROMY_CLOSE_LINE = "Merci ! Ton titre est en une, et il dit vrai."
+#: The close when Romy could not read the headline (``as_written``: her edit call failed, 22 Nov):
+#: never «il dit vrai», and she says why it printed unread. Its de/en: the client's
+#: ``CLOSE_LINES`` (web-frontend/components/revue/comptoir/comptoir-copy.ts).
+ROMY_CLOSE_LINE_AS_WRITTEN = "Merci ! Ton titre est en une, tel que tu l’as écrit : je n’ai pas pu le relire cette fois."
 KICKER = "Le titre de Romy"
 
 
@@ -660,12 +664,13 @@ def close(encounter: RevueEncounter, loaded: Loaded) -> tuple[Any, RvClosing]:
     met = [lead, *(h.for_band(band).fr for h in desk.headlines), *(c.fr for c in shown)]
     kept = RvKept(words=kept_words(plan, state, met=met, used=[own]), claims=[rv_claim(dossier, c) for c in shown])
     page.words = [word.fr for word in kept.words]
-    closing = RvClosing(romy_line_fr=ROMY_CLOSE_LINE, dispatch=dispatch, kept=kept, question_kept_fr=None,
+    romy_line = ROMY_CLOSE_LINE_AS_WRITTEN if proof["proof"] == "as_written" else ROMY_CLOSE_LINE
+    closing = RvClosing(romy_line_fr=romy_line, dispatch=dispatch, kept=kept, question_kept_fr=None,
                         colophon_fr=colophon_for(row.week), titre_page=page)  # type: ignore[arg-type]
     closing.vignette = encounter._mint_vignette(loaded, kind=KIND, kept_contribution=bool(contribution))  # noqa: SLF001
     keep_papier_words(encounter.db, row, dossier=dossier, plan=plan, state=state, kept=kept)
 
-    state.append("turn_romy", beat="close", role="close", text_fr=ROMY_CLOSE_LINE, cost_usd=0.0)
+    state.append("turn_romy", beat="close", role="close", text_fr=romy_line, cost_usd=0.0)
     state.append("closed", closing=closing.model_dump(mode="json"))
     row.status = "closed"
     row.closed_at = datetime.now(UTC)

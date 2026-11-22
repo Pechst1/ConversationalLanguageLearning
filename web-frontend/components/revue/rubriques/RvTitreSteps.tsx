@@ -21,7 +21,7 @@ import React, { useEffect, useState } from 'react';
 import { Action, ArrowRightIcon, CastPortrait } from '@/components/atelier-v2/ui';
 import { textAnswerField } from '@/components/atelier-v2/ui/Choice';
 
-import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel } from '../comptoir/comptoir-copy';
+import { COMPTOIR_FR, COMPTOIR_LINES, inPaperLabel, unreadLine } from '../comptoir/comptoir-copy';
 import { wordDiff } from '../comptoir/comptoir-model';
 import { MineLine, RomyLine } from '../comptoir/RvComptoirParts';
 import { RvProofMarks } from '../comptoir/RvProofMarks';
@@ -330,7 +330,10 @@ export function RvTitreBuild(props: TitreStepProps) {
   } else if (told && build.proof) {
     const printed = build.printedFr ?? draft;
     const label = inPaperLabel(build.proof, build.input === 'tiles');
+    const unread = unreadLine(build.proof, build.input === 'tiles');
     suite = (
+      <>
+      {unread && <RomyLine line={unread} props={props} anchor="start" />}
       <section className="ct-paper" data-ct-anchor="start" data-proof={build.proof} aria-label={label}>
         <p className="ct-paper__k" lang="fr">
           {label}
@@ -351,6 +354,7 @@ export function RvTitreBuild(props: TitreStepProps) {
         <RvTranslate textFr={printed} glossLanguage={glossLanguage} copy={copy} />
         <RvProofNotes notes={build.notes} kindLabels={ccopy.mark_kinds} copy={ccopy.pourquoi} whyLanguage={glossLanguage} />
       </section>
+      </>
     );
   }
 
