@@ -471,8 +471,8 @@ def test_the_exaggerated_headline_changes_nothing_outside_the_words_that_say_too
     assert not titre.changed_outside_wrong("Daryz gagne la course", "C’est sûr : Daryz gagne la course.", ARC_WRONG)
     assert not titre.changed_outside_wrong("Le marché Beauvau rouvre", "Tous les marchés de Paris rouvrent",
                                            "tous les marchés de Paris")
-    assert not titre.changed_outside_wrong("La fête plaît à beaucoup", "La fête plaît à tout le monde",
-                                           "tout le monde")
+    assert not titre.changed_outside_wrong("La fête est gratuite", "La fête est gratuite et toujours calme",
+                                           "toujours calme")
     # a word changed, dropped or added outside wrong_fr
     assert titre.changed_outside_wrong("Le marché Beauvau rouvre le 14 novembre", "Tous les marchés de Paris rouvrent",
                                        "tous les marchés de Paris")
