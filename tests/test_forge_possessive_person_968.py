@@ -113,18 +113,25 @@ def test_the_possible_answer_takes_the_learners_own_noun():
     assert _learner_correction(attempt).get("model_answer") == "Nous cherchons nos cahiers.", WALK
 
 
-def test_the_guard_catches_the_walks_exact_text():
-    from app.services.forge_item_validator import possessive_problems
+def _possessive_clashes(english: str, french: str) -> list[str]:
+    from app.services.item_semantics import sentence_violations
 
-    found = possessive_problems("We look for our notebooks.", "On cherche ses carnets.")
-    assert [problem.kind for problem in found] == ["possessive_person"], found
-    assert possessive_problems("We look for our notebooks.", "On cherche nos cahiers.") == []
-    assert possessive_problems("We look for our notebooks.", "Nous cherchons nos carnets.") == []
-    # «leur» before a verb is a pronoun, not «their».
-    assert possessive_problems("I give them my book.", "Je leur donne mon livre.") == []
-    # «her» as an object names no owner.
-    assert possessive_problems("I see her with my brother.", "Je la vois avec mon frère.") == []
-    assert possessive_problems("You look for your notebook.", "Vous cherchez votre carnet.") == []
-    assert possessive_problems("You look for your notebook.", "Tu cherches ton carnet.") == []
-    assert possessive_problems("They look for their notebooks.", "Ils cherchent leurs carnets.") == []
-    assert possessive_problems("He looks for his notebook.", "Il cherche ton carnet.")
+    return [clash.kind for clash in sentence_violations(french, english) if "possessive" in clash.kind]
+
+
+def test_the_guard_catches_the_walks_exact_text():
+    assert _possessive_clashes("We look for our notebooks.", "On cherche ses carnets.") == ["possessive_person"], WALK
+    assert _possessive_clashes("He looks for his notebook.", "Il cherche ton carnet.") == ["possessive_person"]
+    assert _possessive_clashes("We look for our notebooks.", "On cherche nos cahiers.") == []
+    assert _possessive_clashes("We look for our notebooks.", "Nous cherchons nos carnets.") == []
+    assert _possessive_clashes("You look for your notebook.", "Vous cherchez votre carnet.") == []
+    assert _possessive_clashes("You look for your notebook.", "Tu cherches ton carnet.") == []
+    assert _possessive_clashes("They look for their notebooks.", "Ils cherchent leurs carnets.") == []
+    # «leur» before a verb is a pronoun, not «their»; «her» as an object names no owner.
+    assert _possessive_clashes("I give them my book.", "Je leur donne mon livre.") == []
+    assert _possessive_clashes("I see her with my brother.", "Je la vois avec mon frère.") == []
+    # The French may say it another way: another count of possessives is not read.
+    assert _possessive_clashes(
+        "Last time I tidied the flat because my parents had said they were coming.",
+        "La dernière fois, j'ai rangé l'appartement parce que mes parents avaient annoncé leur visite.",
+    ) == []
