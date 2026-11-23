@@ -29,6 +29,7 @@ from app.services import (
     learner_facts,
     scene_ledger,
     scene_record,
+    slip_concept,
     verdict_cutover,
     verdict_ledger,
     verdicts,
@@ -4243,6 +4244,7 @@ class MissionCorrectionService:
     ) -> list[dict[str, Any]]:
         memory = ErrorMemoryService(self.db)
         persisted: list[dict[str, Any]] = []
+        saved_changes: set[str] = set()
         for index, erratum in enumerate(correction.get("errata") or []):
             if self._is_vocabulary_erratum(erratum):
                 continue
@@ -4252,6 +4254,12 @@ class MissionCorrectionService:
             # under a card that showed no repair at all.
             if str(erratum.get("task_error_type") or "") == "task_compliance":
                 continue
+            # #1027: «j ai → j'ai» written twice in one letter is one slip, saved once;
+            # it recurs when another letter makes it again.
+            change = slip_concept.change_identity(erratum.get("learner_text"), erratum.get("corrected_target"))
+            if change in saved_changes:
+                continue
+            saved_changes.add(change)
             update = memory.record_erratum(
                 user=user,
                 erratum=erratum,
