@@ -1,0 +1,20 @@
+{
+  "id": "dessin_maitresse",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "Le dessin « Maîtresse à Berlin »", "en": "The drawing «Maîtresse à Berlin»", "de": "Die Zeichnung «Maîtresse à Berlin»" },
+  "moment": "a page of the learner's own story left «le dessin « Maîtresse à Berlin »» at Le Mistral: a child's crayon drawing with a date, pinned on the wall beside Odile's portrait",
+  "mark": { "name_fr": "le dessin « Maîtresse à Berlin »", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "snapshot", "at": [-27.74, 1.93, -18.74], "rot": 0 },
+    { "kind": "drawing", "at": [-27.48, 1.9, -18.74], "rot": 0, "size": [0.297, 0.21], "text": ["Maîtresse à Berlin", "8 janvier"] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/09-entre-les-episodes.md",
+    "scenes": [
+      "the story order «le dessin « Maîtresse à Berlin »» at le_mistral (1 life): «A child's crayon drawing with a date, pinned on the wall beside Odile's portrait.»",
+      "day 38 «Le dernier jour d'école»: the leaving is real, and it is on a child's drawing; Lila's pupils' drawings «Maîtresse à Berlin» (09-entre-les-episodes.md); «Je pars le 8 janvier, à Berlin» (Lila's card on Marin's fridge); Odile appears in Polaroids only (10-lieux-et-images.md)"
+    ]
+  }
+}

@@ -321,3 +321,43 @@ test("Odile's card, her name in Lila's hand, pinned on the wall by the corner bo
   assert.ok(card.at[1] + h / 2 < 2.5 - 0.53 - 0.05, "under the poster's frame");
   assert.ok(Math.abs(card.at[0] - MARKS.boothCorner.x) < 0.8 && card.at[0] + w / 2 < ROOM.x1 - 0.2, 'beside the corner seat, off the corner');
 });
+
+test("the drawing «Maîtresse à Berlin», pinned beside Odile's Polaroid by the corner booth: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'dessin_maitresse').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: 'le dessin « Maîtresse à Berlin »', location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'Le dessin « Maîtresse à Berlin »', location_id: 'le_mistral' }]), ['dessin_maitresse']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'le dessin « Maîtresse à Berlin »', location_id: 'marin_lila_flat' }]), []);
+  const drawing = spec.things.find((t) => t.kind === 'drawing');
+  const photo = spec.things.find((t) => t.kind === 'snapshot');
+  assert.ok(drawing && photo, 'the drawing and the portrait it hangs beside');
+  // the pupils' words, and the date Lila leaves (her card on Marin's fridge: «le 8 janvier»)
+  assert.equal(drawing.text[0], 'Maîtresse à Berlin');
+  assert.match(drawing.text[1], /8 janvier/);
+  const fridge = ROOMS.chez_marin_lila.things.find((t) => t.kind === 'fridge');
+  assert.ok(fridge.text.join(' ').includes('8 janvier'), 'the same date as her card');
+  // each on the north wall's face, facing the room, above the booth's back, under nothing
+  const box = (t) => {
+    const [w, h] = t.kind === 'snapshot' ? [0.088, 0.107] : t.size;
+    return { x0: t.at[0] - w / 2, x1: t.at[0] + w / 2, y0: t.at[1] - h / 2, y1: t.at[1] + h / 2 };
+  };
+  for (const t of [drawing, photo]) {
+    assert.equal(t.rot, 0);
+    assert.ok(t.at[2] - ROOM.z0 > 0 && t.at[2] - ROOM.z0 < 0.03, `the ${t.kind} on the wall's face`);
+    const b = box(t);
+    assert.ok(b.y0 > ROOM.floor + 1.45, `the ${t.kind} above the booth's back`);
+    assert.ok(b.x1 < ROOM.x1 - 0.05, `the ${t.kind} short of the corner`);
+    // clear of the old poster's frame (x -28.3, 0.78 by 1.06, centred at 2.5 m: mistral.ts)
+    assert.ok(b.x0 > -28.3 + 0.39 || b.y1 < 2.5 - 0.53, `the ${t.kind} clear of the poster`);
+  }
+  // beside each other, not overlapping, and clear of Odile's name card should a page leave both
+  const overlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  assert.ok(!overlap(box(drawing), box(photo)), 'the drawing beside the photo, not over it');
+  assert.ok(Math.abs(drawing.at[0] - photo.at[0]) < 0.4, 'and close by it');
+  const name = details.find(({ spec: d }) => d.id === 'carte_nom_odile').spec.things[0];
+  const nameBox = { x0: name.at[0] - name.size[0] / 2, x1: name.at[0] + name.size[0] / 2, y0: name.at[1] - name.size[1] / 2, y1: name.at[1] + name.size[1] / 2 };
+  for (const t of [drawing, photo]) assert.ok(!overlap(box(t), nameBox), `the ${t.kind} clear of Odile's name card`);
+  // her name card sits under her photo, as the cards sit under the Polaroids on the party's wall
+  assert.ok(Math.abs(name.at[0] - photo.at[0]) < 0.02 && nameBox.y1 < box(photo).y0, 'the photo above her name card');
+});
