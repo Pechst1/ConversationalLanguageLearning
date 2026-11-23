@@ -252,6 +252,8 @@ def on_screen(step: Any) -> dict[str, list[dict[str, Any]]]:
                 "learner": str(row.get("learner") or ""),
                 "character": str(row.get("character") or ""),
                 "corrected_fr": str(correction.get("corrected_fr") or ""),
+                # #333/#971: nobody read a reply whose check failed, so its words certify nothing.
+                "checked": not row.get("check_failure"),
                 "stock_exit": bool(row.get("stock_exit")),
             }
         )
