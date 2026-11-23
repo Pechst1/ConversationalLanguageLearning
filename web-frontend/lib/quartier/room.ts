@@ -213,7 +213,9 @@ export type ThingKind =
   | 'tuque'
   | 'recommande'
   | 'carte'
-  | 'pinned';
+  | 'pinned'
+  | 'drawing'
+  | 'snapshot';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -1059,6 +1061,19 @@ function drinkOf(order: string) {
   if (/th[ée]|infusion|tisane/.test(o)) return { cup: 'tea' as const, top: mix(mix(INKS.ochre, INKS.vermilion, 0.4), INKS.ink, 0.42), tag: true };
   if (/noisette|express|espresso|^(un )?(petit )?café( serré)?$/.test(o.trim())) return { cup: 'small' as const, top: /noisette/.test(o) ? mix(mix(INKS.ochre, INKS.ink, 0.45), INKS.card, 0.2) : mix(INKS.ochre, INKS.ink, 0.6), tag: false };
   return { cup: 'wide' as const, top: mix(mix(INKS.ochre, INKS.ink, 0.3), INKS.card, 0.42), tag: false };
+}
+
+/** A sheet or card on a wall, a red drawing pin through its top, `from` below its edge (`at` the wall's face at its centre). */
+function pinUp(B: Build, x: number, y: number, zz: number, rot: number, w: number, h: number, z: Zone | undefined, stock: Hex, from = 0.014) {
+  const D = B.dry;
+  const paper = zoned(stock, z);
+  const pin = zoned(INKS.vermilion, z, { wet: 0.7 });
+  const steel = zoned(mix(INKS.ink, INKS.paper, 0.45), z, { wet: 0.8 });
+  D.at(x, y, zz, rot, () => {
+    D.box(0, 0, 0.005, w, h, 0.002, paper);
+    D.cylinder(0, h / 2 - from, 0.006, 0.0015, 0.0015, 0.008, 4, steel, { flat: true });
+    D.ball(0, h / 2 - from, 0.02, 0.011, 0.011, 0.008, pin, 1);
+  });
 }
 
 function thing(B: Build, t: RoomThing, i: number) {
@@ -2159,15 +2174,27 @@ function thing(B: Build, t: RoomThing, i: number) {
       // large in a painter's hand, in ochre ink with a stroke under it (`text[0]` the words, `size`
       // [width, height], `at` the wall's face at the card's centre, facing local +z)
       const [w, h] = t.size ?? [0.11, 0.075];
-      const stock = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
-      const pin = zoned(INKS.vermilion, z, { wet: 0.7 });
-      const steel = zoned(mix(INKS.ink, INKS.paper, 0.45), z, { wet: 0.8 });
-      D.at(x, y, zz, rot, () => {
-        D.box(0, 0, 0.005, w, h, 0.002, stock);
-        D.cylinder(0, h / 2 - 0.014, 0.006, 0.0015, 0.0015, 0.008, 4, steel, { flat: true });
-        D.ball(0, h / 2 - 0.014, 0.02, 0.011, 0.011, 0.008, pin, 1);
-      });
+      pinUp(B, x, y, zz, rot, w, h, z, mix(INKS.card, INKS.ochre, 0.1));
       card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, handCardArt(t.text?.[0] ?? ''), 2600);
+      return;
+    }
+    case 'drawing': {
+      // a child's crayon drawing pinned to a wall, the sheet landscape: the teacher with her
+      // black curls and yellow dress waving from a blue train going off to the right, a sun, a
+      // heart, and across the top in wobbly crayon capitals `text[0]`, the date `text[1]` in a
+      // corner (`size` [width, height], `at` the wall's face at its centre, facing local +z)
+      const [w, h] = t.size ?? [0.297, 0.21];
+      pinUp(B, x, y, zz, rot, w, h, z, mix(INKS.card, 0xffffff, 0.4));
+      card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, crayonArt(t.text ?? []), 1800);
+      return;
+    }
+    case 'snapshot': {
+      // an instant photo pinned to a wall, its white frame wider at the foot: Odile at the zinc,
+      // her short white hair and moss-green cardigan, laughing at something out of the frame
+      // (`at` the wall's face at its centre, facing local +z; 8.8 by 10.7 cm)
+      const [w, h] = [0.088, 0.107];
+      pinUp(B, x, y, zz, rot, w, h, z, mix(INKS.card, INKS.paper, 0.2), 0.004);
+      card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, snapshotArt(), 3600);
       return;
     }
     case 'rug': {
@@ -3345,6 +3372,191 @@ function handCardArt(name: string) {
       ctx.quadraticCurveTo(w / 2, h * 0.75 + dy, w / 2 + tw / 2 + w * 0.04, h * 0.76 + dy);
       ctx.stroke();
     }
+  };
+}
+
+/** A child's crayon drawing: the teacher waving from a train, a sun, a heart, the words and the date. */
+function crayonArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.4));
+    ctx.fillRect(0, 0, w, h);
+    const R = { v: 90217 };
+    const rand = () => {
+      R.v = (R.v * 16807) % 2147483647;
+      return R.v / 2147483647;
+    };
+    const u = Math.min(w, h);
+    // a crayon line: drawn three times, a little off each time, so it reads waxy
+    const scrawl = (pts: Array<[number, number]>, color: Hex, width: number) => {
+      ctx.strokeStyle = css(color);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (let k = 0; k < 3; k++) {
+        ctx.lineWidth = width * (0.7 + rand() * 0.5);
+        ctx.globalAlpha = 0.55 + rand() * 0.3;
+        ctx.beginPath();
+        pts.forEach(([px, py], j) => {
+          const jx = px * w + (rand() - 0.5) * u * 0.008;
+          const jy = py * h + (rand() - 0.5) * u * 0.008;
+          if (j) ctx.lineTo(jx, jy);
+          else ctx.moveTo(jx, jy);
+        });
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    };
+    const fill = (x0: number, y0: number, x1: number, y1: number, color: Hex) => {
+      // hatched like a child fills a shape: back and forth strokes
+      const pts: Array<[number, number]> = [];
+      for (let k = 0; k <= 10; k++) {
+        const fy = y0 + ((y1 - y0) * k) / 10;
+        pts.push(k % 2 ? [x1, fy] : [x0, fy]);
+      }
+      scrawl(pts, color, u * 0.02);
+    };
+    const ring = (cx: number, cy: number, rx: number, ry: number, color: Hex, width: number) => {
+      const pts: Array<[number, number]> = [];
+      for (let k = 0; k <= 14; k++) pts.push([cx + Math.cos((k / 14) * Math.PI * 2) * rx, cy + Math.sin((k / 14) * Math.PI * 2) * ry]);
+      scrawl(pts, color, width);
+    };
+    const yellow = INKS.sunflower;
+    const blue = mix(INKS.cobalt, INKS.paper, 0.1);
+    const black = mix(INKS.ink, INKS.cobalt, 0.1);
+    const red = INKS.vermilion;
+    const green = mix(INKS.green, INKS.sunflower, 0.2);
+    // the ground, a green line, and the rails
+    scrawl([[0.03, 0.88], [0.97, 0.87]], green, u * 0.02);
+    scrawl([[0.42, 0.82], [0.97, 0.82]], black, u * 0.01);
+    // the sun, top left, with its rays
+    ring(0.1, 0.3, 0.05, 0.07, yellow, u * 0.025);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      scrawl([[0.1 + Math.cos(a) * 0.065, 0.3 + Math.sin(a) * 0.09], [0.1 + Math.cos(a) * 0.09, 0.3 + Math.sin(a) * 0.125]], yellow, u * 0.012);
+    }
+    // the teacher: black curls, a round face, the yellow dress, one arm up waving
+    ring(0.27, 0.43, 0.035, 0.05, mix(INKS.ochre, INKS.vermilion, 0.2), u * 0.012);
+    for (let k = 0; k < 7; k++) ring(0.24 + k * 0.01, 0.37 + (k % 2) * 0.01, 0.012, 0.017, black, u * 0.012);
+    scrawl([[0.26, 0.42], [0.262, 0.425]], black, u * 0.012);
+    scrawl([[0.28, 0.42], [0.282, 0.425]], black, u * 0.012);
+    scrawl([[0.258, 0.45], [0.27, 0.46], [0.284, 0.45]], red, u * 0.008);
+    scrawl([[0.27, 0.48], [0.22, 0.75], [0.32, 0.75], [0.27, 0.48]], yellow, u * 0.014);
+    fill(0.235, 0.56, 0.305, 0.74, yellow);
+    scrawl([[0.25, 0.53], [0.2, 0.42]], mix(INKS.ochre, INKS.vermilion, 0.2), u * 0.012);
+    scrawl([[0.29, 0.53], [0.34, 0.6]], mix(INKS.ochre, INKS.vermilion, 0.2), u * 0.012);
+    scrawl([[0.25, 0.75], [0.25, 0.85]], black, u * 0.012);
+    scrawl([[0.29, 0.75], [0.29, 0.85]], black, u * 0.012);
+    // the train: an engine and a carriage, windows, wheels, smoke
+    fill(0.45, 0.6, 0.66, 0.78, blue);
+    scrawl([[0.45, 0.6], [0.66, 0.6], [0.66, 0.78], [0.45, 0.78], [0.45, 0.6]], blue, u * 0.014);
+    fill(0.68, 0.52, 0.9, 0.78, red);
+    scrawl([[0.68, 0.52], [0.9, 0.52], [0.9, 0.78], [0.68, 0.78], [0.68, 0.52]], red, u * 0.014);
+    scrawl([[0.84, 0.52], [0.84, 0.42], [0.88, 0.42], [0.88, 0.52]], black, u * 0.012);
+    ring(0.9, 0.34, 0.03, 0.04, mix(INKS.ink, INKS.paper, 0.5), u * 0.01);
+    ring(0.95, 0.27, 0.025, 0.035, mix(INKS.ink, INKS.paper, 0.55), u * 0.01);
+    for (const wx of [0.49, 0.6, 0.72, 0.85]) ring(wx, 0.8, 0.02, 0.028, black, u * 0.014);
+    for (const wx of [0.5, 0.58]) scrawl([[wx, 0.64], [wx + 0.05, 0.64], [wx + 0.05, 0.7], [wx, 0.7], [wx, 0.64]], mix(INKS.cobalt, INKS.ink, 0.4), u * 0.01);
+    // a heart, between her and the train
+    scrawl([[0.39, 0.58], [0.37, 0.53], [0.385, 0.5], [0.39, 0.52], [0.395, 0.5], [0.41, 0.53], [0.39, 0.58]], red, u * 0.012);
+    // the words across the top, wobbly capitals, and the date in the corner
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.vermilion, 0.15));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const title = (lines[0] ?? '').toUpperCase();
+    let s = Math.round(h * 0.11);
+    ctx.font = SANS(s, 700);
+    while (s > 6 && ctx.measureText(title).width > w * 0.62) ctx.font = SANS(--s, 700);
+    let cx = w * 0.6 - ctx.measureText(title).width / 2;
+    Array.from(title).forEach((ch, k) => {
+      ctx.save();
+      const cw = ctx.measureText(ch).width;
+      ctx.translate(cx + cw / 2, h * (0.15 + Math.sin(k * 1.7) * 0.012));
+      ctx.rotate((rand() - 0.5) * 0.2);
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+      cx += cw * 1.05;
+    });
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.ink, 0.2));
+    ctx.font = SANS(Math.round(h * 0.085), 700);
+    ctx.textAlign = 'right';
+    ctx.save();
+    ctx.translate(w * 0.96, h * 0.95);
+    ctx.rotate(-0.05);
+    ctx.fillText(lines[1] ?? '', 0, 0);
+    ctx.restore();
+  };
+}
+
+/** Odile at the zinc in an instant photo: short white hair, moss-green cardigan, laughing off-frame. */
+function snapshotArt() {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, INKS.paper, 0.2));
+    ctx.fillRect(0, 0, w, h);
+    const m = w * 0.07;
+    const ph = w - 2 * m;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(m, m, ph, ph);
+    ctx.clip();
+    // the café behind her, amber, the zinc's grey edge low across it, a globe's glow
+    const bg = ctx.createLinearGradient(0, m, 0, m + ph);
+    bg.addColorStop(0, css(mix(INKS.ochre, INKS.sunflower, 0.35)));
+    bg.addColorStop(1, css(mix(INKS.ochre, INKS.ink, 0.35)));
+    ctx.fillStyle = bg;
+    ctx.fillRect(m, m, ph, ph);
+    ctx.fillStyle = css(mix(INKS.card, INKS.sunflower, 0.5));
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(m + ph * 0.82, m + ph * 0.16, ph * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.4));
+    ctx.fillRect(m, m + ph * 0.84, ph, ph * 0.16);
+    // her shoulders in the moss-green cardigan, a white collar
+    const cx = m + ph * 0.46;
+    ctx.fillStyle = css(mix(mix(INKS.green, INKS.sunflower, 0.16), INKS.ink, 0.15));
+    ctx.beginPath();
+    ctx.ellipse(cx, m + ph * 1.05, ph * 0.44, ph * 0.3, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = css(INKS.card);
+    ctx.beginPath();
+    ctx.moveTo(cx - ph * 0.08, m + ph * 0.72);
+    ctx.lineTo(cx, m + ph * 0.8);
+    ctx.lineTo(cx + ph * 0.08, m + ph * 0.72);
+    ctx.fill();
+    // her face, turned a little to the left, laughing
+    const fy = m + ph * 0.48;
+    const k = 1.35;
+    ctx.fillStyle = css(mix(INKS.card, INKS.vermilion, 0.18));
+    ctx.beginPath();
+    ctx.ellipse(cx, fy, ph * 0.15 * k, ph * 0.18 * k, -0.12, 0, Math.PI * 2);
+    ctx.fill();
+    // the short white hair, cut straight
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.5));
+    ctx.beginPath();
+    ctx.ellipse(cx, fy - ph * 0.06 * k, ph * 0.17 * k, ph * 0.15 * k, -0.12, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.fill();
+    ctx.fillRect(cx - ph * 0.17 * k, fy - ph * 0.08 * k, ph * 0.05 * k, ph * 0.12 * k);
+    ctx.fillRect(cx + ph * 0.12 * k, fy - ph * 0.08 * k, ph * 0.05 * k, ph * 0.12 * k);
+    // eyes shut with laughing, laugh lines, the open mouth
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.ochre, 0.2));
+    ctx.lineWidth = Math.max(1, ph * 0.018);
+    ctx.lineCap = 'round';
+    for (const ex of [-0.065, 0.045]) {
+      ctx.beginPath();
+      ctx.arc(cx + ph * ex * k, fy - ph * 0.01 * k, ph * 0.03 * k, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    }
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.ink, 0.4));
+    ctx.beginPath();
+    ctx.ellipse(cx - ph * 0.01 * k, fy + ph * 0.08 * k, ph * 0.05 * k, ph * 0.03 * k, -0.1, 0, Math.PI);
+    ctx.fill();
+    ctx.restore();
+    // the photo's paper a little faded at the edges
+    ctx.strokeStyle = css(mix(INKS.card, INKS.ochre, 0.15));
+    ctx.lineWidth = Math.max(1, w * 0.01);
+    ctx.strokeRect(m, m, ph, ph);
   };
 }
 
