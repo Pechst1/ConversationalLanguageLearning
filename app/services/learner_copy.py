@@ -615,6 +615,29 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Nicht diese. Sieh dir die Regel noch einmal an und wähle neu.",
         "fr": "Pas celle-ci. Relis la règle et choisis à nouveau.",
     },
+    # #1024: the daily drill's withheld pick. Its choices lock and the item comes back at
+    # the end of the set (the sheet says so), so no line promises a choice now; a word
+    # item names the word, never a rule.
+    "journey.withheld.word_choice": {
+        "en": "Not this one: think again about what «{word}» means.",
+        "de": "Nicht diese: Überleg noch einmal, was „{word}“ bedeutet.",
+        "fr": "Pas celle-ci : repense à ce que veut dire « {word} ».",
+    },
+    "journey.withheld.word_choice_plain": {
+        "en": "Not this one: think again about what the word means.",
+        "de": "Nicht diese: Überleg noch einmal, was das Wort bedeutet.",
+        "fr": "Pas celle-ci : repense à ce que veut dire le mot.",
+    },
+    "journey.withheld.rule_choice": {
+        "en": "Not this one. Look at the rule again before this one comes back.",
+        "de": "Nicht diese. Sieh dir die Regel noch einmal an, bevor die Aufgabe wiederkommt.",
+        "fr": "Pas celle-ci. Relis la règle avant que l’exercice revienne.",
+    },
+    "journey.withheld.choice": {
+        "en": "Not this one.",
+        "de": "Nicht diese.",
+        "fr": "Pas celle-ci.",
+    },
     # -- WP-S1 (La Forge): the local token diff names what is wrong -----------
     "forge.diff.ending": {
         "en": "The ending is off: you wrote «{learner}», the form here is «{target}».",

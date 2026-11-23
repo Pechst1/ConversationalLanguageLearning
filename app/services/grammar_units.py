@@ -403,10 +403,35 @@ NOUN_PHRASE_SUBSKILLS: frozenset[str] = frozenset(
 )
 
 
-def is_noun_phrase_unit(concept: Any) -> bool:
+def _subskills(concept: Any) -> set[str]:
     subskills = {str(getattr(concept, "subskill", "") or "")}
     subskills.update(str(row.get("subskill") or "") for row in _v2_rows_for(concept))
-    return bool(subskills & NOUN_PHRASE_SUBSKILLS)
+    return subskills
+
+
+def is_noun_phrase_unit(concept: Any) -> bool:
+    return bool(_subskills(concept) & NOUN_PHRASE_SUBSKILLS)
+
+
+#: #894: what a rule's *title* names beyond the form its detector keys. «Ich bin,
+#: du bist: Subjektpronomen und être» promises the subject pronouns too, so a
+#: beginner reads any sentence with one («Vous allez vendre…», «Il pleut.») as
+#: using the rule. The detector still keys only the être forms (a card marks only
+#: what its rule explains); these patterns only keep a sentence out of the «does
+#: not use this rule» distractors (:func:`grammar_items.reads_as_rule`).
+TITLE_SCOPE_DETECTORS: dict[str, tuple[str, ...]] = {
+    "subject_pronouns_etre": (r"\b(?:j'|(?:je|tu|il|elle|on|nous|vous|ils|elles)\b)",),
+}
+
+
+def title_scope_detectors(concept: Any) -> list[str]:
+    """Regexes for what the unit's title names that its detector does not key."""
+
+    return [
+        pattern
+        for subskill in sorted(_subskills(concept))
+        for pattern in TITLE_SCOPE_DETECTORS.get(subskill, ())
+    ]
 
 
 def unit_brief(
@@ -451,6 +476,7 @@ def unit_brief(
         "recognition_pair": recognition_pair,
         "detectors": regex_patterns(detectors),
         "noun_phrase": is_noun_phrase_unit(concept),
+        "title_scope": title_scope_detectors(concept),
         #: ``llm:`` detectors are never run: evidence from corrections only.
         "llm_detector_only": bool(detectors) and not regex_patterns(detectors),
         "pattern_forms": pattern_forms(concept),
@@ -471,6 +497,7 @@ __all__ = [
     "plain",
     "regex_patterns",
     "rule_card",
+    "title_scope_detectors",
     "trap_reason",
     "trap_why",
     "unit_brief",
