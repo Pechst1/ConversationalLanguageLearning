@@ -687,8 +687,21 @@ _POSSESSIVES = {
 }
 
 
+def _owner_person(entry: dict[str, Any]) -> int:
+    """#968: the person ``entry`` *stands for*, where the French says whom something is
+    or who is meant (a possessive, a stressed pronoun, the English object). «on»
+    conjugates like «il» (``p`` 2: «on cherche»), but the lexicon's «on» means «we»
+    (``en_p`` 1p): «On cherche nos carnets», «chez nous», «with us». Read off the verb
+    person, the bank wrote «On cherche ses carnets» for «We look for our notebooks»."""
+
+    person = _person(entry)
+    if person == 2 and "on" in (entry.get("tags") or ()):
+        return 3
+    return person
+
+
 def _poss(noun: dict[str, Any], owner: dict[str, Any], plural: bool = False) -> str:
-    masc, fem, many = _POSSESSIVES[_person(owner)]
+    masc, fem, many = _POSSESSIVES[_owner_person(owner)]
     if plural:
         return f"{many} {_noun_plural(noun)}"
     if _gender(noun) == "f" and not starts_with_vowel(noun["fr"]):
@@ -697,7 +710,7 @@ def _poss(noun: dict[str, Any], owner: dict[str, Any], plural: bool = False) -> 
 
 
 def _poss_x(noun: dict[str, Any], owner: dict[str, Any], plural: bool = False) -> list[str]:
-    masc, fem, many = _POSSESSIVES[_person(owner)]
+    masc, fem, many = _POSSESSIVES[_owner_person(owner)]
     word = noun["fr"]
     if plural:
         return [f"{fem if _gender(noun) == 'f' else masc} {_noun_plural(noun)}", f"{many} {word}" if many != "leurs" else f"leur {_noun_plural(noun)}"]
@@ -741,7 +754,7 @@ def _en_poss(owner: dict[str, Any]) -> str:
 def _en_obj(entry: dict[str, Any]) -> str:
     if entry.get("en_obj"):
         return entry["en_obj"]
-    person = _person(entry)
+    person = _owner_person(entry)
     if person == 2:
         return "her" if _gender(entry) == "f" else "him"
     return {0: "me", 1: "you", 3: "us", 4: "you", 5: "them"}[person]
@@ -751,7 +764,7 @@ _TONIC = {0: "moi", 1: "toi", 3: "nous", 4: "vous"}
 
 
 def _tonic(entry: dict[str, Any]) -> str:
-    person = _person(entry)
+    person = _owner_person(entry)
     if person in _TONIC:
         return _TONIC[person]
     if person == 2:
@@ -1442,7 +1455,7 @@ class Filters(GermanFilters):
         return f"the whole {word}" if "count" in tags and "mass" not in tags else f"all the {word}"
 
     def tonic_x(self, entry: dict[str, Any]) -> list[str]:
-        person = _person(entry)
+        person = _owner_person(entry)
         if person == 0:
             return ["je", "me"]
         if person == 1:

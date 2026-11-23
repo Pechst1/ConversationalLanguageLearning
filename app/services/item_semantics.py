@@ -419,6 +419,10 @@ def sentence_violations(sentence: str, english: str = "") -> list[Clash]:
         found.append(Clash("identity", sentence))
     found.extend(address_violations(sentence))
     if english:
+        # #968: «On cherche ses carnets.» for «We look for our notebooks.»
+        from app.services.forge_item_validator import possessive_problems
+
+        found.extend(Clash(problem.kind, problem.detail) for problem in possessive_problems(english, sentence))
         if _EN_FUTURE.search(english) and not _EN_FUTURE_OK.search(english):
             found.append(Clash("english_tense", english))
         for kind, pattern in _EN_RULES:
