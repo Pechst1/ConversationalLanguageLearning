@@ -24,7 +24,10 @@ agrees with itself). It is used where the parts meet:
 * ``register_problems`` / ``situation_problems`` when a generated set is
   validated (``AtelierExerciseGenerator._payload_validation_errors``);
 * ``reaction_problems`` on the character's reaction
-  (``MissionConversationService.respond_for_atelier``).
+  (``MissionConversationService.respond_for_atelier``);
+* ``possessive_problems`` (#968) on every bank sentence against its English
+  (``item_semantics.sentence_violations``) and on the model answer a free card serves
+  (``free_card_contract.model_answer``).
 """
 from __future__ import annotations
 
@@ -246,6 +249,59 @@ def item_problems(prompt: object, *, register: object = None) -> list[Problem]:
 
 
 # --------------------------------------------------------------------------- #
+# A possessive: the French says whose it is as the English does (#968)
+# --------------------------------------------------------------------------- #
+
+#: English possessive determiners -> the persons they name («your» is tu or vous).
+_EN_POSSESSIVE = {
+    "my": frozenset({"1s"}), "your": frozenset({"2"}), "his": frozenset({"3s"}), "her": frozenset({"3s"}),
+    "its": frozenset({"3s"}), "our": frozenset({"1p"}), "their": frozenset({"3p"}),
+}
+_EN_POSSESSIVE_RE = re.compile(r"\b(my|your|his|her|its|our|their)\b", re.IGNORECASE)
+#: French possessive determiners -> the person they name.
+_FR_POSSESSIVE = {
+    "mon": "1s", "ma": "1s", "mes": "1s", "ton": "2", "ta": "2", "tes": "2",
+    "votre": "2", "vos": "2", "son": "3s", "sa": "3s", "ses": "3s",
+    "notre": "1p", "nos": "1p", "leur": "3p", "leurs": "3p",
+}
+#: «leur» after a subject or a clitic is the pronoun «(to) them», not «their».
+_FR_POSSESSIVE_RE = re.compile(
+    r"(?<![\w'])(?<!je )(?<!tu )(?<!il )(?<!elle )(?<!on )(?<!nous )(?<!vous )(?<!ils )(?<!elles )"
+    r"(?<!ne )(?<!n')(?<!me )(?<!te )(?<!se )(?<!le )(?<!la )(?<!les )"
+    r"(mon|ma|mes|ton|ta|tes|votre|vos|son|sa|ses|notre|nos|leurs|leur)(?![\w'])",
+    re.IGNORECASE,
+)
+
+
+def possessive_problems(english: object, french: object) -> list[Problem]:
+    """ROOT CAUSE #250 (#968): does ``french`` say whose it is as ``english`` does?
+
+    «We look for our notebooks.» was shown «On cherche ses carnets.» as its possible
+    answer: «ses» names him or her, the card asks for «our». When the French has as
+    many possessives as the English, they name the same owners, whatever else the
+    sentence gets right. A French that says it another way («my parents had said they
+    were coming» / «mes parents avaient annoncé leur visite»), or an English «her» that
+    is an object («I give her my book» / «Je lui donne mon livre»), has a different
+    count and is not read.
+    """
+
+    owners = [_EN_POSSESSIVE[word.lower()] for word in _EN_POSSESSIVE_RE.findall(_plain(english))]
+    text = _plain(french)
+    said = [match.group(1) for match in _FR_POSSESSIVE_RE.finditer(text)]
+    if not owners or len(said) != len(owners):
+        return []
+    left = list(owners)
+    for word in said:
+        person = _FR_POSSESSIVE[word.lower()]
+        match = next((index for index, persons in enumerate(left) if person in persons), None)
+        if match is None:
+            named = ", ".join(sorted({person for persons in owners for person in persons}))
+            return [Problem("possessive_person", f"«{word}» where the English names {named}: {text}")]
+        left.pop(match)
+    return []
+
+
+# --------------------------------------------------------------------------- #
 # A speaker: someone says a line, and every line agrees with their register
 # --------------------------------------------------------------------------- #
 
@@ -416,6 +472,7 @@ __all__ = [
     "french_of",
     "item_problems",
     "label_problems",
+    "possessive_problems",
     "price_basis_problems",
     "prompt_register",
     "reaction_problems",

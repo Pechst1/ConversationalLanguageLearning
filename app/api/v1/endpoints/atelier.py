@@ -683,7 +683,12 @@ def _learner_correction(attempt: AtelierAttempt) -> dict[str, Any]:
     )
     # R2 (walk of 17 Nov): a free card refused twice ends in its solution — one acceptable
     # model answer — never in «Passer» as the only way out.
-    return with_model_answer(view, round_name=attempt.round, prompt_payload=attempt.prompt_payload or {})
+    return with_model_answer(
+        view,
+        round_name=attempt.round,
+        prompt_payload=attempt.prompt_payload or {},
+        learner_text=solution_gate.learner_line(attempt.answer_payload or {}),
+    )
 
 
 ADAPTIVE_LOCK_CLEAN_RECOGNIZE_ITEMS = 3

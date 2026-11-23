@@ -455,6 +455,12 @@ def marks_for(learner: str, errata: list[dict[str, Any]]) -> list[dict[str, Any]
     return marks
 
 
+def learner_line(answer_payload: Any, item_id: str | None = None) -> str:
+    """What the learner typed or said, as one line (an item's, or every item's)."""
+
+    return _learner_line(answer_payload, item_id)
+
+
 def _learner_line(answer_payload: Any, item_id: str | None = None) -> str:
     if not isinstance(answer_payload, dict):
         return _text(answer_payload)
@@ -625,6 +631,7 @@ __all__ = [
     "WITHHELD",
     "is_withheld",
     "leak_terms",
+    "learner_line",
     "learner_view",
     "mark",
     "marks_for",
