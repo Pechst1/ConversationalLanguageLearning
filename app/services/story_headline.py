@@ -3,11 +3,14 @@
 One answer to «where is the story?»: the day's episode is headlined with its number,
 its title (when it is known), yesterday's «À suivre…» and the faces of who is in it.
 
-* **Title.** The day's scene once the journey exists. Before that, the season's
-  tentpole title on a tentpole day (authored, known in advance). A generated day's
-  title is not known until the director writes it, and nothing is invented: ``title_fr``
-  stays None and the teaser is sent as the teaser (P8, 17 Nov: Home prints it under
-  «À suivre», never in the title's place).
+* **Title.** One record names the episode (#577, root cause #143), read through
+  ``journey_contracts.episode_title`` as the scene header and the Feuilleton read it:
+  once the journey exists, its first act's page (else the title the journey stored when
+  planned); before Start, the page the night wrote and Start will serve
+  (``journey_latency.waiting_scene_brief``); else the season's tentpole title on a
+  tentpole day (authored, known in advance). A generated day not yet written has no
+  title, and nothing is invented: ``title_fr`` stays None and the teaser is sent as the
+  teaser (P8, 17 Nov: Home prints it under «À suivre», never in the title's place).
 * **Teaser.** The «À suivre…» written when the previous day settled — only when it
   was written on an earlier day (after today's ending it already speaks of tomorrow).
 * **Cast.** Who speaks in the day's scene; before it exists, who speaks on the
@@ -54,24 +57,33 @@ def _ordered(ids: list[str]) -> list[str]:
 
 
 def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], str | None]:
-    """The day's scene: (title, speakers, the first panel's picture)."""
+    """The day's episode: (title, speakers, the first panel's picture). The title is
+    ``episode_title``: the first act's page, else what the journey stored when planned;
+    only a day with neither is named by the season's plan (``_tentpole``)."""
 
     from sqlalchemy import select
 
     from app.db.models.graphic_novel import GraphicNovelScene
+    from app.services.journey_contracts import episode_title, first_act_scene
     from app.services.living_story import ENGINE_VERSION_PREFIX
 
-    scene = db.scalars(
+    scenes = db.scalars(
         select(GraphicNovelScene)
         .where(
             GraphicNovelScene.user_id == journey.user_id,
             GraphicNovelScene.prompt_version.like(f"{ENGINE_VERSION_PREFIX}%"),
             GraphicNovelScene.source_snapshot["journey_id"].as_string() == str(journey.id),
         )
-        .order_by(GraphicNovelScene.created_at.desc())
-    ).first()
+        .order_by(GraphicNovelScene.created_at.asc(), GraphicNovelScene.id.asc())
+    ).all()
+    # #577: the episode is the day's first act, as the Feuilleton files it and the scene
+    # reader opens it; the newest scene of a several-act day is its last act, which gave
+    # Home another title.
+    scene = first_act_scene(scenes)
+    snapshot = journey.scenario_snapshot if isinstance(journey.scenario_snapshot, dict) else {}
+    title = episode_title(scene, snapshot) or None
     if scene is None:
-        return None, [], None
+        return title, [], None
     panels = sorted(scene.panels, key=lambda p: p.panel_index)
     speakers = [
         str(line.get("character_id") or "")
@@ -79,7 +91,7 @@ def _scene_cast(db: Session, journey: Any) -> tuple[str | None, list[str], str |
         for line in (panel.overlay_payload or {}).get("dialogue") or []
     ]
     image = next((panel.image_url for panel in panels if panel.image_url), None)
-    return scene.title or None, _ordered(speakers), image
+    return title, _ordered(speakers), image
 
 
 def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None, str | None]:
@@ -105,7 +117,9 @@ def _tentpole(live: dict, user: Any) -> tuple[str | None, list[str], str | None,
     return page.get("title_fr"), _ordered(speakers), today.season.title_fr, image
 
 
-def _planned_stage(live: dict, user: Any, db: Session | None = None) -> dict[str, Any] | None:
+def _planned_stage(
+    live: dict, user: Any, db: Session | None = None, waiting: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
     """P12 (round 2): where today's planned page plays, for Home's «Play in the Quartier» before
     the day is opened: its key («t1.a»), the place it opens at, and each movement's place in
     order (``None`` where a movement names none). A tentpole's page is known before Start.
@@ -117,7 +131,9 @@ def _planned_stage(live: dict, user: Any, db: Session | None = None) -> dict[str
 
     Observed 17 Nov: the offer before Start is the story engine's invitation
     (``living_story.describe_next``: ``location_id=""``), so Home could never tell that day 1
-    plays at Le Mistral and offered the Quartier on no day."""
+    plays at Le Mistral and offered the Quartier on no day.
+
+    ``waiting``: the brief of the page waiting for Start, when the caller already read it."""
 
     from app.services.season import runtime as season_runtime
 
@@ -129,7 +145,7 @@ def _planned_stage(live: dict, user: Any, db: Session | None = None) -> dict[str
             return None
         from app.services.journey_latency import waiting_scene_place
 
-        place = waiting_scene_place(db, user)
+        place = waiting_scene_place(db, user, waiting)
         return {"key": f"jour.{today.pos.segment.id}", "location_id": place, "locations": []} if place else None
     page = season_runtime.page_for(today) or {}
     locations: list[str | None] = []
@@ -237,6 +253,18 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
                 who = str(snapshot.get("character_id") or "")
                 cast = _ordered([who]) if who else []
                 image = str(snapshot.get("image_url") or "") or None
+        waiting: dict[str, Any] | None = None
+        if journey is None:
+            # #577: before Start, the page the night wrote is the day's record: Start
+            # serves it, the journey stores its title and the page carries it.
+            try:
+                from app.services.journey_contracts import episode_title
+                from app.services.journey_latency import waiting_scene_brief
+
+                waiting = waiting_scene_brief(db, user)
+                title = episode_title(None, waiting) or None
+            except Exception:  # noqa: BLE001 - a waiting page never costs Home's headline
+                logger.exception("story_headline: the waiting page is unreadable")
         season_title: str | None = None
         if title is None:
             planned_title, planned_cast, season_title, planned_image = _tentpole(live, user)
@@ -250,7 +278,7 @@ def episode_headline(db: Session, user: Any, journey: Any = None, *, local_date:
         stage = None
         if journey is None:
             try:
-                stage = _planned_stage(live, user, db)
+                stage = _planned_stage(live, user, db, waiting)
             except Exception:  # noqa: BLE001 - the Quartier's offer never costs Home's headline
                 logger.exception("story_headline: planned stage unavailable")
         if edition_no is None:
