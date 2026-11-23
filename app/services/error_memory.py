@@ -1,6 +1,7 @@
 """Unified learner error memory and scheduling service."""
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from datetime import UTC, datetime, timedelta
@@ -452,12 +453,24 @@ class ErrorMemoryService:
         review_mode = self._review_mode_for(category=category, task_type=task_type, source_type=source_type)
         severity = _severity_to_int(erratum.get("severity"))
         linked_word = self._link_vocabulary_if_needed(user=user, category=category, erratum=erratum)
+        # #1027: what the slip changed. A spelling slip with no rule and no word has only
+        # that to be: keyed by its label, every accent fix of a letter was one row
+        # («cafe», ×10). A slip whose pattern names a rule («plural_s») recurs as it.
+        change = (
+            slip_concept.change_identity(erratum.get("learner_text"), erratum.get("corrected_target"))
+            if linked_word is None and task_type not in {"task_compliance", "length_compliance"}
+            else None
+        )
+        keyed_by_change = change is not None and slip_concept.spelling_only(
+            erratum.get("learner_text"), erratum.get("corrected_target")
+        )
         memory_key = self._memory_key(
             category=category,
             task_type=task_type,
             display_label=display_label,
             concept_id=concept_id,
             linked_word_id=linked_word.id if linked_word else None,
+            change=change if keyed_by_change else None,
         )
 
         if source_attempt_id:
@@ -493,25 +506,20 @@ class ErrorMemoryService:
             .filter(UserError.user_id == user.id, UserError.memory_key == memory_key)
             .first()
         )
-        if existing is None and concept_id:
-            # WP-L1: journey errata used to be keyed without a concept. The same
-            # mistake, now recognised as a concept's, reopens that row (and
-            # adopts the concept, keeping its key) instead of starting a second
-            # one beside it.
-            legacy_key = self._memory_key(
+        if existing is None:
+            earlier = self._earlier_row(
+                user=user,
                 category=category,
                 task_type=task_type,
                 display_label=display_label,
-                concept_id=None,
+                concept_id=concept_id,
                 linked_word_id=linked_word.id if linked_word else None,
+                change=change,
+                keyed_by_change=keyed_by_change,
+                memory_key=memory_key,
             )
-            existing = (
-                self.db.query(UserError)
-                .filter(UserError.user_id == user.id, UserError.memory_key == legacy_key)
-                .first()
-            )
-            if existing is not None:
-                memory_key = legacy_key
+            if earlier is not None:
+                existing, memory_key = earlier
         now = datetime.now(UTC)
         next_review = self._next_review(now=now, severity=severity, repeated=bool(existing), source_type=source_type)
         metadata = self._metadata_for(erratum, severity=severity, source_payload=source_payload)
@@ -876,10 +884,75 @@ class ErrorMemoryService:
         display_label: str,
         concept_id: int | None,
         linked_word_id: int | None,
+        change: str | None = None,
     ) -> str:
+        """The row a slip recurs on.
+
+        A slip with a rule recurs as that rule; a slip with a word, as that word. A slip
+        with neither (#1027) recurs only as its own change (``change``, from
+        :func:`slip_concept.change_identity`): «cafe → café» and «Apres → Après» are two
+        slips, not two occurrences of «Spelling».
+        """
+
         word_part = f":word-{linked_word_id}" if linked_word_id else ""
         concept_part = f"concept-{concept_id}" if concept_id else "concept-none"
-        return f"{_slug(category)}:{concept_part}:{_slug(task_type)}:{_slug(display_label)}{word_part}"[:180]
+        key = f"{_slug(category)}:{concept_part}:{_slug(task_type)}:{_slug(display_label)}{word_part}"
+        if concept_id or linked_word_id or not change:
+            return key[:180]
+        change_part = ":change-" + hashlib.sha256(change.encode("utf-8")).hexdigest()[:12]
+        return key[: 180 - len(change_part)] + change_part
+
+    def _earlier_row(
+        self,
+        *,
+        user: User,
+        category: str,
+        task_type: str,
+        display_label: str,
+        concept_id: int | None,
+        linked_word_id: int | None,
+        change: str | None,
+        keyed_by_change: bool,
+        memory_key: str,
+    ) -> tuple[UserError, str] | None:
+        """A row this slip was saved on under an earlier key, and that key.
+
+        - WP-L1: the same mistake saved with no rule, now recognised as a rule's, reopens
+          that row (it adopts the rule and keeps its key);
+        - #1027: a rule-less row keyed by its label alone (any row saved before spelling
+          slips were keyed by their change, or a pattern's row) is reopened only by the
+          change it holds. Matched by label alone, the letter's merged «cafe» row took
+          «a le → au»'s rule.
+        """
+
+        def key_for(by_change: bool) -> str:
+            return self._memory_key(
+                category=category, task_type=task_type, display_label=display_label,
+                concept_id=None, linked_word_id=linked_word_id, change=change if by_change else None,
+            )
+
+        # (key, whether the key holds only a label, so the row's own change must match)
+        candidates: list[tuple[str, bool]] = []
+        if concept_id:
+            candidates.append((key_for(keyed_by_change), change is not None and not keyed_by_change))
+        if keyed_by_change:
+            candidates.append((key_for(False), True))
+        seen = {memory_key}
+        for key, labelled_only in candidates:
+            if key in seen:
+                continue
+            seen.add(key)
+            row = (
+                self.db.query(UserError)
+                .filter(UserError.user_id == user.id, UserError.memory_key == key)
+                .first()
+            )
+            if row is None:
+                continue
+            if labelled_only and slip_concept.change_identity(row.original_text, row.correction) != change:
+                continue
+            return row, key
+        return None
 
     def _review_mode_for(self, *, category: str, task_type: str, source_type: str) -> str:
         marker = f"{category} {task_type}".lower()
@@ -1037,6 +1110,8 @@ class ErrorMemoryService:
         - an elided article is «Le, la, l', les» (#119);
         - a swap among determiners is the unit of the determiner the correction wrote:
           «sa → son» the possessives, «le → la» the definite article (#974);
+        - «à»/«de» melted into its article, or split from it, is the contractions
+          unit: «a le → au», «de les → des» (#1027);
         - a participle or an auxiliary is the passé composé of its auxiliary;
         - an accent, an apostrophe, a space or a capital is no rule (#697), unless the
           lent rule's own detector or ✗/✓ traps recognise the changed word as its form

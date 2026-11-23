@@ -32,6 +32,7 @@ POSSESSIVES_UNIT = "FR2_A11_POSSESSIVES"
 DEMONSTRATIVES_UNIT = "FR2_A12_DEMONSTRATIVES"
 DEFINITE_UNIT = "FR2_A11_LE_LA"
 INDEFINITE_UNIT = "FR2_A11_UN_UNE"
+CONTRACTIONS_UNIT = "FR2_A11_CONTRACTIONS"
 PC_AVOIR_UNIT = "FR2_A21_PC_AVOIR"
 PC_ETRE_UNIT = "FR2_A21_PC_ETRE"
 
@@ -116,6 +117,57 @@ def _determiner_unit(before: list[str], after: list[str], removed: list[int], wr
             return families.pop()
         return None
     return None
+
+
+#: #1027: «à» (written «a» by a keyboard without accents) melts with «le»/«les» into
+#: «au»/«aux», and never with «la»/«l'» («au école → à l'école»).
+_A_FORMS = frozenset({"à", "a"})
+_A_CONTRACTED = frozenset({"au", "aux"})
+_ARTICLES = frozenset({"le", "la", "les", "l"})
+
+
+def _contraction_unit(before: list[str], after: list[str], removed: list[int], written: list[int]) -> str | None:
+    """The change melts a preposition into its article, or splits a melted form:
+    «a le → au», «à les → aux», «de le → du», «de les → des», «au école → à l'école».
+
+    «du → de la» and «des → de» are left out: a partitive or a negation reads the same
+    («du pain», «pas de pain»), and only the sentence tells them from a contraction."""
+
+    gone, new = [before[i] for i in removed], [after[j] for j in written]
+    if not gone or not new:
+        return None
+    for one, other in ((gone, new), (new, gone)):
+        if (
+            set(one) <= _A_CONTRACTED
+            and set(other) <= _A_FORMS | _ARTICLES
+            and set(other) & _A_FORMS
+            and set(other) & _ARTICLES
+        ):
+            return CONTRACTIONS_UNIT
+    # «de» + «le»/«les» the learner wrote apart, melted by the correction.
+    if set(new) <= {"du", "des"} and set(gone) <= {"de", "le", "les"} and "de" in gone and set(gone) & {"le", "les"}:
+        return CONTRACTIONS_UNIT
+    return None
+
+
+def change_identity(learner_text: object, corrected_text: object) -> str:
+    """#1027: what a slip changed, as its identity: the learner's words and the
+    corrected words, case, spacing and apostrophe forms aside. Two slips are the same
+    slip only when they change the same words the same way («cafe → café» twice), never
+    because they share a label («Spelling») or a letter."""
+
+    def fold(text: object) -> str:
+        return " ".join(fold_apostrophes(unicodedata.normalize("NFC", str(text or ""))).casefold().split())
+
+    return f"{fold(learner_text)}→{fold(corrected_text)}"
+
+
+def spelling_only(learner_text: object, corrected_text: object) -> bool:
+    """The correction touches only accents, apostrophes, spaces or capitals: «cafe →
+    café», «c est → c'est». Such a slip names no pattern a label could stand for, so
+    nothing but its own change says which slip it is (#1027)."""
+
+    return bool(_letters(corrected_text)) and _letters(learner_text) == _letters(corrected_text)
 
 
 def _participle(word: str) -> bool:
@@ -294,6 +346,9 @@ def unit_for_change(
     lead = _lead_in(before, context)
     before, after = lead + before, lead + after
     removed, written = _changed(before, after)
+    contraction = _contraction_unit(before, after, removed, written)
+    if contraction is not None:
+        return contraction
     determiner = _determiner_unit(before, after, removed, written)
     if determiner is not None:
         return determiner

@@ -39,6 +39,7 @@ _UNITS = {
     "QUEL_QUE_SOIT": ("FR2_C11_QUEL_QUE_SOIT", "Quel que soit", "Clauses", "quel_que_soit", 820),
     "SUBJ_IMPARFAIT": ("FR2_C12_SUBJ_IMPARFAIT", "Subjonctif imparfait", "Moods", "subj_imparfait", 880),
     "DAYS_DATES": ("FR2_A12_DAYS_DATES", "Days, months, dates", "Time", "days_dates", 260),
+    "CONTRACTIONS": ("FR2_A11_CONTRACTIONS", "Au, aux, du, des: à and de with le/les", "Articles", "contractions_au_du", 140),
 }
 
 #: The issue's pairs: (learner span, corrected span, the sentence it sat in, the rule it is filed under).
@@ -51,6 +52,8 @@ GUARD_PAIRS = [
     ("j ai", "j'ai", "Hier j ai vu Margaux.", {None, "LE_LA"}),
     ("ai mange", "ai mangé", "Hier soir, j ai mange une crêpe.", {"PC_AVOIR"}),
     ("est arrive", "est arrivée", "Elle est arrive hier soir.", {"PC_ETRE"}),
+    # #1027: à + le melts into «au»; the letter's passé composé is not this slip's rule.
+    ("a le", "au", "Apres je vais a le notaire.", {"CONTRACTIONS"}),
 ]
 
 
@@ -469,3 +472,152 @@ def test_recall_697(db_session):
     assert progress.notes == "[daily_journey] seen"
     assert progress.last_review.replace(tzinfo=UTC) == reviewed_at
     assert progress.next_review.replace(tzinfo=UTC) == due_at
+
+
+# ---------------------------------------------------------------------------
+# #1027: one row per distinct change; a row's rule is its own change's
+# ---------------------------------------------------------------------------
+
+#: The walk's letter to Margaux, 23 Nov 2026 (`a2-en`, day 1 Courrier).
+WALK_LETTER_1027 = (
+    "Salut Margaux ! Non, j ai pas d echarpe ici, j ai oublie mon echarpe a Leeds. Peut-etre c est a Gus ? "
+    "Je passe demain a huit heures, je ne vais pas ailleurs. Apres je vais a le notaire. Merci pour le cafe !"
+)
+
+
+def _fold(text: object) -> str:
+    return " ".join(str(text or "").casefold().split())
+
+
+def _change(row: UserError) -> tuple[str, str]:
+    return _fold(row.original_text), _fold(row.correction)
+
+
+def _letter_1027(db_session, units, user):
+    """The walk's letter, corrected by the basic check and saved as the Courrier saves it."""
+    from app.services.missions import MissionCorrectionService
+    from tests.test_missions import _ExplodingMissionLLM, _mission_for_correction
+
+    mission = _mission_for_correction()
+    mission.user_id = user.id
+    # The letter's rules, as the walk's `selected_concept_ids [39, 40, 41]`: the passé composé first.
+    mission.selected_concept_ids = [units["PC_AVOIR"].id, units["PC_ETRE"].id, units["LE_LA"].id]
+    service = MissionCorrectionService(db_session, llm_service=_ExplodingMissionLLM())
+    correction = service.correct_submission(
+        user=user, mission=mission, text=WALK_LETTER_1027, mode="letter", near_realtime=True
+    )
+    service.persist_errata(user=user, mission=mission, correction=correction, mode="letter", source_id="letter-1027")
+    db_session.flush()
+    return correction
+
+
+def test_walk_letter_1027(db_session):
+    """Each fix of the walk's letter is its own slip, filed under its own change."""
+    units = _units(db_session)
+    user = _user(db_session)
+    correction = _letter_1027(db_session, units, user)
+    listed = {(_fold(e["learner_text"]), _fold(e["corrected_target"])) for e in correction["errata"]}
+    assert {("cafe", "café"), ("d echarpe", "d'écharpe"), ("a le", "au"), ("apres", "après")} <= listed, listed
+
+    rows = _stored(db_session, user)
+    changes = [_change(row) for row in rows]
+    assert sorted(changes) == sorted(listed), (
+        f"{len(listed)} distinct fixes listed, saved as {len(rows)} rows: "
+        + "; ".join(f"«{r.original_text} → {r.correction}» ×{r.occurrences}" for r in rows)
+    )
+    for row in rows:
+        assert (row.occurrences, row.lapses) == (1, 0), f"«{row.original_text}» ×{row.occurrences}, {row.lapses} lapses"
+    by_change = {_change(row): row for row in rows}
+    assert by_change[("a le", "au")].concept_id == units["CONTRACTIONS"].id, (
+        f"«a le → au» filed under {by_change[('a le', 'au')].concept_id}"
+    )
+    for change, row in by_change.items():
+        if change != ("a le", "au"):
+            assert row.concept_id is None, f"«{row.original_text} → {row.correction}» filed under rule {row.concept_id}"
+
+    # The same letter again: each slip recurs once, on its own row.
+    _letter_1027(db_session, units, user)
+    again = _stored(db_session, user)
+    assert sorted((_change(row), row.occurrences) for row in again) == sorted((change, 2) for change in changes)
+
+
+def test_recall_walk_letter_697(db_session):
+    """Day 2 recalls the letter's «cafe» with no rule line."""
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    from app.services.journey_contracts import StepKind, TargetKind
+    from app.services.journey_errata import errata_targets_for_user
+    from app.services.journey_planner import plan_journey
+    from tests.test_journey_planner import _brief
+
+    units = _units(db_session)
+    user = _user(db_session)
+    user.native_language, user.target_language = "en", "fr"
+    _letter_1027(db_session, units, user)
+    cafe = next(row for row in _stored(db_session, user) if _change(row) == ("cafe", "café"))
+    assert cafe.concept_id is None, f"«cafe → café» filed under {cafe.concept.name if cafe.concept else None}"
+    for row in _stored(db_session, user):
+        row.next_review_date = datetime.now(UTC) + timedelta(days=5)
+    cafe.next_review_date = datetime.now(UTC) - timedelta(days=1)  # due, as on day 2
+    db_session.flush()
+    targets = errata_targets_for_user(db_session, user, now=datetime.now(UTC))
+    plan = plan_journey(scenario=_brief(control_language="en"), candidates=[], errata_targets=targets)
+    repairs = [
+        step for step in plan.steps
+        if step.kind is StepKind.RECALL and step.target is not None and step.target.kind is TargetKind.ERROR
+        and step.target.id == str(cafe.id)
+    ]
+    assert repairs, "«cafe» was not planned as a repair"
+    shown = json.dumps(repairs[0].public_prompt, ensure_ascii=False)
+    assert "Rule:" not in shown and units["PC_AVOIR"].name not in shown, shown
+
+
+def test_two_accents_two_rows(db_session):
+    """Two different accent fixes are two slips on every record path, and share no rule."""
+    units = _units(db_session)
+    for path in sorted(_PATHS):
+        user = _user(db_session)
+        _PATHS[path](db_session, user, units, "cafe", "café", "Merci pour le cafe et le the.")
+        _PATHS[path](db_session, user, units, "Apres", "Après", "Apres je vais au notaire.")
+        db_session.flush()
+        rows = _stored(db_session, user)
+        assert sorted(_change(row) for row in rows) == [("apres", "après"), ("cafe", "café")], (
+            f"{path}: " + "; ".join(f"«{r.original_text}» ×{r.occurrences}" for r in rows)
+        )
+        assert {row.concept_id for row in rows} == {None}, path
+
+
+def test_old_row_lends_no_rule(db_session):
+    """A rule-less row saved before slips were keyed by their change reopens only for
+    that same change, and never takes another slip's rule (WP-L1's legacy key)."""
+    units = _units(db_session)
+    memory = ErrorMemoryService(db_session)
+    user = _user(db_session)
+    old = UserError(
+        user_id=user.id, original_text="cafe", correction="café", error_category="spelling",
+        error_pattern="orthography", task_error_type="orthography", display_label="Spelling",
+        memory_key="spelling:concept-none:orthography:spelling", occurrences=1, lapses=0, state="open",
+    )
+    db_session.add(old)
+    db_session.flush()
+    spelling = {"why_wrong": "x", "task_error_type": "orthography", "display_label": "Spelling"}
+    memory.record_erratum(
+        user=user, erratum={**spelling, "learner_text": "a le", "corrected_target": "au"},
+        source_type="mission", concept_id=units["PC_AVOIR"].id,
+    )
+    memory.record_erratum(
+        user=user, erratum={**spelling, "learner_text": "Apres", "corrected_target": "Après"}, source_type="mission"
+    )
+    db_session.flush()
+    db_session.refresh(old)
+    assert (old.original_text, old.concept_id, old.occurrences) == ("cafe", None, 1), (
+        f"the old «cafe» row became «{old.original_text}», rule {old.concept_id}, ×{old.occurrences}"
+    )
+    memory.record_erratum(
+        user=user, erratum={**spelling, "learner_text": "cafe", "corrected_target": "café"}, source_type="mission"
+    )
+    db_session.flush()
+    db_session.refresh(old)
+    assert old.occurrences == 2, "the same change reopens the row it was saved on"
+    assert len(_stored(db_session, user)) == 3
