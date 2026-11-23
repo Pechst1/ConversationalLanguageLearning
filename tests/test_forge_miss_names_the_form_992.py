@@ -157,11 +157,12 @@ def test_no_verb_slip_for_a_noun_or_an_adjective(learner, target) -> None:
     («Tu veux», «Nous sommes», «Il la porte»), or both words are verb forms the
     lexicon knows."""
 
-    from app.services.forge_grading import VERB_SLIPS, slip_category, slip_note, token_diff
+    from app.services.forge_grading import slip_category, slip_note, token_diff
 
+    verb_slips = {"person", "person_subject", "tense", "not_a_form", "not_a_form_subject", "other_verb"}
     ops = token_diff(learner, target)
     slip = slip_category(ops, target)
-    assert (slip or {}).get("category") not in VERB_SLIPS, f"«{learner}» is told as a verb slip: {slip!r}"
+    assert (slip or {}).get("category") not in verb_slips, f"«{learner}» is told as a verb slip: {slip!r}"
     for language in ("en", "de"):
         note = slip_note(ops, language, target)
         assert note is None or "contenter" not in note[0] and "livrer" not in note[0], note
