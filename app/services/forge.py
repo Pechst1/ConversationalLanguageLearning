@@ -65,6 +65,7 @@ from app.services.forge_coaches import (
     recast_scene,
     story_state_of,
 )
+from app.services.forge_item_validator import message_problems
 from app.services.item_bank import MINE_INSTRUCTION_L10N
 
 FORGE_KEY = "forge"
@@ -269,6 +270,21 @@ def fingerprint_for(concept_id: int, round_name: str, mode: str, item_id: str) -
     return f"{int(concept_id)}:{round_name}:{mode}:{item_id}"
 
 
+def _served_instruction(item: dict[str, Any]) -> Any:
+    """The instruction La Forge serves for a stored item (#993 review): its copy row
+    (by key, or by the retired English a cached set still holds, as
+    ``item_bank.public_item`` reads it), else the stored text. A set that still carries
+    «Answer the message in French, …» is posed «Write it in French, with this rule.»:
+    it promises no message, so its free-use item stays in the séance."""
+
+    from app.services.learner_copy import LEARNER_COPY, key_for_english, learner_text
+
+    key = item.get("instruction_key")
+    if not (isinstance(key, str) and key in LEARNER_COPY):
+        key = key_for_english(item.get("instruction"))
+    return learner_text(key, "en") if key else item.get("instruction")
+
+
 def _payload_items(payload: dict[str, Any], round_name: str, mode: str) -> list[dict[str, Any]]:
     if round_name == "recognize":
         container = ((payload.get("recognize") or {}).get(mode) or {})
@@ -346,6 +362,10 @@ class PayloadItemProvider:
                 if fingerprint in exclude or not check(drill, item):
                     continue
                 if self.keep is not None and not self.keep(int(concept_id), item):
+                    continue
+                if message_problems(item.get("prompt"), _served_instruction(item)):
+                    # #993: a set stored before the generator's guard can still hold a
+                    # task that answers a French message it never shows.
                     continue
                 yield ForgeItem(
                     concept_id=int(concept_id),
@@ -2094,7 +2114,16 @@ class ForgeService:
                 progress.held_at = now  # WP-L4 «Tenue», at once (owner, 2026-09-24)
             progress.forge_rung = int(core.TOP_RUNG)
         else:
-            progress.forge_rung = int(result.get("placement_rung") or 0)
+            # #1028: the placement is where a rule *enters* the forge. Merged with the
+            # level the learner already holds, it can place or lift a rule, never lower
+            # it (owner decision #88: a miss never steps the level down); the sheet's
+            # «picks up at level N» names the level kept.
+            placement = core.clamp_rung(int(result.get("placement_rung") or 0))
+            if progress.forge_rung is not None:
+                placement = max(placement, core.clamp_rung(progress.forge_rung))
+            progress.forge_rung = placement
+            result.update(placement_rung=placement, placement_rung_name=core.rung_name(placement))
+            state.result = dict(result)
         self.db.add(progress)
         if result.get("passed"):
             # WP-S7: a rare token for a rule tested out (once per rule), tied to

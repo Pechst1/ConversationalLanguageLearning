@@ -85,7 +85,7 @@ from app.services.forge_grading import (
 from app.services.forge_grading import (
     TO_CORRECT_LABEL as JUDGEMENT_TO_CORRECT,
 )
-from app.services.forge_item_validator import advice, scenario_problems
+from app.services.forge_item_validator import advice, message_problems, scenario_problems
 from app.services.glosses import (
     DEFAULT_GLOSS_LANGUAGE,
     EXPLANATION_LANGUAGE_NAMES,
@@ -2913,6 +2913,12 @@ class AtelierScheduler:
         )
 
 
+#: A curated lesson's free-use cue: over a scene that quotes the line to answer, and
+#: over one that quotes none, where the learner writes their own line (#993).
+_CURATED_REPLY_CUE = 'Réponds au message et ajoute un détail personnel pertinent.'
+_CURATED_LINE_CUE = 'Écris ta réplique et ajoute un détail personnel pertinent.'
+
+
 class AtelierExerciseGenerator:
     """Generate and cache Atelier exercise payloads."""
 
@@ -3307,7 +3313,7 @@ class AtelierExerciseGenerator:
                 # ROOT CAUSE #146: the guard knew the shape of a situation, never its sense.
                 errors.extend(
                     f"output_ladder.{key} item {item_id(item)} prompt {advice(problem)}"
-                    for problem in scenario_problems(item.get("prompt"))
+                    for problem in scenario_problems(item.get("prompt"), item.get("instruction"))
                 )
         return errors
 
@@ -3834,8 +3840,12 @@ class AtelierExerciseGenerator:
             item['instruction'] = {
                 'sentence': 'Écris une réponse complète à la question.',
                 'speak': 'Réponds à voix haute, puis vérifie la transcription. Essaie sans relire ta première réponse.',
-                'conversation': 'Réponds au message et ajoute un détail personnel pertinent.',
+                'conversation': _CURATED_REPLY_CUE,
             }[round_name]
+            if message_problems(item['prompt'], item['instruction']):
+                # #993: a scene that asks the learner to *put* a question («Quelle
+                # question lui poses-tu … ?») quotes no message to answer.
+                item['instruction'] = _CURATED_LINE_CUE
             item['requirements'] = [dict(requirement)]
             payload['output_ladder'][round_name] = {'items': [item]}
         payload['produce'] = {
@@ -7435,8 +7445,11 @@ class AtelierCorrectionService:
             verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")], source=source)
             if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
+                # #927: a right rewrite stands as the accepted line it was read as (the
+                # learner's own variant), not as the item's key.
+                corrected[item_id] = (verdict.expected if verdict.correct else "") or target
                 if verdict.correct and verdict.accent_slip:
-                    accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
+                    accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": corrected[item_id]})
                 continue
             # A wrong part («verts») is filed as the sentence it stands for.
             learner = verdict.read_as or learner
@@ -8952,6 +8965,26 @@ class AtelierSRSService:
                     return True
         return False
 
+    @staticmethod
+    def _accepted_answer(learner: str, keys: list[Any], *, source: Any = None) -> str:
+        """The accepted answer a right keyed answer was read as (#927): the key or the
+        listed alternative it matches, in its authored spelling, so a line printed as a
+        model carries the accent the judge named («etes» → «êtes») and a right variant
+        stays the learner's variant («Tu as …», not the key's «Vous avez …»). A repair
+        (``source``) typed as its corrected part reads as the whole sentence. ``""`` when
+        no key decided the answer (it is then listed in the learner's own words)."""
+
+        from app.services.answer_acceptance import judge, judge_repair
+
+        accepted = [str(value) for value in keys if str(value or "").strip()]
+        if not accepted or not learner.strip():
+            return ""
+        if str(source or "").strip():
+            verdict = judge_repair(learner, source, accepted, accents="lenient", typo=False)
+        else:
+            verdict = judge(learner, accepted, accents="lenient", typo=False)
+        return str(verdict.expected or "") if verdict.correct else ""
+
     @classmethod
     def _forge_proof_line(cls, attempt: AtelierAttempt) -> tuple[str, bool] | None:
         """One line of the end sheet (WP-S6, #370): ``(French line, fixed)``.
@@ -8994,10 +9027,21 @@ class AtelierSRSService:
         else:
             key = ""
             if attempt.round == "transform":
-                key = str(item.get("expected_answer") or "")
+                # #927: a right rewrite is listed as the accepted line it was read as
+                # (the learner's own variant, in its authored spelling), never the key.
+                expected = str(item.get("expected_answer") or "")
+                if right:
+                    source = item.get("source_fr") or item.get("source")
+                    accepted = cls._accepted_answer(learner, _item_keys(item, expected), source=source)
+                    key = accepted or (learner if len(learner.split()) >= 2 else "")
+                key = key or expected
             elif attempt.mode == "fill":
                 blank = _without_asides(str(item.get("prompt") or ""))
-                answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
+                target = str(item.get("correct_answer") or "")
+                # #927: a right gap is filled with the answer it was accepted as («êtes»
+                # for a typed «etes»): the sheet prints the line as a model.
+                accepted = cls._accepted_answer(learner, _item_keys(item, target)) if right else ""
+                answer = ((accepted or learner) if right else "") or target
                 if BLANK_RE.search(blank) and answer:
                     key = fill_blank(blank, answer)
             elif attempt.mode == "word_bank":
