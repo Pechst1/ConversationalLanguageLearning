@@ -42,7 +42,7 @@ def _our_notebooks() -> ib.BankItem:
     return items[0]
 
 
-def test_on_for_we_takes_notre_and_nos_in_every_answer_the_bank_writes():
+def test_on_takes_nos_in_the_bank():
     items = _items(lambda item: re.search(r"\bour\b", item.en) and re.match(r"On\b", item.sentence))
     assert items, "no «On …» item glossed with «our»"
     for item in items:
@@ -52,7 +52,7 @@ def test_on_for_we_takes_notre_and_nos_in_every_answer_the_bank_writes():
         assert _OURS.search(item.target), (WALK, item.en, item.target)
 
 
-def test_the_our_notebooks_card_shows_no_ses_as_its_possible_answer():
+def test_card_answer_has_no_ses():
     from app.api.v1.endpoints.atelier import _learner_correction
 
     card = ib.output_item(_our_notebooks(), round_name="sentence", requirement={"label": "possessifs"})
@@ -73,7 +73,7 @@ def test_the_our_notebooks_card_shows_no_ses_as_its_possible_answer():
     assert _OURS.search(shown), (WALK, shown)
 
 
-def test_a_stored_card_with_the_walks_exact_answer_never_shows_it():
+def test_stored_card_hides_ses():
     """Cards already dealt keep their stored key: the served answer is checked, not trusted."""
 
     from app.services.free_card_contract import model_answer
@@ -92,7 +92,7 @@ def test_a_stored_card_with_the_walks_exact_answer_never_shows_it():
     assert model_answer(stored) == "", WALK
 
 
-def test_the_possible_answer_takes_the_learners_own_noun():
+def test_answer_takes_learner_noun():
     """The learner wrote «cahiers»: of the right answers, the one in their words is shown."""
 
     from app.api.v1.endpoints.atelier import _learner_correction
@@ -119,7 +119,7 @@ def _possessive_clashes(english: str, french: str) -> list[str]:
     return [clash.kind for clash in sentence_violations(french, english) if "possessive" in clash.kind]
 
 
-def test_the_guard_catches_the_walks_exact_text():
+def test_guard_catches_walk_text():
     assert _possessive_clashes("We look for our notebooks.", "On cherche ses carnets.") == ["possessive_person"], WALK
     assert _possessive_clashes("He looks for his notebook.", "Il cherche ton carnet.") == ["possessive_person"]
     assert _possessive_clashes("We look for our notebooks.", "On cherche nos cahiers.") == []
