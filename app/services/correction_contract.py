@@ -3615,6 +3615,44 @@ def deterministic_errata(
     return [to_erratum(edit, language=language) for edit in deterministic_edits(text, people=people)]
 
 
+def rules_fix_at(
+    text: object,
+    start: int,
+    end: int,
+    replacement: object,
+    *,
+    edits: Iterable[Edit] | None = None,
+) -> str | None:
+    """The rules' own form of ``text[start:end]`` -> ``replacement`` when the check itself
+    makes that fix at that place, else ``None`` (#925).
+
+    A listed fix names its words, not its place. The same fix listed twice is the slip
+    written twice («je n ai pas … je n ai rien») only where its words stand again *and*
+    are wrong there; «a» -> «à» listed twice in «Je vais a Paris et il a faim» is one fix
+    noted twice (#93), and the «a» of «il a faim» is right. The check is the judge of the
+    place: its edits touching it, made in the words around it, must give what the listed
+    fix gives (case and apostrophes aside). A rule that widened its quote so it is found
+    only there («nuit. Je n ai» -> «nuit. Je n'ai») still makes the same fix. ``edits``
+    are :func:`deterministic_edits` of ``text``, when the caller has them already.
+    """
+
+    line = "" if text is None else str(text)
+    if not (0 <= start < end <= len(line)):
+        return None
+    found = deterministic_edits(line) if edits is None else list(edits)
+    touching = [edit for edit in found if edit.start < end and start < edit.end]
+    if not touching:
+        return None
+    low = min(start, *(edit.start for edit in touching))
+    high = max(end, *(edit.end for edit in touching))
+    shifted = [replace(edit, start=edit.start - low, end=edit.end - low) for edit in touching]
+    by_rules = apply_edits(line[low:high], shifted)
+    by_row = line[low:start] + str(replacement or "") + line[end:high]
+    if _norm(by_rules).casefold() != _norm(by_row).casefold():
+        return None
+    return by_rules[start - low : len(by_rules) - (high - end)]
+
+
 #: #119: the unit that teaches «l'» and «d'» in front of a vowel («Le, la, l', les»).
 ARTICLE_ELISION_UNIT = "FR2_A11_LE_LA"
 
@@ -4501,6 +4539,7 @@ __all__ = [
     "known_people",
     "merge_deterministic_errata",
     "repair_text",
+    "rules_fix_at",
     "note_for_form",
     "note_from_form",
     "note_matches_form",

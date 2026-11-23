@@ -15,8 +15,8 @@ from typing import Any, NamedTuple
 
 from loguru import logger
 
-from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict
-from app.services.correction_contract import is_about_the_line
+from app.core.verdict import Call, CheckedBy, Failure, Outcome, Verdict, span_pattern
+from app.services.correction_contract import deterministic_edits, is_about_the_line, rules_fix_at
 from app.services.journey_contracts import Correction, TaskOutcome
 from app.services.judge import Reading, Task, judge
 
@@ -80,29 +80,64 @@ def failure_class(reason: Any) -> Failure:
     return Failure.PROVIDER_ERROR
 
 
-def _errata_as_proposed(errata: Iterable[Any], *, by: str) -> list[dict[str, Any]]:
-    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields."""
+def _errata_as_proposed(errata: Iterable[Any], *, by: str, text: str = "") -> list[dict[str, Any]]:
+    """Stored corrections as proposed edits: an erratum's fields, or the Journal's card fields.
+
+    A stored erratum names its fix by its words, not by its place in ``text``, and
+    :func:`app.core.verdict.locate_edits` puts a row where its words first stand free. The
+    same fix listed again is one of two things: the slip written again («je n ai pas … je
+    n ai rien», #925), which the printed line must fix too, or the same fix noted twice
+    (#93), which must not land on a right word further on («il a faim»). The check tells
+    them apart by place: a repeat is kept, pinned to a further place its words stand, only
+    where the rules make that same fix (:func:`rules_fix_at`); otherwise it is dropped.
+    """
 
     rows: list[dict[str, Any]] = []
-    seen: set[tuple[Any, Any]] = set()
+    pinned: dict[tuple[Any, Any], list[int]] = {}
+    rules: list[Any] | None = None
     for item in errata or []:
         if not isinstance(item, dict) or not is_about_the_line(item):
             continue
         span = item.get("learner_text") or item.get("span_fr")
         replacement = item.get("corrected_target") or item.get("corrected_fr")
-        if (span, replacement) in seen:
-            continue
-        seen.add((span, replacement))
-        rows.append(
-            {
-                "span": span,
-                "replacement": replacement,
-                "note": item.get("why_wrong") or item.get("note_native") or "",
-                "by": by,
-                "rule_id": item.get("rule_id") or None,
-            }
-        )
+        row: dict[str, Any] = {
+            "span": span,
+            "replacement": replacement,
+            "note": item.get("why_wrong") or item.get("note_native") or "",
+            "by": by,
+            "rule_id": item.get("rule_id") or None,
+        }
+        if (span, replacement) in pinned:
+            if rules is None:
+                rules = deterministic_edits(text) if text and str(text).strip() else []
+            place = _written_again(text, span, replacement, taken=pinned[(span, replacement)], rules=rules)
+            if place is None:
+                continue  # one fix noted twice (#93)
+            start, form = place
+            pinned[(span, replacement)].append(start)
+            row.update(start=start, replacement=form)
+        else:
+            pinned[(span, replacement)] = []
+        rows.append(row)
     return rows
+
+
+def _written_again(
+    text: str, span: Any, replacement: Any, *, taken: list[int], rules: list[Any]
+) -> tuple[int, str] | None:
+    """``(start, the rules' form of the fix)`` at the first place after the first that
+    ``span`` stands in ``text``, not ``taken``, where the rules make the same fix (#925)."""
+
+    words = str(span or "")
+    if not rules or not words.strip():
+        return None
+    for index, match in enumerate(span_pattern(words).finditer(text)):
+        if index == 0 or match.start() in taken:
+            continue  # the first place is the first listing's
+        form = rules_fix_at(text, match.start(), match.end(), replacement, edits=rules)
+        if form is not None:
+            return match.start(), form
+    return None
 
 
 def _correction_as_proposed(correction: Correction | None, *, by: str) -> list[dict[str, Any]]:
@@ -210,7 +245,7 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
             # #724: «Run again» only where asking again can reach a model.
             retryable=failed and failure is not Failure.NO_MODEL,
             text=text,
-            proposed=_errata_as_proposed(errata, by="rules"),
+            proposed=_errata_as_proposed(errata, by="rules", text=text),
         )
     if by_key:
         return _read(outcome=Outcome.RIGHT, checked_by=CheckedBy.KEY, call=Call.NOT_CALLED)
@@ -220,7 +255,7 @@ def read_forge(correction: dict[str, Any] | None, *, text: str = "", verdict: st
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(errata, by="model" if by_model else "key"),
+        proposed=_errata_as_proposed(errata, by="model" if by_model else "key", text=text),
     )
 
 
@@ -244,7 +279,7 @@ def read_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
-            proposed=_errata_as_proposed(errata, by="model"),
+            proposed=_errata_as_proposed(errata, by="model", text=text),
         )
     reason = debug.get("failure")
     call = {"empty": Call.EMPTY, "no_model": Call.NOT_CALLED}.get(str(reason), Call.FAILED)
@@ -255,7 +290,7 @@ def read_courrier(correction: dict[str, Any] | None, *, verdict: str | None = No
         failure=failure_class(reason),
         retryable=call is not Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(errata, by="rules"),
+        proposed=_errata_as_proposed(errata, by="rules", text=text),
     )
 
 
@@ -274,7 +309,7 @@ def read_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
             call=call,
             failure=failure_class(reason) if reason else None,
             text=text,
-            proposed=_errata_as_proposed(payload.get("errata") or [], by="rules"),
+            proposed=_errata_as_proposed(payload.get("errata") or [], by="rules", text=text),
         )
     by_model = bool(debug.get("model"))
     return _read(
@@ -282,7 +317,7 @@ def read_feuilleton(correction: dict[str, Any] | None, *, verdict: str | None = 
         checked_by=CheckedBy.MODEL if by_model else CheckedBy.KEY,
         call=Call.OK if by_model else Call.NOT_CALLED,
         text=text,
-        proposed=_errata_as_proposed(payload.get("errata") or [], by="model" if by_model else "key"),
+        proposed=_errata_as_proposed(payload.get("errata") or [], by="model" if by_model else "key", text=text),
     )
 
 
@@ -331,7 +366,7 @@ def read_rehearsal(debrief: dict[str, Any] | None) -> Read:
             failure=failure,
             retryable=failure is not Failure.NO_MODEL,
         )
-    fixes = _errata_as_proposed(payload.get("fixes") or [], by="model")
+    fixes = _errata_as_proposed(payload.get("fixes") or [], by="model", text=text)
     return _read(
         outcome=Outcome.RIGHT if payload.get("already_correct") and not fixes else Outcome.NOT_YET,
         checked_by=CheckedBy.MODEL,
@@ -379,7 +414,7 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
             checked_by=CheckedBy.MODEL,
             call=Call.OK,
             text=text,
-            proposed=_errata_as_proposed(errata, by="model"),
+            proposed=_errata_as_proposed(errata, by="model", text=text),
         )
     failure = failure_class(payload.get("failure_reason"))
     return _read(
@@ -390,7 +425,7 @@ def read_journal(correction: dict[str, Any] | None, *, text: str = "") -> Read:
         failure=failure,
         retryable=bool(payload.get("retryable")) and failure is not Failure.NO_MODEL,
         text=text,
-        proposed=_errata_as_proposed(errata, by="rules"),
+        proposed=_errata_as_proposed(errata, by="rules", text=text),
     )
 
 
