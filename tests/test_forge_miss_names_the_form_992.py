@@ -132,3 +132,45 @@ def test_slip_reasons() -> None:
             filled = text.format_map(Fields())
             left = solution_gate.scrub_hint(filled, ["rightform"], {"rightform"})
             assert left, f"{key} ({language}) says nothing once «rightform» is withheld: {filled!r}"
+
+
+@pytest.mark.parametrize(
+    ("learner", "target"),
+    [
+        # Attempt 1 (#1004) read every word ending in -e/-es/-ent as a possible -er verb
+        # and named these as verb slips: an adjective's agreement after être,
+        ("Je suis content.", "Je suis contente."),
+        ("Elles sont contente.", "Elles sont contentes."),
+        # a noun after an article,
+        ("Je lis un libre.", "Je lis un livre."),
+        ("Ferme la poste.", "Ferme la porte."),
+        # «été» is a form of être only where a subject goes with it, not «l'été» (summer),
+        ("L'hiver dernier, il pleut.", "L'été dernier, il pleut."),
+        # and another content verb, which is a word, not a form.
+        ("Elle danse bien.", "Elle chante bien."),
+    ],
+    ids=["content", "contentes", "libre", "poste", "ete", "danse"],
+)
+def test_no_verb_slip_for_a_noun_or_an_adjective(learner, target) -> None:
+    """Review of #1004: a word that only *could* be an -er form is no verb. A slip is a
+    verb's form only where the key is its verb's form for the subject pronoun before it
+    («Tu veux», «Nous sommes», «Il la porte»), or both words are verb forms the
+    lexicon knows."""
+
+    from app.services.forge_grading import VERB_SLIPS, slip_category, slip_note, token_diff
+
+    ops = token_diff(learner, target)
+    slip = slip_category(ops, target)
+    assert (slip or {}).get("category") not in VERB_SLIPS, f"«{learner}» is told as a verb slip: {slip!r}"
+    for language in ("en", "de"):
+        note = slip_note(ops, language, target)
+        assert note is None or "contenter" not in note[0] and "livrer" not in note[0], note
+
+
+def test_a_verb_after_its_object_pronoun_is_still_a_verb() -> None:
+    """«Il la portes.»: the subject stands before «la»; «porte» is still its verb."""
+
+    from app.services.forge_grading import slip_category, token_diff
+
+    slip = slip_category(token_diff("Il la portes.", "Il la porte."), "Il la porte.")
+    assert slip and slip["category"] == "person_subject" and slip["subject"].casefold() == "il", slip

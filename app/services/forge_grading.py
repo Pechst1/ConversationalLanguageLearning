@@ -424,12 +424,67 @@ def _is_form_of(lemma: str, word: str) -> bool:
     return any(word == strip_accents(str(form).split()[-1]) for form in compound.values() if str(form).split())
 
 
-def _verb_slip(learner: str, target: str, kind: str) -> dict[str, str] | None:
+#: What may stand between a subject pronoun and its verb: the negation and the object
+#: pronouns («Je ne le veux pas», «Il la porte», «Tu en veux»).
+_BEFORE_VERB = frozenset(
+    {"ne", "n'", "me", "m'", "te", "t'", "se", "s'", "le", "la", "les", "l'", "lui", "leur", "y", "en", "nous", "vous"}
+)
+#: Verbs a rule chooses between («On a froid», not «On est froid»; the auxiliary of the
+#: passé composé). Another content verb in their place («danse» for «chante») is a word
+#: the learner chose, not a form: that is no verb slip.
+_RULE_VERBS = frozenset({"etre", "avoir"})
+
+
+def _known_verb(word: str) -> str | None:
+    """The infinitive the lexicon itself gives ``word``, or ``None``. Unlike
+    :func:`_verb_lemma` it does not read the -er endings: «contente», «livre», «porte»
+    *could* be -er forms, and that guess keeps the noun rules silent, but it is no
+    evidence that the word is a verb here (#992 review)."""
+
+    from app.services import correction_contract
+
+    folded = (word or "").casefold()
+    if correction_contract._is_verb(folded):  # noqa: SLF001 - the one lexicon reading
+        return folded
+    lemma = correction_contract._forms().get(folded)  # noqa: SLF001
+    return lemma if lemma and correction_contract._is_verb(lemma) else None  # noqa: SLF001
+
+
+def _subject_of(sentence: Any, word: str, at: Any, lemma: str) -> str | None:
+    """The subject pronoun ``word`` is conjugated for in ``sentence``, or ``None``.
+
+    #992 review: a slip is a verb's form only where its key is the line's verb. Read
+    by position: a subject pronoun stands before ``word`` with only the negation or
+    object pronouns between, and ``word`` is ``lemma``'s form for that person. A key
+    after an article («un livre», «la porte») or after être («suis contente») has none.
+    """
+
+    if not sentence or not lemma:
+        return None
+    words = tokens(sentence)
+    index = _place(sentence, word, at)
+    if not index:
+        return None
+    folded = strip_accents(word).casefold()
+    persons = {person for _tense, row in _rows(lemma) for person, form in row if form == folded}
+    for before in reversed(words[:index]):
+        pronoun = strip_accents(before).casefold()
+        if pronoun in _SUBJECTS and _SUBJECT_PERSON.get(pronoun) in persons:
+            return before
+        if pronoun not in _BEFORE_VERB:
+            return None
+    return None
+
+
+def _verb_slip(learner: str, target: str, kind: str, placed: bool) -> dict[str, str] | None:
     """#992: a verb form the person classifier cannot name, by what the learner wrote.
+    Only asked where both words are verb forms the lexicon knows, or where the key is
+    the line's verb (``placed``: :func:`_subject_of`); only then can the learner's word
+    be no form at all.
 
     * ``tense``: another tense of the same verb («voudrai», the future, for «voudrais»);
     * ``not_a_form``: no form of the verb the line needs («somme», «et» for «es»);
-    * ``other_verb``: a form of another verb («est» for «a» in «On a froid»).
+    * ``other_verb``: a form of être for avoir or back («est» for «a» in «On a froid»).
 
     La Forge answered these with the rule card's gloss, and while the solution waited
     the gloss was all that was left (the clause naming the answer is scrubbed).
@@ -446,8 +501,10 @@ def _verb_slip(learner: str, target: str, kind: str) -> dict[str, str] | None:
         return None
     other = _verb_lemma(learner) if kind == "word" else None
     if other and other != lemma and _tense_of(other, a):
-        return {"category": "other_verb", "lemma": lemma, "learner_lemma": other}
-    return {"category": "not_a_form", "lemma": lemma}
+        if {strip_accents(other), strip_accents(lemma)} <= _RULE_VERBS:
+            return {"category": "other_verb", "lemma": lemma, "learner_lemma": other}
+        return None
+    return {"category": "not_a_form", "lemma": lemma} if placed else None
 
 
 def _in_line(sentence: Any, line: Any, word: str, at: Any) -> tuple[Any, Any]:
@@ -517,10 +574,13 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = N
         if noun and gender and not _elided_possessive(shown_learner, shown_target, noun):
             return {"category": kind, "learner": shown_learner, "target": shown_target, "noun": noun, "gender": gender}
         return None
-    subject = _before(context, shown_target, at) if context else None
-    subject = subject if subject and strip_accents(subject) in _SUBJECTS else None
+    # #992 review: the key is a verb by where it stands (its subject pronoun before it),
+    # never because its ending could be an -er form's («Elles sont contentes»).
+    subject = _subject_of(context, shown_target, at, _verb_lemma(shown_target) or "")
     if kind == "person":
         lemma = _verb_lemma(shown_target) or ""
+        if not subject and not (_known_verb(shown_target) and _known_verb(shown_learner)):
+            return None
         # #992: what the form written goes with («veut»: il/elle/on), so the reason stands
         # without the right form while the solution waits.
         tense = _shared_tense(lemma, learner, target) or ""
@@ -535,7 +595,12 @@ def slip_category(ops: list[dict[str, str]], sentence: Any = None, line: Any = N
             "subject": subject or "",
             "persons": ", ".join(_PERSON_SHOWN.get(person, person) for person in persons),
         }
-    verb = _verb_slip(shown_learner, shown_target, str(slips[0].get("kind"))) if kind is None else None
+    known = bool(_known_verb(shown_target) and _known_verb(shown_learner))
+    verb = (
+        _verb_slip(shown_learner, shown_target, str(slips[0].get("kind")), bool(subject))
+        if kind is None and (subject or known)
+        else None
+    )
     if verb:
         category = verb.pop("category")
         if category == "not_a_form" and subject:
