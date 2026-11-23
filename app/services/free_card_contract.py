@@ -109,25 +109,60 @@ def word_floor(current: Any, answers: Iterable[Any]) -> int | None:
 FREE_ROUNDS = frozenset({"sentence", "speak", "conversation"})
 
 
-def model_answer(prompt_payload: Any) -> str:
-    """One acceptable model answer of a free card: its example, else its first
-    accepted answer, said to nobody. ``""`` when the card has none."""
+def _meanings(item: dict[str, Any]) -> list[str]:
+    """What the card asks the learner to say, as the learner read it."""
+
+    meanings = quoted_meanings(item)
+    table = item.get("meaning_l10n")
+    for text in (*(table.values() if isinstance(table, dict) else ()), item.get("meaning")):
+        if isinstance(text, str) and text.strip() and text.strip() not in meanings:
+            meanings.append(text.strip())
+    return meanings
+
+
+def _shared_words(candidate: str, learner_text: str) -> int:
+    words = set(re.findall(r"\w+", learner_text.lower()))
+    return sum(1 for word in re.findall(r"\w+", candidate.lower()) if word in words)
+
+
+def model_answer(prompt_payload: Any, *, learner_text: Any = "") -> str:
+    """One acceptable model answer of a free card, said to nobody. ``""`` when the card
+    has none.
+
+    #968: an answer is served only when it says what the card asked: «On cherche ses
+    carnets.» answers «We look for our notebooks.» with «ses» (his/her), so it is never
+    shown (:func:`app.services.forge_item_validator.possessive_problems`). Of the answers
+    left, the one closest to the learner's own words comes first («cahiers», not
+    «carnets», after «Nous cherchons notre cahiers.»); else the example, then the
+    accepted answers in their order."""
+
+    from app.services.answer_acceptance import addressed_names, strip_vocative
+    from app.services.forge_item_validator import possessive_problems
 
     items = prompt_payload.get("items") if isinstance(prompt_payload, dict) else None
     item = items[0] if isinstance(items, list) and items and isinstance(items[0], dict) else {}
-    candidates = [item.get("example_answer"), *(item.get("accepted_answers") or []), item.get("expected_answer")]
-    from app.services.answer_acceptance import addressed_names, strip_vocative
+    meanings = _meanings(item)
+    answers: list[str] = []
+    for candidate in [item.get("example_answer"), *(item.get("accepted_answers") or []), item.get("expected_answer")]:
+        if not isinstance(candidate, str) or not candidate.strip():
+            continue
+        names = addressed_names(candidate)
+        answer = strip_vocative(candidate, names) if names else candidate.strip()
+        if answer in answers or any(possessive_problems(meaning, answer) for meaning in meanings):
+            continue
+        answers.append(answer)
+    if not answers:
+        return ""
+    learner = str(learner_text or "")
+    return max(answers, key=lambda answer: _shared_words(answer, learner)) if learner.strip() else answers[0]
 
-    for candidate in candidates:
-        if isinstance(candidate, str) and candidate.strip():
-            names = addressed_names(candidate)
-            return strip_vocative(candidate, names) if names else candidate.strip()
-    return ""
 
-
-def with_model_answer(correction: dict[str, Any], *, round_name: Any, prompt_payload: Any) -> dict[str, Any]:
+def with_model_answer(
+    correction: dict[str, Any], *, round_name: Any, prompt_payload: Any, learner_text: Any = ""
+) -> dict[str, Any]:
     """The served correction of a refused free answer whose solution is on screen, with
-    the card's model answer (``model_answer``) so the card can end as seen."""
+    the card's model answer (``model_answer``, nearest ``learner_text``) so the card can
+    end as seen."""
 
     from app.services import solution_gate
 
@@ -140,7 +175,7 @@ def with_model_answer(correction: dict[str, Any], *, round_name: Any, prompt_pay
         return correction
     if str(correction.get("assessment_status") or "") in {"provisional", "unavailable"}:
         return correction
-    answer = model_answer(prompt_payload)
+    answer = model_answer(prompt_payload, learner_text=learner_text)
     if not answer:
         return correction
     return {**correction, "model_answer": answer}

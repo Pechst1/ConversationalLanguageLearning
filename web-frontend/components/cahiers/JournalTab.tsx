@@ -75,6 +75,13 @@ export function cueLine(entry: JournalEntryView | null | undefined, t: JournalCo
   return [when, where || null, who ? fill(t.with, { name: who }) : null].filter(Boolean).join(' · ');
 }
 
+/** The writing field's label: when the scene was, counted the way `cueLine` counts it.
+ *  «Yesterday, in French» under a «2 days ago» label was the 19 Nov walk (#918). */
+export function entryFieldLabel(entry: JournalEntryView | null | undefined, t: JournalCopy = FRENCH_JOURNAL): string {
+  const days = entry?.cue?.days_ago;
+  return days == null || days <= 1 ? t.field_label : fill(t.field_label_days_ago, { n: days });
+}
+
 /** What the field says before the learner writes. It names no one and begins no
  *  sentence: «Hier, Augustin…» was the first words of the answer, which turns
  *  recall into copying (#539). */
@@ -525,7 +532,7 @@ export default function JournalTab() {
             </p>
             <div className="jn-entry-field">
               {textAnswerField({
-                label: t.field_label,
+                label: entryFieldLabel(entry, t),
                 value: draft,
                 placeholder: entryPlaceholder(),
                 rows: 6,

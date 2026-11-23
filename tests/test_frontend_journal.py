@@ -275,7 +275,7 @@ def test_the_story_label_reads_when_where_who(tab: str, french: str):
 
 
 def test_the_entry_field_is_the_shared_control_drawn_150px_tall(tab: str, french: str):
-    assert "label: t.field_label" in tab
+    assert "label: entryFieldLabel(entry, t)" in tab  # #918: «Hier» only when it was yesterday
     assert "field_label: 'Hier, en français'" in french
     assert 'className="jn-entry-field"' in tab
     assert re.search(
