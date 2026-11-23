@@ -199,3 +199,104 @@ def test_a_gap_line_prints_no_english_and_no_cue(prompt, verdict, answer):
         "Tu es malade ? Tu devrais rester au lit.",
         verdict != "correct",
     )
+
+
+#: #927 (walk of 19 Nov): the spot item, its key, and the right variant the learner wrote.
+SPOT_927 = {
+    "id": "t927",
+    "type": "spot",
+    "instruction": "Fix the mistake.",
+    "source": "Vous avez chercher les clés hier.",
+    "source_fr": "Vous avez chercher les clés hier.",
+    "expected_answer": "Vous avez cherché les clés hier.",
+    "accepted_answers": ["Tu as cherché les clés hier."],
+}
+
+
+@pytest.mark.parametrize(
+    ("verdict", "answer", "line"),
+    [
+        ("correct", "Tu as cherché les clés hier.", "Tu as cherché les clés hier."),
+        ("correct", "tu as cherché les clés hier", "Tu as cherché les clés hier."),
+        ("correct", "Vous avez cherché les clés hier.", "Vous avez cherché les clés hier."),
+        ("correct", "cherché", "Vous avez cherché les clés hier."),
+        ("incorrect", "Tu as cherchée les clés hier.", "Vous avez cherché les clés hier."),
+    ],
+    ids=["variant", "variant-typo", "key", "part", "miss"],
+)
+def test_right_rewrite_line(verdict, answer, line):
+    """#927: «Tu as cherché les clés hier.» was right; the sheet listed «Vous avez cherché
+    les clés hier.», a sentence the learner never wrote. A right answer is the accepted line
+    it was read as (the learner's sentence in its authored spelling); a miss shows the key."""
+
+    attempt = SimpleNamespace(
+        correction_payload={"assessment_status": "checked"},
+        verdict=verdict,
+        prompt_payload={"items": [dict(SPOT_927)]},
+        answer_payload={"answers": {"t927": answer}},
+        round="transform",
+        mode="transform",
+    )
+    assert AtelierSRSService._forge_proof_line(attempt) == (line, verdict != "correct"), (
+        f"the end sheet's line for «{answer}» ({verdict})"
+    )
+
+
+def test_right_rewrite_accent_restored():
+    """#927 (23 Nov): a right variant accepted up to an accent is printed as a model, with
+    the accent the judge named."""
+
+    attempt = SimpleNamespace(
+        correction_payload={"assessment_status": "checked"},
+        verdict="correct",
+        prompt_payload={"items": [dict(SPOT_927)]},
+        answer_payload={"answers": {"t927": "Tu as cherché les cles hier."}},
+        round="transform",
+        mode="transform",
+    )
+    assert AtelierSRSService._forge_proof_line(attempt) == ("Tu as cherché les clés hier.", False)
+
+
+@pytest.mark.parametrize(
+    ("verdict", "answer", "line"),
+    [
+        ("correct", "etes", "Avant-hier, vous êtes arrivés en retard."),
+        ("correct", "êtes", "Avant-hier, vous êtes arrivés en retard."),
+        ("incorrect", "avez", "Avant-hier, vous êtes arrivés en retard."),
+    ],
+    ids=["accent-slip", "exact", "miss"],
+)
+def test_right_gap_accent_restored(verdict, answer, line):
+    """#927 (walk of 23 Nov): «Still practising: Avant-hier, vous etes arrivés en retard.»
+    The typed gap was right up to its accent («Right — watch the accent: «êtes».»), and the
+    sheet printed the learner's «etes» as the model line."""
+
+    item = {"id": "g", "prompt": "Avant-hier, vous ___ arrivés en retard.", "correct_answer": "êtes"}
+    attempt = SimpleNamespace(
+        correction_payload={"assessment_status": "checked"},
+        verdict=verdict,
+        prompt_payload={"items": [item]},
+        answer_payload={"answers": {"g": answer}},
+        round="recognize",
+        mode="fill",
+    )
+    assert AtelierSRSService._forge_proof_line(attempt) == (line, verdict != "correct"), (
+        f"the end sheet's line for «{answer}» ({verdict})"
+    )
+
+
+def test_right_variant_is_the_corrected_line():
+    """#927: the corrector records a right variant as the line it accepted, not the key,
+    and its accent note names that line («watch the accent» on a sentence never written
+    was the same flaw)."""
+
+    from app.services.atelier import AtelierCorrectionService
+
+    correction = AtelierCorrectionService(None)._correct_transform_rule_based(
+        None, {"items": [dict(SPOT_927)]}, {"answers": {"t927": "Tu as cherché les cles hier."}}
+    )
+    assert correction["verdict"] == "correct"
+    assert correction["corrected_answer"] == {"t927": "Tu as cherché les clés hier."}, (
+        "the corrector filed the key «Vous avez cherché les clés hier.» for the learner's right «Tu as …»"
+    )
+    assert [note["corrected_target"] for note in correction["accent_notes"]] == ["Tu as cherché les clés hier."]
