@@ -38,7 +38,9 @@ import type {
   StepKind,
   TaskOutcome,
   TodayEnvelope,
+  DaySession,
 } from '@/types/daily-journey';
+import { dayStepOf } from '@/lib/day-plan';
 
 // ---------------------------------------------------------------------------
 // Phase
@@ -482,13 +484,27 @@ export function stepPositionOnScreen(journey: JourneySnapshot | null): number | 
  * composing French and helps no decision mid-scene. The estimate stays where it
  * helps choose — on the Today card, before starting — and the header shows
  * where the learner is, which nothing but the learner's own «Continuer» moves.
+ *
+ * #143: with the day's plan (`TodayEnvelope.session`) the number is the plan's —
+ * the scene is one step of the day (Szene, Grammatik, Wörter, Fertig), the same
+ * count Home lists and its mark draws. Counting the scene's own steps made the
+ * header jump past the ending read full-screen («2 von 4» → «4 von 4») and read
+ * «7 von 7 · Szene beendet» with La Forge and the words still ahead. Progress
+ * inside the scene is the rail's tokens. The scene's own count stands only when
+ * no plan came (an older server).
  */
 export function journeyHeaderCaption(
   journey: JourneySnapshot | null,
   stepOf: (position: number, total: number) => string,
   part?: string,
+  plan?: DaySession | null,
 ): string | undefined {
   if (!journey || journey.steps.length === 0) return undefined;
+  const inDay = dayStepOf(plan, 'scene');
+  if (inDay) {
+    const label = stepOf(inDay.position, inDay.total);
+    return part ? `${part} · ${label}` : label;
+  }
   // #143: a missed drill asked once more is not a step of its own. Counting it
   // made the total grow mid-day («4 of 9 → 4 of 10»); it keeps the number of
   // the last step before it, and the drill names it («Once more»).

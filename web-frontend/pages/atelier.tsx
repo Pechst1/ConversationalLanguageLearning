@@ -140,13 +140,12 @@ import {
   daySessionCopy,
   homeDayChip,
   recapStreak,
-  sessionMarkState,
   homeNextAction,
   plannedPapier,
   sessionRows,
   withScenePlayed,
 } from '@/lib/day-session';
-import { dayIsDone, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
+import { dayIsDone, dayMarkOf, handOnAfterGrammar, ruleCheckExitFromDay, ruleCheckIsFromDay, ruleCheckPath } from '@/lib/day-plan';
 import { todayInterlude } from '@/components/atelier-v2/journey/season-return-model';
 import type { ControlLanguage, DaySession, JourneySnapshot, TodayEnvelope } from '@/types/daily-journey';
 import { ExerciseShell } from '@/components/ui/ExerciseShell';
@@ -2950,7 +2949,8 @@ function TodayView({
   // P12: a scene played (as pages or in Le Quartier) is done on the tracker while the journey's
   // own steps go on; the button stays the journey card's «Continue today» meanwhile.
   const daySession = withScenePlayed(serverSession, dayJourney);
-  const homeDay = daySession ? sessionMarkState(daySession, chromeLanguage) : journeyDay;
+  // #143: one reader of the mark, the session header's too (`dayMarkOf`).
+  const homeDay = journeyDay ? dayMarkOf(serverSession, dayJourney, chromeLanguage) : null;
   const [tempoOpen, setTempoOpen] = useState(false);
   /**
    * WP-81 — Home does one thing. While the journey owns the day, Home is the
