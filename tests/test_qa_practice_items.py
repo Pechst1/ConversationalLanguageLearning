@@ -113,7 +113,7 @@ def test_a_wrong_unscramble_is_corrected_with_the_sentence_and_where_it_went_wro
     # The words the learner placed, never tile ids.
     assert "tile_" not in correction.span_fr and correction.span_fr.startswith("d'Odile,")
     assert correction.note_native == (
-        "Der Satz beginnt nicht mit „d'Odile,“."
+        "„d'Odile,“ gehört nicht an den Anfang."
     )
     # And it survives the public filter the attempt response goes through.
     shown = DailyJourneyService._public_correction(

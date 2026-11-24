@@ -43,7 +43,7 @@ const withheld = {
     kind: 'pick',
     span_fr: 'Il pleut.',
     corrected_fr: '',
-    note_native: 'Nicht diese. Sieh dir die Regel noch einmal an und wähle neu.',
+    note_native: 'Nicht diese. Sieh dir die Regel noch einmal an, bevor die Aufgabe wiederkommt.',
     notes_native: [],
     solution: { state: 'withheld' },
   },
@@ -98,6 +98,40 @@ test('after the retry the sheet shows the solution as before', () => {
   assert.ok(html.includes(de.correction_pick));
   assert.ok(html.includes(RIGHT));
   assert.ok(!html.includes(de.drill_solution_later));
+});
+
+// #1024 (live walk 23 Nov): a missed word item said «Not this one. Look at the rule again
+// and choose once more.» under locked choices. The server's lines for a withheld word
+// pick (app/services/learner_copy.py, journey.withheld.word_choice), pinned per language.
+const WORD_MISS = {
+  en: 'Not this one: think again about what «regarder» means.',
+  de: 'Nicht diese: Überleg noch einmal, was „regarder“ bedeutet.',
+  fr: 'Pas celle-ci : repense à ce que veut dire « regarder ».',
+};
+const RULE_WORDING = { en: /\brule\b/i, de: /\bRegel\b/i, fr: /\brègle\b/i };
+const CHOOSE_NOW = { en: /choose once more|choose again/i, de: /wähle neu|wähle noch/i, fr: /choisis à nouveau|choisis encore/i };
+
+test('a withheld word miss names the word, never a rule, and promises no choice while the cards are locked', () => {
+  for (const language of ['en', 'de', 'fr']) {
+    const result = {
+      ...miss,
+      correction: {
+        kind: 'meaning',
+        span_fr: 'to hate',
+        corrected_fr: '',
+        note_native: WORD_MISS[language],
+        notes_native: [],
+        solution: { state: 'withheld' },
+      },
+    };
+    const html = sheet(result, language);
+    const text = html.replace(/<[^>]+>/g, ' ');
+    assert.ok(html.includes('data-solution="withheld"'), language);
+    assert.ok(text.includes('regarder'), `${language}: the word task is named`);
+    assert.ok(!RULE_WORDING[language].test(text), `${language}: a word item has no rule: ${text}`);
+    assert.ok(!CHOOSE_NOW[language].test(text), `${language}: no choice is promised now: ${text}`);
+    assert.ok(text.includes(journeyCopy(language).drill_solution_later), `${language}: it comes back later`);
+  }
 });
 
 test('every new line exists in en, de and fr', () => {
