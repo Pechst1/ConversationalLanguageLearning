@@ -43,7 +43,7 @@ test('step 2: each Montage builds its rule card, one tap at a time', () => {
     'Ce matin, Marin s’a réveillé.',
     'Ce matin, Marin s’est réveillé.',
     'Ce matin, Lila s’est réveillé.',
-    'Ce matin, Romy et Margaux se sont réveillé.',
+    'Ce matin, Lila et Margaux se sont réveillé.',
   ]);
   const pronominal = montageFor('FR2_A21_PC_PRONOMINAL');
   assert.equal(pronominal.beats[2].thread.prints.text, 'réveillé[e]');
@@ -60,11 +60,11 @@ test('step 2: each Montage builds its rule card, one tap at a time', () => {
     'Gus n’est jamais parti.',
   ]);
   assert.deepEqual(sentences('FR2_A21_COD'), [
-    'Romy regarde le film.',
-    'Romy le regarde.',
-    'Romy la regarde.',
-    'Romy les regarde.',
-    'Romy l’adore.',
+    'Lila regarde le film.',
+    'Lila le regarde.',
+    'Lila la regarde.',
+    'Lila les regarde.',
+    'Lila l’adore.',
   ]);
   // The object pronoun stays in the present, as its card does: no participle to agree.
   assert.ok(montageFor('FR2_A21_COD').beats.every((beat) => !beat.thread));
@@ -99,18 +99,18 @@ test('step 3: each Montage builds its rule card, one tap at a time', () => {
   ]);
   assert.deepEqual(sentencesOf('FR2_A11_POSSESSIVES'), [
     'Gus cherche son téléphone.',
-    'Romy cherche son téléphone.',
-    'Romy cherche sa clé.',
-    'Romy cherche ses clés.',
-    'Romy cherche sa adresse.',
-    'Romy cherche son adresse.',
+    'Lila cherche son téléphone.',
+    'Lila cherche sa clé.',
+    'Lila cherche ses clés.',
+    'Lila cherche sa adresse.',
+    'Lila cherche son adresse.',
   ]);
   assert.deepEqual(sentencesOf('FR2_A12_FUTUR_PROCHE'), [
-    'Ce soir, Romy dîne chez Margaux.',
-    'Ce soir, Romy va dîne chez Margaux.',
-    'Ce soir, Romy va dîner chez Margaux.',
-    'Ce soir, Gus et Romy vont dîner chez Margaux.',
-    'Ce soir, Gus et Romy ne vont pas dîner chez Margaux.',
+    'Ce soir, Lila dîne chez Margaux.',
+    'Ce soir, Lila va dîne chez Margaux.',
+    'Ce soir, Lila va dîner chez Margaux.',
+    'Ce soir, Gus et Lila vont dîner chez Margaux.',
+    'Ce soir, Gus et Lila ne vont pas dîner chez Margaux.',
   ]);
   assert.deepEqual(sentencesOf('FR2_A11_PARTITIVE'), [
     'Margaux aime le pain.',
@@ -124,7 +124,7 @@ test('step 3: each Montage builds its rule card, one tap at a time', () => {
     'Hier, Gus a manger une pizza.',
     'Hier, Gus a mangé une pizza.',
     'Hier, Gus a fini le projet.',
-    'Hier, Gus a attendu Romy.',
+    'Hier, Gus a attendu Lila.',
     'Hier, Gus a pris le train.',
   ]);
   assert.deepEqual(sentencesOf('FR2_A21_COI'), [
@@ -177,14 +177,14 @@ test('no ask gives its answer away in French', () => {
   }));
 });
 
-test('five taps build the rule on Gus and Romy', () => {
+test('five taps build the rule on Gus and Lila', () => {
   assert.equal(montageSentence(script.start), 'Hier, Gus ___ mangé.');
   assert.deepEqual(script.beats.map((beat) => montageSentence(beat.then)), [
     'Hier, Gus a mangé.',
     'Hier, Gus a parti.',
     'Hier, Gus est parti.',
-    'Hier, Romy est parti.',
-    'Hier, Romy a mangé.',
+    'Hier, Lila est parti.',
+    'Hier, Lila a mangé.',
   ]);
   const prints = script.beats[3].thread.prints;
   assert.equal(prints.text, 'parti[e]');
@@ -221,8 +221,8 @@ test('every line exists in all three languages', () => {
 test('the examples are about people in the cast, and the agreement is right', () => {
   assert.deepEqual(script.examples.map((example) => example.fr), [
     'Gus [est] parti à huit heures.',
-    'Romy [est] parti[e] à huit heures.',
-    'Romy [a] mangé au Mistral.',
+    'Lila [est] parti[e] à huit heures.',
+    'Lila [a] mangé au Mistral.',
   ]);
   const coaches = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, '..', 'app/data/forge_coaches.json'), 'utf8')).cast;
   scripts.forEach((each) => {
@@ -231,6 +231,55 @@ test('the examples are about people in the cast, and the agreement is right', ()
     assert.equal(each.examples.length, 3);
     each.examples.forEach((example) => assert.match(example.fr, /\[[^\]]+\]/, 'an example marks its rule'));
   });
+});
+
+// #1030: «Now Romy. Tap her.» on day 2, before the story has put Romy on a page. Who a learner has
+// met is the cast page's rule (`cast_registry.met_ids`: everyone whose first page the season has
+// reached, `introduced_by` on the registry's `first_day`, exported as `CAST[id].firstDay`). A
+// Montage is data in the browser, with no thread to read, and it can open on the learner's first
+// Forge: so it names only people every learner has met on day 1's page.
+const { CAST } = require('./generated/cast.ts');
+const introducedBy = (id, tentpole, day) => {
+  const [t, d] = CAST[id].firstDay;
+  return t < tentpole || (t === tentpole && d <= day);
+};
+const metBy = (tentpole, day) => Object.keys(CAST).filter((id) => introducedBy(id, tentpole, day));
+// Every person a Montage puts on screen: as a face, and spelled in any line, tile or sentence.
+const namedIn = (each) => {
+  const people = [each.subject, ...each.examples.map((example) => example.cast), ...each.beats.flatMap((beat) => [beat.subject, beat.tap.cast].filter(Boolean))];
+  const text = [
+    ...each.start.map((token) => token.text),
+    ...each.beats.flatMap((beat) => [
+      ...beat.then.map((token) => token.text),
+      ...Object.values(beat.ask),
+      ...Object.values(beat.say ?? {}),
+      beat.tap.label ?? '',
+      beat.thread?.prints?.text ?? '',
+    ]),
+    ...each.examples.map((example) => example.fr),
+  ].join(' \n ');
+  const spelled = Object.values(CAST).filter((person) => [person.name, person.spokenName, ...person.spellings]
+    .filter((spelling) => /^\p{Lu}/u.test(spelling))
+    .some((spelling) => new RegExp(`(^|[^\\p{L}])${spelling.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'u').test(text)));
+  return [...new Set([...people.map((cast) => cast.id), ...spelled.map((person) => person.id)])];
+};
+
+test('#1030: on the A2 path day 2 the learner has met five people, and the être Montage names only them', () => {
+  // Day 2 is tentpole 1, its second day: the five the cast page lists.
+  assert.deepEqual(metBy(1, 'b').map((id) => CAST[id].name).sort(), ['Camille', 'Gus', 'Lila', 'Margaux', 'Marin']);
+  const met = new Set(metBy(1, 'b'));
+  const named = namedIn(montageFor('FR2_A21_PC_ETRE'));
+  named.forEach((id) => assert.ok(met.has(id), `the être Montage names ${CAST[id].name}, not met by day 2`));
+  assert.ok(!named.includes('romy_tremblay'), 'no «Romy» on day 2');
+  const shown = [...[script.start, ...script.beats.map((beat) => beat.then)].map(montageSentence), ...script.beats.map((beat) => beat.ask.en)];
+  assert.doesNotMatch(shown.join(' '), /Romy/);
+});
+
+test('#1030: every Montage names only people the learner has met on day 1', () => {
+  const met = new Set(metBy(1, 'a'));
+  scripts.forEach((each) => namedIn(each).forEach((id) => {
+    assert.ok(met.has(id), `${each.unit} names ${CAST[id].name}, whose first page is day ${CAST[id].firstDay.join('')}`);
+  }));
 });
 
 test('with no storage it has not been seen', () => {

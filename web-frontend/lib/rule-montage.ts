@@ -3,18 +3,19 @@
  * sentence about people the learner knows, instead of read off a card. A beat is data: what is
  * asked, what is tapped, the sentence the tap makes and the line that then explains it.
  *
- * The subject is a member of the cast on purpose: «Gus» then «Romy» says why the ending changes
+ * The subject is a member of the cast on purpose: «Gus» then «Lila» says why the ending changes
  * without a word about grammatical gender. `[…]` marks what carries the rule, as on the rule card.
  */
 
 import { castDisplayName } from '@/lib/cast-faces';
+import type { CastPersonId } from '@/lib/generated/cast';
 import type { ControlLanguage } from '@/types/daily-journey';
 
 export type MontageLine = Record<ControlLanguage, string>;
 export type MontageCast = { id: string; name: string };
 
 /** A person of the cast, named as the registry names them (#147: no second table of names here). */
-function castOf(id: string): MontageCast {
+function castOf(id: CastPersonId): MontageCast {
   return { id, name: castDisplayName(id) ?? id };
 }
 
@@ -61,13 +62,23 @@ export type RuleMontageScript = {
   examples: Array<{ cast: MontageCast; fr: string }>;
 };
 
+/* Who a Montage may name (#1030). The server lists a person once this learner has met them
+   (`cast_registry.met_ids`, the cast page's rule), but a Montage is data in the browser with no
+   thread to read, and it can open on the learner's first Forge. So it names only the people every
+   learner meets on day 1's page (registry `first_day` 1a): Gus, Lila, Marin and Margaux. Romy
+   (4a) and Camille (1b) wait for the story to bring them; rule-montage.test.js holds every line,
+   tile, sentence and face to this. */
 const GUS = castOf('augustin_de_roncourt');
-const ROMY = castOf('romy_tremblay');
+const LILA = castOf('lila_bonnet');
+const MARIN = castOf('marin_leveque');
+const MARGAUX = castOf('margaux_barman');
 
 const HIER: MontageToken = { k: 'hier', text: 'Hier,' };
 const STOP: MontageToken = { k: 'stop', text: '.' };
 const S_GUS: MontageToken = { k: 's-gus', text: GUS.name };
-const S_ROMY: MontageToken = { k: 's-romy', text: ROMY.name };
+const S_LILA: MontageToken = { k: 's-lila', text: LILA.name };
+const S_MARIN: MontageToken = { k: 's-marin', text: MARIN.name };
+const S_MARGAUX: MontageToken = { k: 's-margaux', text: MARGAUX.name };
 const MANGE: MontageToken = { k: 'v-mange', text: 'mangé', tight: true };
 const PARTI: MontageToken = { k: 'v-parti', text: 'parti', tight: true };
 
@@ -120,14 +131,14 @@ const PC_ETRE: RuleMontageScript = {
     },
     {
       ask: {
-        en: 'Now Romy. Tap her.',
-        de: 'Jetzt Romy. Tippe auf sie.',
-        fr: 'Maintenant, Romy. Touche-la.',
+        en: 'Now Lila. Tap her.',
+        de: 'Jetzt Lila. Tippe auf sie.',
+        fr: 'Maintenant, Lila. Touche-la.',
       },
-      tap: { kind: 'cast', cast: ROMY },
-      then: [HIER, S_ROMY, { k: 'h-est', text: '[est]' }, PARTI, STOP],
-      subject: ROMY,
-      thread: { through: ['s-romy', 'h-est', 'v-parti'], prints: { k: 'v-parti', text: 'parti[e]' } },
+      tap: { kind: 'cast', cast: LILA },
+      then: [HIER, S_LILA, { k: 'h-est', text: '[est]' }, PARTI, STOP],
+      subject: LILA,
+      thread: { through: ['s-lila', 'h-est', 'v-parti'], prints: { k: 'v-parti', text: 'parti[e]' } },
       say: {
         en: 'With être, the participle follows the subject.',
         de: 'Mit être richtet sich das Partizip nach dem Subjekt.',
@@ -142,8 +153,8 @@ const PC_ETRE: RuleMontageScript = {
         fr: 'Retour à manger.',
       },
       tap: { kind: 'tile', label: 'manger' },
-      then: [HIER, S_ROMY, { k: 'h-a2', text: '[a]' }, { ...MANGE, k: 'v-mange2' }, STOP],
-      thread: { through: ['s-romy', 'h-a2'], blocked: true },
+      then: [HIER, S_LILA, { k: 'h-a2', text: '[a]' }, { ...MANGE, k: 'v-mange2' }, STOP],
+      thread: { through: ['s-lila', 'h-a2'], blocked: true },
       say: {
         en: 'With avoir, it does not.',
         de: 'Mit avoir nicht.',
@@ -154,13 +165,10 @@ const PC_ETRE: RuleMontageScript = {
   ],
   examples: [
     { cast: GUS, fr: 'Gus [est] parti à huit heures.' },
-    { cast: ROMY, fr: 'Romy [est] parti[e] à huit heures.' },
-    { cast: ROMY, fr: 'Romy [a] mangé au Mistral.' },
+    { cast: LILA, fr: 'Lila [est] parti[e] à huit heures.' },
+    { cast: LILA, fr: 'Lila [a] mangé au Mistral.' },
   ],
 };
-
-const LILA = castOf('lila_bonnet');
-const MARIN = castOf('marin_leveque');
 
 /* Step 2 (owner's approval of 10 November 2026): three more rules of the same family, each held to
    its rule card. The pronominal and the negation build on the pilot's être; the object pronoun
@@ -220,14 +228,14 @@ const PC_PRONOMINAL: RuleMontageScript = {
     },
     {
       ask: {
-        en: 'Now Romy and Margaux.',
-        de: 'Jetzt Romy und Margaux.',
-        fr: 'Maintenant, Romy et Margaux.',
+        en: 'Now Lila and Margaux.',
+        de: 'Jetzt Lila und Margaux.',
+        fr: 'Maintenant, Lila et Margaux.',
       },
-      tap: { kind: 'tile', label: 'Romy et Margaux' },
-      then: [MATIN, { k: 's-pl', text: 'Romy et Margaux' }, { k: 'se2', text: '[se]' }, { k: 'h-sont', text: '[sont]' }, { k: 'v-reveille2', text: 'réveillé', tight: true }, STOP],
+      tap: { kind: 'tile', label: 'Lila et Margaux' },
+      then: [MATIN, { k: 's-pl', text: 'Lila et Margaux' }, { k: 'se2', text: '[se]' }, { k: 'h-sont', text: '[sont]' }, { k: 'v-reveille2', text: 'réveillé', tight: true }, STOP],
       flyInto: 's-pl',
-      subject: ROMY,
+      subject: MARGAUX,
       thread: { through: ['s-pl', 'se2', 'h-sont', 'v-reveille2'], prints: { k: 'v-reveille2', text: 'réveillé[es]' } },
       say: {
         en: 'Two women: se sont, and -es.',
@@ -240,7 +248,7 @@ const PC_PRONOMINAL: RuleMontageScript = {
   examples: [
     { cast: LILA, fr: 'Hier, Lila [s’est] couché[e] tard.' },
     { cast: MARIN, fr: 'Marin [s’est] levé à six heures.' },
-    { cast: ROMY, fr: 'Romy et Margaux [se sont] réveillé[es] tôt.' },
+    { cast: MARGAUX, fr: 'Lila et Margaux [se sont] réveillé[es] tôt.' },
   ],
 };
 
@@ -319,14 +327,14 @@ const PC_NEGATION: RuleMontageScript = {
   examples: [
     { cast: MARIN, fr: 'Désolé, je [n’]ai [pas] reçu ton message.' },
     { cast: GUS, fr: 'Hier, Gus [n’]est [pas] parti.' },
-    { cast: ROMY, fr: 'Romy [n’]a [jamais] pris l’avion.' },
+    { cast: MARGAUX, fr: 'Margaux [n’]a [jamais] pris l’avion.' },
   ],
 };
 
 const COD: RuleMontageScript = {
   unit: 'FR2_A21_COD',
-  subject: ROMY,
-  start: [S_ROMY, { k: 'v-regarde', text: 'regarde' }, { k: 'o-film', text: 'le film', tight: true }, STOP],
+  subject: LILA,
+  start: [S_LILA, { k: 'v-regarde', text: 'regarde' }, { k: 'o-film', text: 'le film', tight: true }, STOP],
   beats: [
     {
       ask: {
@@ -335,7 +343,7 @@ const COD: RuleMontageScript = {
         fr: 'Le film vient juste après le verbe. Touche-le.',
       },
       tap: { kind: 'token', k: 'o-film' },
-      then: [S_ROMY, { k: 'p-le', text: '[le]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
+      then: [S_LILA, { k: 'p-le', text: '[le]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
       say: {
         en: 'It becomes le, and le goes before the verb.',
         de: 'Daraus wird le, und le steht vor dem Verb.',
@@ -350,7 +358,7 @@ const COD: RuleMontageScript = {
         fr: 'Maintenant, la série. Touche-la.',
       },
       tap: { kind: 'tile', label: 'la série' },
-      then: [S_ROMY, { k: 'p-la', text: '[la]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
+      then: [S_LILA, { k: 'p-la', text: '[la]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
       flyInto: 'p-la',
       say: { en: 'Feminine: la.', de: 'Weiblich: la.', fr: 'Au féminin : la.' },
       hold: 1300,
@@ -362,7 +370,7 @@ const COD: RuleMontageScript = {
         fr: 'Maintenant, les infos. Touche-les.',
       },
       tap: { kind: 'tile', label: 'les infos' },
-      then: [S_ROMY, { k: 'p-les', text: '[les]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
+      then: [S_LILA, { k: 'p-les', text: '[les]' }, { k: 'v-regarde', text: 'regarde', tight: true }, STOP],
       flyInto: 'p-les',
       say: { en: 'Plural: les.', de: 'Plural: les.', fr: 'Au pluriel : les.' },
       hold: 1300,
@@ -374,7 +382,7 @@ const COD: RuleMontageScript = {
         fr: 'Retour au film, avec adorer. Touche-le.',
       },
       tap: { kind: 'tile', label: 'adorer' },
-      then: [S_ROMY, { k: 'p-l', text: '[l’]', tight: true }, { k: 'v-adore', text: 'adore', tight: true }, STOP],
+      then: [S_LILA, { k: 'p-l', text: '[l’]', tight: true }, { k: 'v-adore', text: 'adore', tight: true }, STOP],
       say: {
         en: 'Before a vowel, le and la become l’.',
         de: 'Vor einem Vokal werden le und la zu l’.',
@@ -385,7 +393,7 @@ const COD: RuleMontageScript = {
   ],
   examples: [
     { cast: MARIN, fr: 'Le rapport ? Je [le] finis ce soir.' },
-    { cast: ROMY, fr: 'La série ? Romy [la] regarde le soir.' },
+    { cast: LILA, fr: 'La série ? Lila [la] regarde le soir.' },
     { cast: GUS, fr: 'Ses clés ? Gus [les] cherche partout.' },
   ],
 };
@@ -394,11 +402,6 @@ const COD: RuleMontageScript = {
    can see in the sentence. Each stays inside its rule card; the one wrong sentence on the way is the
    card's own contrast, struck and tapped away. */
 
-const MARGAUX = castOf('margaux_barman');
-
-const S_LILA: MontageToken = { k: 's-lila', text: LILA.name };
-const S_MARIN: MontageToken = { k: 's-marin', text: MARIN.name };
-const S_MARGAUX: MontageToken = { k: 's-margaux', text: MARGAUX.name };
 
 const ADJ_AGREEMENT: RuleMontageScript = {
   unit: 'FR2_A11_ADJ_AGREEMENT',
@@ -459,7 +462,7 @@ const ADJ_AGREEMENT: RuleMontageScript = {
   ],
   examples: [
     { cast: LILA, fr: 'Lila a une petit[e] table blanch[e].' },
-    { cast: ROMY, fr: 'Romy porte une veste noir[e].' },
+    { cast: MARGAUX, fr: 'Margaux porte une veste noir[e].' },
     { cast: GUS, fr: 'Gus a deux chat[s] noir[s].' },
   ],
 };
@@ -519,7 +522,7 @@ const NEGATION: RuleMontageScript = {
   examples: [
     { cast: MARGAUX, fr: 'Je [ne] bois [pas] [de] café le soir.' },
     { cast: GUS, fr: 'Gus [n’]aime [pas] le thé.' },
-    { cast: ROMY, fr: 'Romy [n’]a [pas] [de] voiture.' },
+    { cast: LILA, fr: 'Lila [n’]a [pas] [de] voiture.' },
   ],
 };
 
@@ -566,7 +569,7 @@ const CONTRACTIONS: RuleMontageScript = {
   ],
   examples: [
     { cast: MARIN, fr: 'Marin rentre [du] bureau à sept heures.' },
-    { cast: ROMY, fr: 'Romy va [au] cinéma ce soir.' },
+    { cast: LILA, fr: 'Lila va [au] cinéma ce soir.' },
     { cast: GUS, fr: 'Gus parle [aux] voisins.' },
   ],
 };
@@ -579,11 +582,11 @@ const POSSESSIVES: RuleMontageScript = {
   start: [S_GUS, CHERCHE, { k: 'p-son', text: 'son' }, { k: 'n-tel', text: 'téléphone', tight: true }, STOP],
   beats: [
     {
-      ask: { en: 'Now it is Romy’s phone. Tap her.', de: 'Jetzt ist es Romys Handy. Tippe auf sie.', fr: 'Maintenant, c’est le téléphone de Romy. Touche-la.' },
-      tap: { kind: 'cast', cast: ROMY },
-      then: [S_ROMY, CHERCHE, { k: 'p-son', text: 'son' }, { k: 'n-tel', text: 'téléphone', tight: true }, STOP],
-      subject: ROMY,
-      thread: { through: ['s-romy', 'p-son'], blocked: true },
+      ask: { en: 'Now it is Lila’s phone. Tap her.', de: 'Jetzt ist es Lilas Handy. Tippe auf sie.', fr: 'Maintenant, c’est le téléphone de Lila. Touche-la.' },
+      tap: { kind: 'cast', cast: LILA },
+      then: [S_LILA, CHERCHE, { k: 'p-son', text: 'son' }, { k: 'n-tel', text: 'téléphone', tight: true }, STOP],
+      subject: LILA,
+      thread: { through: ['s-lila', 'p-son'], blocked: true },
       say: {
         en: 'Still son: the owner does not decide.',
         de: 'Immer noch son: Der Besitzer entscheidet nicht.',
@@ -594,7 +597,7 @@ const POSSESSIVES: RuleMontageScript = {
     {
       ask: { en: 'Now her key. Tap clé.', de: 'Jetzt ihr Schlüssel. Tippe auf clé.', fr: 'Maintenant, la clé. Touche clé.' },
       tap: { kind: 'tile', label: 'clé' },
-      then: [S_ROMY, CHERCHE, { k: 'p-sa', text: '[sa]' }, { k: 'n-cle', text: 'clé', tight: true }, STOP],
+      then: [S_LILA, CHERCHE, { k: 'p-sa', text: '[sa]' }, { k: 'n-cle', text: 'clé', tight: true }, STOP],
       flyInto: 'n-cle',
       say: { en: 'The thing decides: clé is feminine, so sa.', de: 'Die Sache entscheidet: clé ist weiblich, also sa.', fr: 'La chose décide : clé est féminin, donc sa.' },
       hold: 1700,
@@ -602,7 +605,7 @@ const POSSESSIVES: RuleMontageScript = {
     {
       ask: { en: 'All her keys. Tap clés.', de: 'Alle ihre Schlüssel. Tippe auf clés.', fr: 'Toutes les clés. Touche clés.' },
       tap: { kind: 'tile', label: 'clés' },
-      then: [S_ROMY, CHERCHE, { k: 'p-ses', text: '[ses]' }, { k: 'n-cles', text: 'clés', tight: true }, STOP],
+      then: [S_LILA, CHERCHE, { k: 'p-ses', text: '[ses]' }, { k: 'n-cles', text: 'clés', tight: true }, STOP],
       flyInto: 'n-cles',
       say: { en: 'Plural: ses.', de: 'Plural: ses.', fr: 'Au pluriel : ses.' },
       hold: 1300,
@@ -610,7 +613,7 @@ const POSSESSIVES: RuleMontageScript = {
     {
       ask: { en: 'Now her address. Tap adresse.', de: 'Jetzt ihre Adresse. Tippe auf adresse.', fr: 'Maintenant, l’adresse. Touche adresse.' },
       tap: { kind: 'tile', label: 'adresse' },
-      then: [S_ROMY, CHERCHE, { k: 'p-sa2', text: 'sa', off: true }, { k: 'n-adresse', text: 'adresse', tight: true }, STOP],
+      then: [S_LILA, CHERCHE, { k: 'p-sa2', text: 'sa', off: true }, { k: 'n-adresse', text: 'adresse', tight: true }, STOP],
       flyInto: 'n-adresse',
       wobble: 'p-sa2',
       hold: 0,
@@ -618,7 +621,7 @@ const POSSESSIVES: RuleMontageScript = {
     {
       ask: { en: 'Sa before a vowel does not fit. Tap it.', de: 'Sa vor einem Vokal passt nicht. Tippe darauf.', fr: 'Sa devant une voyelle ne va pas. Touche-le.' },
       tap: { kind: 'token', k: 'p-sa2' },
-      then: [S_ROMY, CHERCHE, { k: 'p-son2', text: '[son]' }, { k: 'n-adresse', text: 'adresse', tight: true }, STOP],
+      then: [S_LILA, CHERCHE, { k: 'p-son2', text: '[son]' }, { k: 'n-adresse', text: 'adresse', tight: true }, STOP],
       say: {
         en: 'Feminine, but before a vowel: son.',
         de: 'Weiblich, aber vor einem Vokal: son.',
@@ -630,7 +633,7 @@ const POSSESSIVES: RuleMontageScript = {
   examples: [
     { cast: LILA, fr: '[Mon] frère et [ma] sœur arrivent ce soir.' },
     { cast: GUS, fr: 'Gus cherche [sa] clé et [son] téléphone.' },
-    { cast: ROMY, fr: 'Romy a oublié [ses] lunettes.' },
+    { cast: MARGAUX, fr: 'Margaux a oublié [ses] lunettes.' },
   ],
 };
 
@@ -639,13 +642,13 @@ const CHEZ: MontageToken = { k: 'chez', text: 'chez Margaux', tight: true };
 
 const FUTUR_PROCHE: RuleMontageScript = {
   unit: 'FR2_A12_FUTUR_PROCHE',
-  subject: ROMY,
-  start: [SOIR, S_ROMY, { k: 'v-dine', text: 'dîne' }, CHEZ, STOP],
+  subject: LILA,
+  start: [SOIR, S_LILA, { k: 'v-dine', text: 'dîne' }, CHEZ, STOP],
   beats: [
     {
       ask: { en: 'It is a plan. Tap aller.', de: 'Es ist ein Plan. Tippe auf aller.', fr: 'C’est un projet. Touche aller.' },
       tap: { kind: 'tile', label: 'aller' },
-      then: [SOIR, S_ROMY, { k: 'h-va', text: '[va]' }, { k: 'v-dine', text: 'dîne', off: true }, CHEZ, STOP],
+      then: [SOIR, S_LILA, { k: 'h-va', text: '[va]' }, { k: 'v-dine', text: 'dîne', off: true }, CHEZ, STOP],
       flyInto: 'h-va',
       wobble: 'v-dine',
       hold: 0,
@@ -653,7 +656,7 @@ const FUTUR_PROCHE: RuleMontageScript = {
     {
       ask: { en: 'The second verb no longer fits. Tap it.', de: 'Das zweite Verb passt nicht mehr. Tippe darauf.', fr: 'Le deuxième verbe ne va plus. Touche-le.' },
       tap: { kind: 'token', k: 'v-dine' },
-      then: [SOIR, S_ROMY, { k: 'h-va', text: '[va]' }, { k: 'v-diner', text: '[dîner]' }, CHEZ, STOP],
+      then: [SOIR, S_LILA, { k: 'h-va', text: '[va]' }, { k: 'v-diner', text: '[dîner]' }, CHEZ, STOP],
       say: {
         en: 'Aller + the infinitive: what is going to happen.',
         de: 'Aller + Infinitiv: was gleich passiert.',
@@ -662,9 +665,9 @@ const FUTUR_PROCHE: RuleMontageScript = {
       hold: 1700,
     },
     {
-      ask: { en: 'Gus comes too. Tap Gus et Romy.', de: 'Gus kommt mit. Tippe auf Gus et Romy.', fr: 'Gus vient aussi. Touche Gus et Romy.' },
-      tap: { kind: 'tile', label: 'Gus et Romy' },
-      then: [SOIR, { k: 's-pl', text: 'Gus et Romy' }, { k: 'h-vont', text: '[vont]' }, { k: 'v-diner', text: 'dîner' }, CHEZ, STOP],
+      ask: { en: 'Gus comes too. Tap Gus et Lila.', de: 'Gus kommt mit. Tippe auf Gus et Lila.', fr: 'Gus vient aussi. Touche Gus et Lila.' },
+      tap: { kind: 'tile', label: 'Gus et Lila' },
+      then: [SOIR, { k: 's-pl', text: 'Gus et Lila' }, { k: 'h-vont', text: '[vont]' }, { k: 'v-diner', text: 'dîner' }, CHEZ, STOP],
       flyInto: 's-pl',
       thread: { through: ['s-pl', 'h-vont', 'v-diner'], blocked: true },
       say: {
@@ -677,7 +680,7 @@ const FUTUR_PROCHE: RuleMontageScript = {
     {
       ask: { en: 'Plans change. Tap ne…pas.', de: 'Pläne ändern sich. Tippe auf ne…pas.', fr: 'Les projets changent. Touche ne…pas.' },
       tap: { kind: 'tile', label: 'ne…pas' },
-      then: [SOIR, { k: 's-pl', text: 'Gus et Romy' }, { k: 'ne', text: '[ne]' }, { k: 'h-vont', text: 'vont' }, { k: 'pas', text: '[pas]' }, { k: 'v-diner', text: 'dîner' }, CHEZ, STOP],
+      then: [SOIR, { k: 's-pl', text: 'Gus et Lila' }, { k: 'ne', text: '[ne]' }, { k: 'h-vont', text: 'vont' }, { k: 'pas', text: '[pas]' }, { k: 'v-diner', text: 'dîner' }, CHEZ, STOP],
       say: {
         en: 'Negative: ne…pas goes round aller.',
         de: 'Verneint: ne…pas steht um aller herum.',
@@ -687,7 +690,7 @@ const FUTUR_PROCHE: RuleMontageScript = {
     },
   ],
   examples: [
-    { cast: ROMY, fr: 'Ce soir, Romy [va dîner] chez Margaux.' },
+    { cast: LILA, fr: 'Ce soir, Lila [va dîner] chez Margaux.' },
     { cast: MARIN, fr: 'Marin [va appeler] Lila demain.' },
     { cast: GUS, fr: 'Demain, Gus [va prendre] le train.' },
   ],
@@ -782,7 +785,7 @@ const PC_AVOIR: RuleMontageScript = {
     {
       ask: { en: 'Now attendre. Tap it.', de: 'Jetzt attendre. Tippe darauf.', fr: 'Maintenant, attendre. Touche-le.' },
       tap: { kind: 'tile', label: 'attendre' },
-      then: [HIER, S_GUS, H_A, { k: 'v-attendu', text: 'attend[u]' }, { k: 'o-romy', text: ROMY.name, tight: true }, STOP],
+      then: [HIER, S_GUS, H_A, { k: 'v-attendu', text: 'attend[u]' }, { k: 'o-lila', text: LILA.name, tight: true }, STOP],
       say: { en: '-re becomes -u.', de: '-re wird zu -u.', fr: '-re devient -u.' },
       hold: 1300,
     },
@@ -800,7 +803,7 @@ const PC_AVOIR: RuleMontageScript = {
   ],
   examples: [
     { cast: GUS, fr: 'Gus [a] mang[é] au Mistral.' },
-    { cast: ROMY, fr: 'Romy [a] attend[u] le bus.' },
+    { cast: MARGAUX, fr: 'Margaux [a] attend[u] le bus.' },
     { cast: MARIN, fr: 'Marin [a] [pris] le train de sept heures.' },
   ],
 };
@@ -824,8 +827,8 @@ const COI: RuleMontageScript = {
       hold: 1700,
     },
     {
-      ask: { en: 'Now à Romy. Tap it.', de: 'Jetzt à Romy. Tippe darauf.', fr: 'Maintenant, à Romy. Touche-le.' },
-      tap: { kind: 'tile', label: 'à Romy' },
+      ask: { en: 'Now à Margaux. Tap it.', de: 'Jetzt à Margaux. Tippe darauf.', fr: 'Maintenant, à Margaux. Touche-le.' },
+      tap: { kind: 'tile', label: 'à Margaux' },
       then: [S_LILA, { k: 'p-lui2', text: '[lui]' }, TELEPHONE, STOP],
       flyInto: 'p-lui2',
       say: { en: 'Lui again: him and her alike.', de: 'Wieder lui: für ihn und für sie.', fr: 'Encore lui : pour lui et pour elle.' },
@@ -857,7 +860,7 @@ const COI: RuleMontageScript = {
   ],
   examples: [
     { cast: LILA, fr: 'Ma mère ? Je [lui] téléphone tous les dimanches.' },
-    { cast: MARIN, fr: 'Romy ? Marin [lui] écrit ce soir.' },
+    { cast: MARIN, fr: 'Margaux ? Marin [lui] écrit ce soir.' },
     { cast: GUS, fr: 'Ses voisins ? Gus [leur] parle souvent.' },
   ],
 };
@@ -913,7 +916,7 @@ const Y_PLACE: RuleMontageScript = {
   ],
   examples: [
     { cast: MARGAUX, fr: 'Le nouveau café ? J’[y] vais tous les matins.' },
-    { cast: ROMY, fr: 'Le marché ? Romy [y] va le samedi.' },
+    { cast: LILA, fr: 'Le marché ? Lila [y] va le samedi.' },
     { cast: GUS, fr: 'Lyon ? Gus va [y] aller demain.' },
   ],
 };
