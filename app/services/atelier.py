@@ -825,7 +825,8 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
     if len(folded) != len(line):
         return None  # offsets into the line must survive the fold
     spans: list[tuple[int, int, str, int]] = []
-    for index, erratum in enumerate(errata or []):
+    listed = list(errata or [])
+    for index, erratum in enumerate(listed):
         if not isinstance(erratum, dict) or erratum.get("task_error_type") == "task_compliance":
             continue
         wrong = str(erratum.get("learner_text") or "").strip()
@@ -834,7 +835,7 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
             continue  # a no-op erratum asks nothing of the line
         if not wrong or not fix or wrong.lower() == folded.strip():
             return None
-        start = _word_find(folded, wrong.lower(), spans)
+        start = _word_find(folded, wrong.lower(), spans, fixes=_same_fix_left(listed, index))
         if start < 0:
             return None
         skip, length, fix = narrow_repair(wrong, fix)
@@ -881,12 +882,28 @@ def narrow_repair(wrong: str, fix: str) -> tuple[int, int, str]:
     return first_at, last_at + len(last_word) - first_at, " ".join(fixed[lead : len(fixed) - trail])
 
 
-def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:
+def _same_fix_left(errata: list[Any], index: int) -> int:
+    """How many errata, from ``index`` on, make the same fix as ``errata[index]``
+    (case aside): «je ai» -> «j'ai» once for each place it stands (#1044)."""
+
+    def key(item: Any) -> tuple[str, str] | None:
+        if not isinstance(item, dict) or item.get("task_error_type") == "task_compliance":
+            return None
+        return (str(item.get("learner_text") or "").strip().lower(), str(item.get("corrected_target") or "").strip().lower())
+
+    mine = key(errata[index])
+    return sum(1 for item in errata[index:] if key(item) == mine)
+
+
+def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]], *, fixes: int = 1) -> int:
     """Where ``wrong`` stands in the line as a whole word overlapping no span taken.
 
     -1 when it is not there, or when it is there more than once: an erratum
     carries no offset, so «partie» in «Elle est partie et il est partie» could
     be either, and fixing the wrong one must not pass. That line is retyped whole.
+    #1044: unless as many errata (``fixes``) make the same fix as there are free
+    places for it: «je ai» -> «j'ai» listed for both «je ai» of «… je ai. Je ai …»
+    fixes every place, so the first free one is this erratum's, in line order.
     """
 
     found: list[int] = []
@@ -897,7 +914,9 @@ def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) 
         if bounded and all(end <= a or start >= b for a, b, _fix, _index in taken):
             found.append(start)
         start = folded.find(wrong, start + 1)
-    return found[0] if len(found) == 1 else -1
+    if len(found) == 1 or (found and len(found) == fixes):
+        return found[0]
+    return -1
 
 
 def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) -> str | None:
@@ -5133,18 +5152,48 @@ class AtelierCorrectionService:
         return named or (items[0] if len(items) == 1 else {})
 
     @staticmethod
-    def _repair_is_right(typed: str, source: str, accepted: list[str | None]) -> bool:
+    def _repair_verdict(typed: str, source: str, accepted: list[str | None]) -> Any:
         """#503: the one judge of a typed repair, for keyed and model-judged rounds.
 
         The whole corrected line, the corrected part, or the part with some of the
         unchanged words around it are right (``answer_acceptance.judge_repair``).
         Accents count: they are often the fix.
+
+        #1045: the judge's whole verdict is kept, not only its yes or no, so a repair
+        refused for an accent says which word («cafe» for «café»). An accent the
+        learner's own line already had right and only the copy dropped is no fix left
+        undone: that copy is accepted, with the same note, as the first check accepts it.
         """
 
-        from app.services.answer_acceptance import judge_repair
+        from app.services.answer_acceptance import (
+            Verdict,
+            fold_typography,
+            judge_repair,
+            strip_accents,
+        )
 
         keys = [line for line in accepted if line and line.strip()]
-        return bool(typed) and bool(keys) and judge_repair(typed, source, keys, accents="strict", typo=False).correct
+        if not typed or not keys:
+            return Verdict(correct=False)
+        strict = judge_repair(typed, source, keys, accents="strict", typo=False)
+        if strict.correct or strict.note != "accent":
+            return strict
+        lenient = judge_repair(typed, source, keys, accents="lenient", typo=False)
+        if not lenient.correct or not lenient.accent_slip:
+            return strict  # an accent that is grammar (a/à, a participle's -é): a miss, named
+        said = fold_typography(lenient.read_as or typed).split()
+        right = fold_typography(lenient.expected or "").split()
+        own = set(fold_typography(source).split())
+        slips = [
+            (got, want)
+            for got, want in zip(said, right, strict=False)
+            if got != want and strip_accents(got) == strip_accents(want)
+        ]
+        # Only an accent left out («cafe»), never one added («déscendu»), and only on a
+        # word the learner's own line already had right.
+        if len(said) == len(right) and slips and all(got == strip_accents(want) and want in own for got, want in slips):
+            return lenient
+        return strict
 
     def record_micro_repair(
         self,
@@ -5221,7 +5270,8 @@ class AtelierCorrectionService:
                 source = self._in_gap_line(gap_line, source) if source.strip() else source
                 key_line = self._in_gap_line(gap_line, key_line or target)
             accepted = [target, key_line, repair_line_from_parts(source, [erratum]) if source else None]
-        is_correct = self._repair_is_right(typed, source, accepted)
+        verdict = self._repair_verdict(typed, source, accepted)
+        is_correct = bool(verdict.correct)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
             "target": target,
@@ -5230,6 +5280,11 @@ class AtelierCorrectionService:
             "erratum_index": erratum_index,
             "submitted_at": datetime.now(UTC).isoformat(),
         }
+        if verdict.note == "accent" and verdict.expected_word:
+            # #1045: the screen names the word whose accent is missing, hit or miss.
+            repairs[str(erratum_index)].update(
+                note="accent", learner_word=verdict.learner_word, expected_word=verdict.expected_word
+            )
         correction["micro_repairs"] = repairs
         # Owner 2026-11-13: the repair was the second chance; the solution is shown from now on.
         from app.services import solution_gate

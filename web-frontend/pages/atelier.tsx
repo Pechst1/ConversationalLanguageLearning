@@ -4641,6 +4641,7 @@ export function ExerciseFeedbackMoment({
                 parts={lineParts}
                 typed={partsTyped[repairKey] || {}}
                 status={repair?.status || null}
+                accent={repairAccent(repair)}
                 onChange={repairSpent ? undefined : (next) => {
                   setPartsTyped((prev) => ({ ...prev, [repairKey]: next }));
                   onSetRepairDraft(repairKey, assembleRepair(lineParts, next));
@@ -4656,6 +4657,7 @@ export function ExerciseFeedbackMoment({
                 target={target}
                 typed={repair?.typed || repairDrafts[repairKey] || ''}
                 status={repair?.status || null}
+                accent={repairAccent(repair)}
                 onChange={(value) => onSetRepairDraft(repairKey, value)}
                 onSubmit={() => onSubmitRepair(index)}
                 submitting={!!repairSubmitting[repairKey]}
@@ -5112,6 +5114,13 @@ function correctionTargetText(value: unknown): string {
   return String(value);
 }
 
+/** #1045: the word a typed repair left without its accent, when the server named one. */
+export function repairAccent(repair: Record<string, any> | null | undefined): string | null {
+  return repair?.note === 'accent' && typeof repair?.expected_word === 'string' && repair.expected_word.trim()
+    ? repair.expected_word.trim()
+    : null;
+}
+
 export function feedbackFromFreeformCorrection(correction: Record<string, any> | null, fallbackTarget = '', learner = '', t: EpreuveCopy = epreuveCopy('fr')): InlineFeedbackModel {
   if (!correction) return null;
   const allErrata: AtelierErratum[] = Array.isArray(correction?.errata) ? correction.errata : [];
@@ -5143,7 +5152,11 @@ export function feedbackFromFreeformCorrection(correction: Record<string, any> |
   // Owner 2026-11-13: the card counts the corrections it shows. A task note is said in
   // its own line under the card, so it is not one of them.
   const lineErrata = errata.filter((item) => item.task_error_type !== 'task_compliance');
-  const shownCount = errata.length ? lineErrata.length : whyLines.length;
+  // #1044: and it counts what it lists. A correction is listed once however many places
+  // it fixes («je ai» → «j'ai» twice is one note, marked at both places), so the count is
+  // the line errata's distinct notes, read as the list reads them, never the errata.
+  const lineNotes = dedupeNotes(lineErrata.map((item) => item.why_wrong || item.repair_hint));
+  const shownCount = errata.length ? (lineNotes.length || lineErrata.length) : whyLines.length;
   const issues: AtelierErratum[] = correct ? [] : [{
     display_label: shownCount > 1
       ? fill(t.corrections_n, { n: shownCount })

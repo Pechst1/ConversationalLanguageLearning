@@ -18,8 +18,11 @@ const isWordChar = (char: string | undefined) => !!char && /[0-9A-Za-zÀ-ÖØ-ö
 
 // -1 when absent or there more than once: an erratum carries no offset, so
 // «partie» in «Elle est partie et il est partie» could be either, and fixing
-// the wrong one must not pass. That line is retyped whole.
-function wordFind(folded: string, wrong: string, taken: Array<[number, number]>): number {
+// the wrong one must not pass. That line is retyped whole. #1044: unless as many
+// errata (`fixes`) make the same fix as there are free places for it: «je ai» →
+// «j'ai» listed for both «je ai» of «… je ai. Je ai …» fixes every place, so the
+// first free one is this erratum's, in line order.
+function wordFind(folded: string, wrong: string, taken: Array<[number, number]>, fixes = 1): number {
   const found: number[] = [];
   let start = folded.indexOf(wrong);
   while (start >= 0) {
@@ -28,7 +31,17 @@ function wordFind(folded: string, wrong: string, taken: Array<[number, number]>)
     if (bounded && taken.every(([a, b]) => end <= a || start >= b)) found.push(start);
     start = folded.indexOf(wrong, start + 1);
   }
-  return found.length === 1 ? found[0] : -1;
+  return found.length === 1 || (found.length > 0 && found.length === fixes) ? found[0] : -1;
+}
+
+// How many errata, from `index` on, make the same fix as `errata[index]` (case aside).
+function sameFixLeft(errata: Erratum[], index: number): number {
+  const key = (item: Erratum | null | undefined): string | null =>
+    !item || typeof item !== 'object' || item.task_error_type === 'task_compliance'
+      ? null
+      : JSON.stringify([String(item.learner_text || '').trim().toLowerCase(), String(item.corrected_target || '').trim().toLowerCase()]);
+  const mine = key(errata[index]);
+  return errata.slice(index).filter((item) => key(item) === mine).length;
 }
 
 /**
@@ -75,7 +88,7 @@ export function repairParts(learner: string, errata: Erratum[] | null | undefine
     if (!wrong || !fix || wrong.toLowerCase() === folded.trim()) return null;
     // Same length as the line: lower-casing French keeps every offset.
     if (wrong.toLowerCase().length !== wrong.length) return null;
-    const start = wordFind(folded, wrong.toLowerCase(), spans.map((span) => [span.start, span.end]));
+    const start = wordFind(folded, wrong.toLowerCase(), spans.map((span) => [span.start, span.end]), sameFixLeft(list, index));
     if (start < 0) return null;
     const narrow = narrowRepair(wrong, fix);
     spans.push({ start: start + narrow.skip, end: start + narrow.skip + narrow.length, fix: narrow.fix, erratum: index });

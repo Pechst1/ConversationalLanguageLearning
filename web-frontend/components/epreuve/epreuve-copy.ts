@@ -148,6 +148,9 @@ export type EpreuveCopy = {
   model_answer: string;
   more: string;
   repair_parts_no: string;
+  /** #1045: a repair whose one slip is an accent says which word, refused or accepted. */
+  repair_accent_no: string;
+  repair_accent_ok: string;
   // listen + record
   listen: string;
   listen_playing: string;
@@ -340,6 +343,8 @@ const FR: EpreuveCopy = {
   more: 'Plus',
   repair_parts_gap: 'À corriger :',
   repair_parts_no: 'Pas encore : les mots en rouge sont encore à corriger.',
+  repair_accent_no: 'Presque : il manque l’accent de « {word} ».',
+  repair_accent_ok: 'Phrase recopiée. Attention à l’accent : « {word} ».',
   listen: 'Écouter',
   listen_playing: 'Lecture…',
   listen_unavailable: 'Voix indisponible',
@@ -526,6 +531,8 @@ const EN: EpreuveCopy = {
   more: 'More',
   repair_parts_gap: 'To fix:',
   repair_parts_no: 'Not yet: the words in red still need fixing.',
+  repair_accent_no: 'Almost: “{word}” needs its accent.',
+  repair_accent_ok: 'Line copied. Mind the accent: “{word}”.',
   listen: 'Listen',
   listen_playing: 'Playing…',
   listen_unavailable: 'Voice unavailable',
@@ -712,6 +719,8 @@ const DE: EpreuveCopy = {
   more: 'Mehr',
   repair_parts_gap: 'Zu korrigieren:',
   repair_parts_no: 'Noch nicht: die roten Wörter sind noch falsch.',
+  repair_accent_no: 'Fast: Bei „{word}“ fehlt der Akzent.',
+  repair_accent_ok: 'Abgeschrieben. Achte auf den Akzent: „{word}“.',
   listen: 'Anhören',
   listen_playing: 'Wird abgespielt…',
   listen_unavailable: 'Stimme nicht verfügbar',
