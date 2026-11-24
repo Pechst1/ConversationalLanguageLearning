@@ -412,6 +412,8 @@ def scene_rule_card(
         card["example"] = {"fr": f"{text[:start]}[{text[start:end]}]{text[end:]}"}
         card["speaker"] = speaker or None
         card["from_scene"] = True
+        # #1049: the mark was about the authored example, which the scene's line replaces.
+        card.pop("keeps_speaker", None)
         break
     return card
 

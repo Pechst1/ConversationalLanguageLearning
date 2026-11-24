@@ -228,8 +228,14 @@ def card_for_learner(
 ) -> dict[str, Any] | None:
     """A rule card as this learner reads it: the face and name on it are someone they have met.
 
-    Same gate as the coach (:func:`coach_for_concept`): the stand-in, when their register can
-    say the card's example; otherwise the card keeps its rule and example and names nobody.
+    Same gate as the coach (:func:`coach_for_concept`): the stand-in, when they can say the
+    card's example; otherwise the card keeps its rule and example and names nobody
+    (``unvoiced``: no surface puts the coach's face on it either).
+
+    A stand-in can say the example when their register fits it and the example is not about
+    its speaker (#1049: Romy's «J'ai vingt-cinq ans» went to Margaux, who has run the Mistral
+    since 2003). A card whose example states its speaker's age, job or family is authored
+    ``keeps_speaker``: a line's facts belong to its speaker (#147), so it is never handed on.
     """
 
     from app.services import scene_record
@@ -240,10 +246,11 @@ def card_for_learner(
 
     if has_met(state, card["speaker"]):
         return card
-    stand_in = coach_for_concept(external_id, state=state)
+    stand_in = None if card.get("keeps_speaker") else coach_for_concept(external_id, state=state)
     example = (card.get("example") or {}).get("fr") if isinstance(card.get("example"), dict) else ""
-    fits = stand_in is not None and not register_problems(str(example or ""), stand_in.get("register"))
-    return {**card, "speaker": stand_in["id"] if fits else None}
+    if stand_in is not None and not register_problems(str(example or ""), stand_in.get("register")):
+        return {**card, "speaker": stand_in["id"]}
+    return {**card, "speaker": None, "unvoiced": True}
 
 
 def story_state_of(db: Any, user: Any) -> dict[str, Any] | None:

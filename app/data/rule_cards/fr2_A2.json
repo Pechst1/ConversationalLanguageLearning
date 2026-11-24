@@ -692,6 +692,7 @@
     },
     "FR2_A21_COI": {
       "speaker": "lila_bonnet",
+      "keeps_speaker": true,
       "example": {
         "fr": "Ma mère ? Je [lui] téléphone tous les dimanches.",
         "tr": {
@@ -2537,6 +2538,7 @@
     },
     "FR2_A22_IMPARFAIT": {
       "speaker": "lila_bonnet",
+      "keeps_speaker": true,
       "example": {
         "fr": "Quand j'ét[ais] petite, nous pass[ions] tous les étés chez ma tante.",
         "tr": {
@@ -3106,6 +3108,7 @@
     },
     "FR2_A22_FUTUR_IRREGULAR": {
       "speaker": "romy_tremblay",
+      "keeps_speaker": true,
       "example": {
         "fr": "Samedi, j'[ir]ai chez mes parents et on [fer]a un barbecue.",
         "tr": {

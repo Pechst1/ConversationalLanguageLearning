@@ -12868,6 +12868,8 @@ export interface components {
             how?: {
                 [key: string]: string;
             } | null;
+            /** Keeps Speaker */
+            keeps_speaker?: boolean | null;
             /** More */
             more?: {
                 [key: string]: string;
@@ -12881,6 +12883,8 @@ export interface components {
             speaker?: string | null;
             /** Traps */
             traps?: components["schemas"]["RuleCardTrap"][] | null;
+            /** Unvoiced */
+            unvoiced?: boolean | null;
         };
         /** RuleCardRow */
         RuleCardRow: {

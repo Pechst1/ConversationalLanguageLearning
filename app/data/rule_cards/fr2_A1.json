@@ -137,6 +137,7 @@
     },
     "FR2_A11_AVOIR": {
       "speaker": "romy_tremblay",
+      "keeps_speaker": true,
       "example": {
         "fr": "J'[ai] vingt-cinq ans et j'[ai] faim !",
         "tr": {
@@ -1476,6 +1477,7 @@
     },
     "FR2_A11_NUMBERS": {
       "speaker": "margaux_barman",
+      "keeps_speaker": true,
       "example": {
         "fr": "J'ai [vingt et un] ans et mon frère a [trente-deux] ans.",
         "tr": {
@@ -1959,6 +1961,7 @@
     },
     "FR2_A11_POSSESSIVES": {
       "speaker": "lila_bonnet",
+      "keeps_speaker": true,
       "example": {
         "fr": "[Mon] frère et [ma] sœur arrivent avec [mes] clés.",
         "tr": {
@@ -4510,6 +4513,7 @@
     },
     "FR2_A12_PC_CHUNKS": {
       "speaker": "romy_tremblay",
+      "keeps_speaker": true,
       "example": {
         "fr": "Ce week-end, j'[ai fait] du vélo et j'[ai mangé] chez ma mère.",
         "tr": {

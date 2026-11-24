@@ -303,7 +303,7 @@ export function RuleCard({
   variant = 'intro',
   conceptId,
   onDone,
-  coach,
+  coach: ruleCoach,
   coachMood = 'neutral',
   sceneAnchor = null,
   sceneVoice = null,
@@ -323,6 +323,9 @@ export function RuleCard({
   const translation = pick(card.example.tr, say);
   const rule = pick(card.rule, say);
   const more = pick(card.more, say);
+  // #1049: an `unvoiced` card names nobody — its line is about a speaker the learner has
+  // not met, and the coach standing in for them is not who it is about.
+  const coach = card.unvoiced ? null : ruleCoach;
   const speakerId = card.speaker || coach?.id || null;
   // The cast registry's name (#147); a coach outside the drawn cast keeps their own.
   const speakerName = card.speaker
