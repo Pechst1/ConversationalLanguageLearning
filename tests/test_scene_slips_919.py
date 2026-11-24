@@ -63,7 +63,7 @@ def _pairs(edits) -> list[tuple[str, str]]:
     return [(e.span, e.replacement) for e in edits]
 
 
-def test_the_basic_check_finds_que_est_and_au_usine_in_the_issue_sentence():
+def test_finds_que_est_au_usine():
     pairs = _pairs(correction_contract.deterministic_edits(ISSUE_TEXT))
 
     assert ("que est", "qu'est") in pairs
@@ -71,7 +71,7 @@ def test_the_basic_check_finds_que_est_and_au_usine_in_the_issue_sentence():
 
 
 @pytest.mark.parametrize("level", ["A1", "A2", "B1"])
-def test_the_scene_lists_the_models_correction_and_the_basic_checks(level):
+def test_scene_lists_all(level):
     verdict = _verdict(MODEL_AGREEMENT)
     lanes.validate_tutor(verdict, _payload(ISSUE_TEXT, level=level))
 
@@ -85,7 +85,7 @@ def test_the_scene_lists_the_models_correction_and_the_basic_checks(level):
     assert verdict.correction_span_fr == "c est une entreprise dangereux"
 
 
-def test_the_turn_shows_the_first_and_the_basic_checks_under_it():
+def test_turn_more():
     verdict = _verdict(MODEL_AGREEMENT)
     lanes.validate_tutor(verdict, _payload(ISSUE_TEXT))
     correction = lanes.turn_correction(verdict, ISSUE_TEXT)
@@ -94,7 +94,7 @@ def test_the_turn_shows_the_first_and_the_basic_checks_under_it():
     assert sorted(c.corrected_fr for c in correction.more) == ["qu'est", "à l'usine"]
 
 
-def test_a_model_that_kept_nothing_still_gets_every_basic_check_edit():
+def test_no_model_all_basic():
     verdict = _verdict()
     lanes.validate_tutor(verdict, _payload(ISSUE_TEXT))
 
