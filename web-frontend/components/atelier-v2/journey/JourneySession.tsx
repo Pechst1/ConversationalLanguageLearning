@@ -51,12 +51,12 @@ import { useImmersiveSurface } from '@/lib/immersive-surface';
 import { journeyChromeLanguage } from '@/lib/language-rule';
 import Router from 'next/router';
 import apiService from '@/services/api';
-import { handOnAfterScene } from '@/lib/day-plan';
+import { dayMarkOf, handOnAfterScene } from '@/lib/day-plan';
 import { daySessionCopy } from '@/lib/day-session';
 import type { ConnectionView } from '@/lib/journey-recovery';
 import type { PublicStep } from '@/types/daily-journey';
 
-import { dayMarkState, STEP_SHAPE } from './day-mark';
+import { STEP_SHAPE } from './day-mark';
 import { journeyCopy } from './journey-copy';
 import {
   journeyHeaderCaption,
@@ -258,14 +258,18 @@ export function JourneySession({
     emitCameo({ type: 'answer', correct: gradedVerdict, coachId: askerId, attempt: `${announcerId}:${announcedCount.current}` });
   }, [feedback, gradedVerdict, askerId, announcerId]);
   const segments = journey ? segmentsOf(journey.steps, journey.current_step_id, tokenFace) : [];
-  // WP-D1: the mark is the day's plan, in the head's right-hand slot.
-  const dayMark = journey ? dayMarkState(journey, chromeLanguage) : null;
+  // WP-D1: the mark is the day's plan, in the head's right-hand slot. #143: the
+  // plan's, as on Home — the scene's own steps filled its «day done» square at
+  // the scene's ending, with La Forge and the words still ahead.
+  const dayMark = journey ? dayMarkOf(controller.envelope?.session, journey, chromeLanguage) : null;
   const caption = journeyHeaderCaption(
     journey,
     (position, total) => stepOfLabel(chrome, position, total),
     // #540: the block the step belongs to, named as the drill's own caption names
     // it. A rule card or a recall drill is not «Scene».
     stepBlockName(step, journey?.steps, copy) ?? daySessionCopy(chromeLanguage).scene,
+    // #143: the count is the day's (the plan's steps), not the scene's.
+    controller.envelope?.session,
   );
 
   /* The story-engine reader is a full-screen surface with its own exit and its

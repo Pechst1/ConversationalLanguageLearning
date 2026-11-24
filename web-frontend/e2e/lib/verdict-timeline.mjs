@@ -57,10 +57,15 @@ export function trackVerdicts(walk, s, kind) {
   return t;
 }
 
-/** The timeline key of the item on screen `s`. */
+/**
+ * The timeline key of the item on screen `s`. #143: the session header counts the day's
+ * steps («Schritt 1 von 4» on every screen of the scene), so the caption no longer tells
+ * one drill from the next; the journey step's id does.
+ */
 export function trackKey(walk, s, kind) {
   const step = (s.text.match(STEP_RE) || ['none'])[0];
-  return kind === 'thread' ? `thread ${step}` : `${step} ${walk.questionSig || ''}`;
+  const where = s.stepId ? `${step} #${s.stepId}` : step;
+  return kind === 'thread' ? `thread ${where}` : `${where} ${walk.questionSig || ''}`;
 }
 
 /**

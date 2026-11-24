@@ -240,3 +240,92 @@ test('#997: a failed rule check offered after the grammar step is done hands on 
   // While the grammar step is still open, a failed check keeps handing back to it.
   assert.equal(dp.ruleCheckExitFromDay(plan(['done', 'todo', 'todo']), false, 'de').href, FORGE);
 });
+
+// ---------------------------------------------------------------------------
+// The session header reads the day's plan, not the scene's own steps.
+//
+// Walks 16 Oct – 24 Nov: «Szene · Schritt 2 von 4» jumped to «Regel · Schritt 4
+// von 4» (the scene's ending is read full-screen, without the header), and day 2
+// ran «Schritt 6 von 7», «7 von 7», then «Szene · Schritt 7 von 7 · Szene beendet»
+// with La Forge and the words still ahead. The header counted the journey's
+// steps; Home counts the plan's (Szene, Grammatik, Wörter, Fertig). Two counters,
+// two answers. The header's number is now the plan's: the scene is step 1 of the
+// day's 4 on every screen of the scene, whatever the scene holds.
+// ---------------------------------------------------------------------------
+
+function dayTwoJourney(current, { ended = false } = {}) {
+  // Day 2 of a1-de-fresh, 24 Nov: page, scene, a drill from a mistake, a rule to
+  // review, the missed drill once more (`_queue_retry`), the new rule's card, the ending.
+  const ids = ['s-read', 's-scene', 's-mistake', 's-review', 's-mistake-again', 's-rule', 's-end'];
+  const kinds = ['read', 'scene', 'recall', 'recall', 'recall', 'rule', 'resolution'];
+  const at = ids.indexOf(current);
+  return {
+    id: 'j-day2',
+    status: ended ? 'completed' : 'active',
+    current_step_id: ended ? null : current,
+    steps: ids.map((id, index) => ({
+      id,
+      kind: kinds[index],
+      status: ended || index < at ? 'completed' : index === at ? 'active' : 'pending',
+      prompt: id === 's-mistake-again' ? { retry: true } : {},
+    })),
+  };
+}
+
+test('#143: every screen of the scene says «step 1 of 4», the plan’s count, never the scene’s', () => {
+  const { journeyHeaderCaption } = require('../components/atelier-v2/journey/journey-state.ts');
+  const stepOf = (n, total) => `Schritt ${n} von ${total}`;
+  const during = plan(START.scene);
+  const order = ['s-read', 's-scene', 's-mistake', 's-review', 's-mistake-again', 's-rule', 's-end'];
+  const captions = order.map((id) => journeyHeaderCaption(dayTwoJourney(id), stepOf, 'Szene', during));
+  for (const [index, caption] of captions.entries()) {
+    assert.equal(
+      caption,
+      'Szene · Schritt 1 von 4',
+      `on ${order[index]} the header read «${caption}»: the scene's own steps, not the day's (captions: ${captions.join(' > ')})`,
+    );
+  }
+  // The ending's card, with the plan read again (scene done, La Forge next): still the
+  // day's first step, so «N von N» never shows before La Forge and the words.
+  const after = journeyHeaderCaption(dayTwoJourney(null, { ended: true }), stepOf, 'Szene', plan(['done', 'todo', 'todo']));
+  assert.equal(after, 'Szene · Schritt 1 von 4', `the ending read «${after}» with La Forge and the words ahead`);
+  // Without a plan (an older server), the scene's own count stands.
+  assert.equal(journeyHeaderCaption(dayTwoJourney('s-scene'), stepOf, 'Szene'), 'Szene · Schritt 2 von 6');
+});
+
+test('#143: the header’s count is the same number Home’s programme and mark count', () => {
+  const { journeyHeaderCaption } = require('../components/atelier-v2/journey/journey-state.ts');
+  const { sessionMarkState, sessionRows } = require('./day-session.ts');
+  const p = plan(START.scene);
+  const caption = journeyHeaderCaption(dayTwoJourney('s-rule'), (n, total) => `${n}/${total}`, undefined, p);
+  const [position, total] = caption.split('/').map(Number);
+  assert.equal(total, sessionRows(p, 'de').length, `the header read «${caption}»; Home lists ${sessionRows(p, 'de').length} steps`);
+  assert.equal(total, sessionMarkState(p, 'de').total);
+  assert.equal(p.steps[position - 1].kind, 'scene', 'the header names the plan step the scene is');
+  assert.ok(position < total, 'never «N of N» while the plan has steps after this one');
+});
+
+test('#143: the session header’s mark is the plan’s mark — no «day done» from the scene’s ending', () => {
+  const read = (file) => fs.readFileSync(path.join(WEB_ROOT, file), 'utf8');
+  const session = read('components/atelier-v2/journey/JourneySession.tsx');
+  // The mark beside the counter filled its ink square («Tag geschafft», «day done»)
+  // from the scene's resolution step, while Home's read the plan.
+  assert.doesNotMatch(
+    session,
+    /dayMarkState\(journey/,
+    'the session header draws the mark from the scene’s steps: «Heute: 4 von 4 … Tag geschafft» before La Forge and the words',
+  );
+  assert.match(session, /journeyHeaderCaption\([\s\S]{0,600}envelope\?\.session/, 'the header’s count is handed the plan');
+  const { dayMarkOf } = require('./day-plan.ts');
+  const ended = dayTwoJourney(null, { ended: true });
+  const mark = dayMarkOf(plan(['done', 'todo', 'todo']), ended, 'de');
+  assert.equal(mark.groups.resolution, 'todo', `the mark read «${mark.label}» after the scene`);
+  assert.doesNotMatch(mark.label, /Tag geschafft/);
+  assert.equal(mark.done, 1);
+  // Home's mark and the header's are one function of one plan.
+  const { sessionMarkState, withScenePlayed } = require('./day-session.ts');
+  assert.deepEqual(mark, sessionMarkState(withScenePlayed(plan(['done', 'todo', 'todo']), ended), 'de'));
+  // No plan: the scene's own mark, as before.
+  const { dayMarkState } = require('../components/atelier-v2/journey/day-mark.ts');
+  assert.deepEqual(dayMarkOf(null, ended, 'de'), dayMarkState(ended, 'de'));
+});

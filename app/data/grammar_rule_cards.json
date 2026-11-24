@@ -177,6 +177,7 @@
   },
   "FR_A1_DET_001": {
    "speaker": "lila_bonnet",
+   "keeps_speaker": true,
    "example": {
     "fr": "[Mon] frère et [ma] sœur arrivent avec [mes] clés.",
     "tr": {

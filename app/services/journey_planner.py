@@ -5154,6 +5154,8 @@ def page_review_step(
             marked = f"{text[:start]}[{text[start:end]}]{text[end:]}"
             speaker = speakers.get(grammar_items._fold(text))
             shown = {**card, "example": {"fr": marked}, "speaker": speaker or None, "from_scene": True}
+            # #1049: the mark was about the authored example, which the page's line replaces.
+            shown.pop("keeps_speaker", None)
             rule = card.get("rule") if isinstance(card.get("rule"), dict) else {}
             native = str(rule.get(language) or rule.get("en") or "")
             cost = round(

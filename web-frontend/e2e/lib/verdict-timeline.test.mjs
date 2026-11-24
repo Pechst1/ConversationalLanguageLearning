@@ -68,3 +68,18 @@ test('a missed item asked again is not the item answered before it (journey step
   const [same] = play([at('s6', RAPPEL), at('s6', `${RAPPEL} Correct`, ['correct']), at('s6', `${RAPPEL} Pas encore`, ['wrong'])]);
   assert.equal(same.flips, true);
 });
+
+test('#143: two drills under the day’s one caption are two items, told apart by their step', () => {
+  // The header now reads the plan («Schritt 1 von 4» for the whole scene): two drills of one
+  // format can open with the same 140 characters. One right, the next missed, is no reversal.
+  const SAME = 'Wiederholung · Schritt 1 von 4 Aus deinen Fehlern · Ich bin, du bist: Subjektpronomen und être Welcher Satz ist richtig?';
+  const at = (stepId, text, states = []) => ({ ...frame(text, states), stepId });
+  const timelines = play([
+    at('s3', SAME),
+    at('s3', `${SAME} Richtig`, ['correct']),
+    at('s4', SAME),
+    at('s4', `${SAME} Noch nicht`, ['wrong']),
+  ]);
+  assert.ok(timelines.every((t) => !t.flips), JSON.stringify(timelines));
+  assert.deepEqual(timelines.map((t) => t.distinct), [['correct'], ['wrong']]);
+});

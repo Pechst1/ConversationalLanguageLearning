@@ -19,9 +19,10 @@
  * step's exit path.
  */
 
+import { dayMarkState, type DayMarkState } from '@/components/atelier-v2/journey/day-mark';
 import { WORK_STEPS, type DayWorkKind } from '@/lib/day-order';
-import { daySessionCopy, sessionStep } from '@/lib/day-session';
-import type { ControlLanguage, DaySession, DaySessionStepKind } from '@/types/daily-journey';
+import { daySessionCopy, sessionMarkState, sessionStep, withScenePlayed } from '@/lib/day-session';
+import type { ControlLanguage, DaySession, DaySessionStepKind, JourneySnapshot } from '@/types/daily-journey';
 
 /** The day's order lives in `day-order.ts` (one place, checked against the server's). */
 export { WORK_STEPS, type DayWorkKind };
@@ -74,6 +75,39 @@ export function dayState(plan: DaySession | null | undefined): {
     return step ? step.state !== 'done' : false;
   });
   return { done: open.length === 0, open, next: plan.next_kind };
+}
+
+/**
+ * Where a screen of the plan's step `kind` stands in the day: that step's number
+ * and the plan's count of steps — the rows Home lists (Szene, Grammatik, Wörter,
+ * Fertig) and the shapes of its mark. Every screen of the scene is the plan's
+ * scene step, whatever the scene holds (a page, drills, a rule card, a drill
+ * asked once more, an ending read full-screen), so its header can neither grow,
+ * skip nor read «N of N» while La Forge and the words are still ahead. `null`
+ * without a plan, or when the plan has no such step: the caller keeps its own count.
+ */
+export function dayStepOf(
+  plan: DaySession | null | undefined,
+  kind: DaySessionStepKind,
+): { position: number; total: number } | null {
+  const steps = plan?.steps ?? [];
+  const index = steps.findIndex((step) => step.kind === kind);
+  return index < 0 ? null : { position: index + 1, total: steps.length };
+}
+
+/**
+ * The logo's four shapes for the day, in Home's head and the session's alike: the
+ * plan's four steps (a scene played counts as its step, `withScenePlayed`). Only
+ * without a plan (an older server) does the journey's own mark stand in — the one
+ * whose ink square («Tag geschafft») fills at the scene's ending.
+ */
+export function dayMarkOf(
+  plan: DaySession | null | undefined,
+  journey: JourneySnapshot | null | undefined,
+  language: ControlLanguage,
+): DayMarkState {
+  if (!plan) return dayMarkState(journey ?? null, language);
+  return sessionMarkState(withScenePlayed(plan, journey) ?? plan, language);
 }
 
 /**

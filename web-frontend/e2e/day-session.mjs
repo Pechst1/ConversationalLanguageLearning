@@ -82,6 +82,10 @@ async function playTheDay(native) {
   const counts = walk.stepCaptions.map((caption) => (caption.match(/\d+/g) || []).map(Number));
   const steady = counts.every(([n, m], i) => m === counts[0][1] && (i === 0 || n >= counts[i - 1][0]));
   findings.check('scene-step-count-holds', counts.length > 0 && steady, `captions: ${walk.stepCaptions.join(' > ') || 'none'}`, where('recap'));
+  // #143: the header counts the day's steps, as Home lists them: the scene is one of them,
+  // so no screen of it reads «N von N» with La Forge and the words still ahead.
+  const daysCount = counts.length > 0 && counts.every(([n, m]) => m === before.length && n < m);
+  findings.check('scene-count-is-the-days', daysCount, `captions: ${walk.stepCaptions.join(' > ') || 'none'}; Home lists ${before.length} steps`, where('recap'));
   await sleep(1500);
   await walk.shoot('scene-ending');
   const handOn = page.locator('.journey-recap .av2-btn--primary, .av2-reward .av2-btn--primary').first();
