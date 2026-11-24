@@ -187,7 +187,7 @@ def test_lean_mission_flow_is_complete_on_mobile() -> None:
     assert "token={mintedToken ? <LogoToken pop /> : undefined}" in missions
     assert "token_minted: 'Jeton frappé'" in copy
     # Format-aware composer + voice + archive.
-    assert "function missionFormat(" in missions
+    assert "missionFormat(mission)" in missions  # courrier-format.ts since #953
     assert "missionFormatPayload(mission)" in missions
     assert "CourrierMic" in missions
     assert "apiService.transcribeMissionAudio(blob)" in missions

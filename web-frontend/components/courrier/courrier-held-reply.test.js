@@ -4,8 +4,10 @@
 // auf diese Nachricht noch nicht geantwortet», one «Noch einmal nachfragen» changed
 // nothing visible, and nothing said Lila was writing while the button worked.
 //
-//   1. the server now hands the character's acknowledgement on the unanswered message
-//      (`held_reply`); the page prints it, in her voice, instead of a silent thread;
+//   1. #1025 (live walk 23 Nov) undoes what pilot P0 first did here: the stock
+//      acknowledgement printed in her voice («Lila : « Merci pour ton message, je l'ai
+//      bien lu… »») read as Lila's answer to a real reply. The thread says plainly that
+//      she has not answered yet and offers «Ask again»; no line nobody wrote is hers;
 //   2. «… schreibt zurück» shows while a reply is asked for again, not only on send;
 //   3. a retry that still brings no reply leaves a line under the message, not only a toast.
 
@@ -30,23 +32,24 @@ Module._resolveFilename = function resolve(request, ...rest) {
 const PAGE = fs.readFileSync(path.join(WEB_ROOT, 'pages', 'missions.tsx'), 'utf8');
 const pendingBlock = () => PAGE.slice(PAGE.indexOf('turnReplyPending(turn) &&'), PAGE.indexOf('<CrRepair'));
 
-test('the held acknowledgement line exists in every chrome language, with the name and the text', () => {
+test('no chrome line puts a reply nobody wrote in the character\'s mouth', () => {
   const { courrierCopy, crFill } = require('./courrier-copy.ts');
   for (const lang of ['fr', 'en', 'de']) {
-    const line = courrierCopy(lang).reply_held_line;
-    assert.ok(line, `${lang}: no reply_held_line`);
-    const filled = crFill(line, { name: 'Lila', text: 'Merci pour ton message, je l’ai bien lu.' });
-    assert.match(filled, /Lila/);
-    assert.match(filled, /Merci pour ton message/);
+    const copy = courrierCopy(lang);
+    assert.equal(copy.reply_held_line, undefined, `${lang}: a «{name}: {text}» line for a reply nobody wrote`);
+    const pending = crFill(copy.reply_pending_line, { name: 'Lila' });
+    assert.match(pending, /Lila/, `${lang}: the pending line does not name who has not answered`);
+    assert.doesNotMatch(pending, /je l.ai bien lu/i);
+    assert.ok(copy.reply_retry, `${lang}: no «Ask again»`);
   }
 });
 
-test('the page prints the held acknowledgement under the unanswered message', () => {
+test('the unanswered message says nobody answered and offers «Ask again», never a held line', () => {
   const block = pendingBlock();
-  assert.match(block, /turn\.held_reply/, 'the acknowledgement the server sent is never shown');
-  assert.match(block, /t\.reply_held_line/);
-  // Without one (an older server), the thread still says nobody answered.
-  assert.match(block, /t\.reply_pending_line/);
+  assert.doesNotMatch(block, /held_reply/, 'a line the server held back is drawn as the character\'s words');
+  assert.doesNotMatch(block, /reply_held_line/);
+  assert.match(block, /crFill\(t\.reply_pending_line, \{ name: messenger\.contact_name \}\)/);
+  assert.match(block, /t\.reply_retry/, '«Ask again» is not offered');
 });
 
 test('the writing sign shows while a reply is asked for again', () => {
