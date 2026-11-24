@@ -1715,6 +1715,27 @@ def register_kind(register: str) -> str | None:
     return None
 
 
+#: The shapes only a formal writer sends (#953): a person who says «tu» to the learner
+#: writes a message or leaves a voice note, never a formal e-mail or a form.
+FORMAL_FORMATS = frozenset({"email_formal", "admin_form"})
+
+
+def format_for_writer(mission_format: Any, register: Any) -> str:
+    """``mission_format`` as this writer would send it.
+
+    #953 (child of #147): the letter's shape used to be drawn from the Courrier domain's
+    channel and the format die, apart from who writes, so Marin's two-line note in tu over
+    a shop's e-mail domain opened «Deine E-Mail · Ein Betreff, eine Anrede…». Every place
+    that settles a letter's shape passes it through here with the writer's register: a
+    formal shape from a writer in tu becomes a chat message; a writer in vous keeps it.
+    """
+
+    shape = str(mission_format or "chat_message")
+    if shape in FORMAL_FORMATS and register_kind(str(register or "")) == "informal":
+        return "chat_message"
+    return shape
+
+
 def _compact_text(value: Any, *, max_length: int = 800) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()[:max_length]
 
@@ -2069,6 +2090,15 @@ class MissionGenerator:
             mission_type=mission_type,
             source_snapshot=source_snapshot,
         )
+        # #953: the shape is the writer's. A cast member's note laid over an e-mail domain,
+        # or a format the model returned, is held to the register the letter is written in.
+        variety = {
+            **variety,
+            "mission_format": format_for_writer(
+                variety.get("mission_format") or self._mission_format_for_channel(variety.get("channel")),
+                messenger.get("target_register") or variety.get("register"),
+            ),
+        }
         prompt_payload = {
             "version": "real-world-mission-v3",
             "mission_type": mission_type,
@@ -2076,7 +2106,7 @@ class MissionGenerator:
             "stakes_level": stakes_level,
             "experience": "reality_messenger",
             "custom_context": custom_context,
-            "mission_format": variety.get("mission_format") or self._mission_format_for_channel(variety.get("channel")),
+            "mission_format": variety["mission_format"],
             "variety": {
                 "domain": variety.get("domain"),
                 "domain_label": variety.get("label"),
@@ -2704,6 +2734,7 @@ class MissionGenerator:
             channel=variety.get("channel"),
             recent_formats=recent_formats,
             seed=seed,
+            register=variety.get("register"),
         )
         return variety
 
@@ -2713,16 +2744,23 @@ class MissionGenerator:
         channel: Any,
         recent_formats: set[str],
         seed: tuple[Any, ...] = (),
+        register: Any = None,
     ) -> str:
         """The shape of the letter: usually the channel's own, sometimes not.
 
         A support chat is normally a chat message, but an operator who leaves a
         voicemail is a real thing that happens, and the third identical chat bubble
         in a row is what makes the Courrier feel like a form rather than a life.
+        Only shapes the writer would send are dealt (#953): no formal e-mail from a
+        writer in tu.
         """
 
-        natural = MissionGenerator._mission_format_for_channel(channel)
-        alternatives = [item for item in MISSION_FORMAT_ALTERNATIVES if item != natural]
+        natural = format_for_writer(MissionGenerator._mission_format_for_channel(channel), register)
+        alternatives = [
+            item
+            for item in MISSION_FORMAT_ALTERNATIVES
+            if item != natural and format_for_writer(item, register) == item
+        ]
         weighted = [(natural, 4.0 if natural not in recent_formats else 1.4)]
         weighted.extend(
             (item, (0.5 if item not in recent_formats else 0.15)) for item in alternatives
@@ -6962,19 +7000,11 @@ def _unassessed_acknowledgement(mission: Any, *, register_now: str | None = None
     return STOCK_ACKNOWLEDGEMENT_TU if tu else STOCK_ACKNOWLEDGEMENT_VOUS
 
 
-def held_reply(mission: Any, db: Session | None = None) -> str:
-    """What the thread shows under a learner message nobody answered (pilot P0, walk 17 Nov).
-
-    The acknowledgement is not the correspondent's turn (#397/#333: stored, it closed the
-    letter as answered), but a thread that only said «not answered yet» read as silent
-    while the reply had merely been vetoed. The learner reads it, in today's register."""
-
-    session = db if db is not None else object_session(mission)
-    return _unassessed_acknowledgement(mission, register_now=live_register(session, None, mission))
-
-
-#: The line nobody wrote. It is what the Courrier says when no character reply could be
-#: produced; it is not a turn of the conversation and is never stored as one (#397/#333).
+#: The line nobody wrote. It is what ``respond`` returns when no character reply could be
+#: produced: the endpoint reads it as «no reply» (#397/#333). It is never stored as a turn
+#: and never sent to the page: printed under the learner's message in the character's
+#: name (pilot P0, 17 Nov) it read as Lila's answer to a real reply (#1025). The page says
+#: «not answered yet» and offers «Ask again» instead.
 STOCK_ACKNOWLEDGEMENT_TU = "Merci pour ton message, je l'ai bien lu. Je te réponds vite."
 STOCK_ACKNOWLEDGEMENT_VOUS = "Merci pour votre message, je l'ai bien lu. Je vous réponds rapidement."
 
@@ -8504,7 +8534,6 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
             for attempt in sorted(mission.attempts or [], key=lambda item: item.created_at)
         ]
         unanswered_ids = {id(turn) for turn in unanswered_user_turns(mission.turns)}
-        held = held_reply(mission) if unanswered_ids else ""
         payload["turns"] = [
             {
                 "id": str(turn.id),
@@ -8520,7 +8549,8 @@ def serialize_mission(mission: RealWorldMission | None, *, include_children: boo
                     else {}
                 ),
                 # #590: every learner message nobody answered says so on the thread itself.
-                **({"reply_state": "pending", "held_reply": held} if id(turn) in unanswered_ids else {}),
+                # #1025: only the state; no line is put in the character's mouth.
+                **({"reply_state": "pending"} if id(turn) in unanswered_ids else {}),
                 **stamp_fields(turn.created_at, zone),
             }
             for turn in sorted(mission.turns or [], key=lambda item: item.turn_index)

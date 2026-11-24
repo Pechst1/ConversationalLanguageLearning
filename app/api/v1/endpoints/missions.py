@@ -40,7 +40,6 @@ from app.services.missions import (
     MissionScheduler,
     SerialEpisodeNotReadyError,
     correction_with_persistence,
-    held_reply,
     is_echo_reply,
     is_stock_reply,
     learner_zone,
@@ -446,8 +445,9 @@ def _turn_outcome(
     assistant_turn: RealWorldMissionTurn | None,
 ) -> dict[str, Any]:
     if assistant_turn is None:
-        # Pilot P0: never a silent thread; the acknowledgement is read, not stored (#397).
-        return {"reply_text": "", "branch": {}, "reply_state": "pending", "held_reply": held_reply(mission, db)}
+        # #397/#1025: nobody answered. The page says so and offers «Ask again»; the stock
+        # acknowledgement is neither stored nor sent as the character's words.
+        return {"reply_text": "", "branch": {}, "reply_state": "pending"}
     return MissionConversationService(db).turn_outcome(
         mission=mission, user_text=user_text, assistant_text=assistant_turn.text
     )

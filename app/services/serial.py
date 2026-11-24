@@ -31,7 +31,12 @@ from app.services.graphic_novel import (
     scene_matches_current_contract,
 )
 from app.services.llm_service import LLMService
-from app.services.missions import MissionScheduler, reframe_slim_payload, register_kind
+from app.services.missions import (
+    MissionScheduler,
+    format_for_writer,
+    reframe_slim_payload,
+    register_kind,
+)
 from app.services.revue import feuilleton_bridge
 from app.services.revue.dossier import EditorialDossier
 from app.services.serial_arc_planner import (
@@ -452,7 +457,10 @@ class SerialThreadService:
         episode_label = f"Episode {int(mission.episode_index or 0) + 1}"
         cefr_profile = brief_payload.get("cefr_profile") if isinstance(brief_payload.get("cefr_profile"), dict) else {}
         min_words = int(cefr_profile.get("min_words") or prompt.get("min_words") or 35)
-        mission_format = self._mission_format_from_brief(brief_payload)
+        register = self._register_for_character(thread, addressed)
+        # #953: the planner rotates its formats by episode; the act is still its writer's
+        # (Lila in tu sends no formal e-mail and no form).
+        mission_format = format_for_writer(self._mission_format_from_brief(brief_payload), register)
         format_payload = self._mission_format_payload(
             mission=mission,
             thread=thread,
@@ -469,7 +477,7 @@ class SerialThreadService:
                 "mission_format_payload": format_payload,
                 "experience": f"serial_{mission_format}",
                 "serial_relationships": self._relationship_payload(thread=thread, character_ids=brief_payload.get("required_cast") or []),
-                "target_register": self._register_for_character(thread, addressed),
+                "target_register": register,
                 "min_words": min_words,
                 "conversation_instruction": (
                     f"Stay in character as {self._character_name(thread, addressed)}. "
