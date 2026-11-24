@@ -566,8 +566,8 @@ test('a wrong unscramble shows the right order and what went wrong', () => {
           correction: {
             span_fr: "d'Odile, L'appartement pour Solvel ? C'est vrai ?",
             corrected_fr: "L'appartement d'Odile, pour Solvel ? C'est vrai ?",
-            note_native: 'Der Satz beginnt nicht mit „d’Odile,“. Oben steht die richtige Reihenfolge.',
-            notes_native: ['Der Satz beginnt nicht mit „d’Odile,“. Oben steht die richtige Reihenfolge.'],
+            note_native: '„d’Odile,“ gehört nicht an den Anfang. Oben steht die richtige Reihenfolge.',
+            notes_native: ['„d’Odile,“ gehört nicht an den Anfang. Oben steht die richtige Reihenfolge.'],
           },
         },
         replySource: 'unknown',
@@ -581,5 +581,5 @@ test('a wrong unscramble shows the right order and what went wrong', () => {
   );
   assert.ok(html.includes(DE.wrong), 'the verdict is still «Noch nicht»');
   assert.ok(html.includes('L&#x27;appartement d&#x27;Odile, pour Solvel ? C&#x27;est vrai ?'), 'the right order is shown');
-  assert.ok(html.includes('Der Satz beginnt nicht mit'), 'and what went wrong');
+  assert.ok(html.includes('gehört nicht an den Anfang'), 'and what went wrong');
 });

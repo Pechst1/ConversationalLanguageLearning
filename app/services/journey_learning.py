@@ -2082,10 +2082,18 @@ _ORDER_NOTES: dict[str, dict[str, str]] = {
         "de": "Ab „{word}“ stimmt die Reihenfolge nicht.",
         "fr": "À partir de « {word} », l'ordre ne va plus.",
     },
+    # #967: «It does not start with “café”» under the learner's «café un» read as a
+    # claim about their own line, which does start with «café». The note says where
+    # the word does not belong, never what the learner's line does not do.
     "first": {
-        "en": "It does not start with “{word}”.",
-        "de": "Der Satz beginnt nicht mit „{word}“.",
-        "fr": "La phrase ne commence pas par « {word} ».",
+        "en": "“{word}” does not go first.",
+        "de": "„{word}“ gehört nicht an den Anfang.",
+        "fr": "« {word} » ne va pas en premier.",
+    },
+    "article_first": {
+        "en": "The article goes first, before its noun: “{word}”.",
+        "de": "Der Artikel steht vorn, vor seinem Nomen: „{word}“.",
+        "fr": "L'article va en premier, devant son nom : « {word} ».",
     },
     "missing": {
         "en": "Some words are missing.",
@@ -2157,13 +2165,69 @@ def tile_order_note(task: RecallTask, tile_ids: Sequence[str], language: str) ->
     index = next((i for i, (got, want) in enumerate(zip(submitted, key, strict=False)) if got != want), None)
     if index is not None:
         word = (_tile_texts(task, [submitted[index]]) or [""])[0]
-        if word:
+        first = (_tile_texts(task, [key[0]]) or [""])[0] if index == 0 else ""
+        if (
+            first
+            and fold_for_comparison(first) in _ARTICLE_TILES
+            and fold_for_comparison(word) not in _ARTICLE_TILES
+        ):
+            # #967: the rule the build is about, «un» before «café», not the diff.
+            notes.append(table("article_first").format(word=first))
+        elif word:
             notes.append(table("first" if index == 0 else "from").format(word=word))
     if left_out:
         opening, closing = _NOTE_QUOTES.get(language, _NOTE_QUOTES["en"])
         words = ", ".join(f"{opening}{text}{closing}" for text in _tile_texts(task, left_out))
         notes.append(table("left_out").format(words=words) if words else table("missing"))
     return " ".join(notes) or None
+
+
+#: #967: the words a build may open with that are a noun's article.
+_ARTICLE_TILES = frozenset({"un", "une", "le", "la", "les", "des", "du", "l'"})
+#: #967: the slip a repair declares (its printed line against its key), when it is
+#: an article of the wrong gender: «une café» → «un café».
+_REPAIR_GENDER_NOTES: dict[str, dict[str, str]] = {
+    "m": {
+        "en": "“{noun}” is masculine: “{right}”, not “{wrong}”.",
+        "de": "„{noun}“ ist maskulin: „{right}“, nicht „{wrong}“.",
+        "fr": "« {noun} » est masculin : « {right} », pas « {wrong} ».",
+    },
+    "f": {
+        "en": "“{noun}” is feminine: “{right}”, not “{wrong}”.",
+        "de": "„{noun}“ ist feminin: „{right}“, nicht „{wrong}“.",
+        "fr": "« {noun} » est féminin : « {right} », pas « {wrong} ».",
+    },
+}
+_ARTICLE_GENDER = {"un": "m", "le": "m", "une": "f", "la": "f"}
+
+
+def repair_slip_note(task: RecallTask, language: str) -> str | None:
+    """#967: what a repair item fixes, read from the item itself, or ``None``.
+
+    A repair declares its slip: the line it prints (``source_fr``, the learner's
+    «une café») against its key («un café»). When the one word that changes is an
+    article of the other gender, the note names the noun's gender and the two
+    articles, whatever the learner's tiles then got wrong. A slip of any other kind
+    is left to the rule the item carries (``rule_native``).
+    """
+
+    source, key = (task.source_fr or "").split(), (task.solution_fr or "").split()
+    if not source or len(source) != len(key):
+        return None
+    changed = [
+        index
+        for index, (said, right) in enumerate(zip(source, key, strict=True))
+        if fold_for_comparison(said) != fold_for_comparison(right)
+    ]
+    if len(changed) != 1 or changed[0] + 1 >= len(key):
+        return None
+    at = changed[0]
+    gender = _ARTICLE_GENDER.get(fold_for_comparison(key[at]))
+    if not gender or _ARTICLE_GENDER.get(fold_for_comparison(source[at])) in {None, gender}:
+        return None
+    table = _REPAIR_GENDER_NOTES[gender]
+    noun = key[at + 1].strip(".,;:!?»«")
+    return (table.get(language) or table["en"]).format(noun=noun, right=key[at], wrong=source[at])
 
 
 #: #146 / #86 / #167: what a wrong tap is told. A picked answer has no span of French
@@ -2227,7 +2291,8 @@ def withheld_recall_note(task: RecallTask, correction: Correction, *, language: 
 
     The correction's own note (the rule, the trap, «from "X" on, the order is off»)
     with every clause that names the answer dropped by La Forge's scrub
-    (``solution_gate.scrub_hint``); La Forge's own fallback line when nothing is left.
+    (``solution_gate.scrub_hint``). When nothing is left, a line for the item's own task
+    (a word, a rule) that promises no choice now: the choices lock until the retry (#1024).
     """
 
     from app.services import solution_gate
@@ -2255,14 +2320,21 @@ def withheld_recall_note(task: RecallTask, correction: Correction, *, language: 
     note = solution_gate.scrub_hint(correction.note_native, phrases, tokens)
     if note:
         return note
-    key = (
-        "forge.second_chance.choice_hint"
-        if task.task_type in PICK_FORMATS
-        else "forge.second_chance.task_hint"
-    )
     from app.services.learner_copy import learner_text
 
-    return learner_text(key, language)
+    if task.task_type not in PICK_FORMATS:
+        return learner_text("forge.second_chance.task_hint", language)
+    # #1024: La Forge's «Look at the rule again and choose once more» is its own second
+    # chance, asked at once; here the choices lock and the item comes back at the end of
+    # the set, and a word item has no rule. The line is read from the item's task.
+    if task.target.kind is TargetKind.VOCABULARY:
+        word = (task.prompt_fr or "").strip() if task.task_type == "listen_tap" else ""
+        if word:
+            return learner_text("journey.withheld.word_choice", language, word=word)
+        return learner_text("journey.withheld.word_choice_plain", language)
+    if task.target.kind is TargetKind.GRAMMAR:
+        return learner_text("journey.withheld.rule_choice", language)
+    return learner_text("journey.withheld.choice", language)
 
 
 def _selected_option_id(task: RecallTask, answer: AttemptAnswer) -> str | None:
@@ -2544,7 +2616,13 @@ def evaluate_recall(
         if task.task_type in {"tiles", "word_bank", "unscramble"} and answer.tile_ids:
             from app.services.chrome_language import user_correction_language
 
-            note = tile_order_note(task, answer.tile_ids, str(user_correction_language(user))) or note
+            language = str(user_correction_language(user))
+            note = tile_order_note(task, answer.tile_ids, language) or note
+            slip = None if task.rule_native else repair_slip_note(task, language)
+            if slip:
+                # #967: a repair's miss ends on the slip it repairs, as #278 ends it on
+                # the rule it broke when the item carries one.
+                note = f"{note} {slip}".strip() if note else slip
         elif task.task_type in {"choice", "classify", "listen_tap", "who_said"}:
             from app.services.chrome_language import user_correction_language
 
