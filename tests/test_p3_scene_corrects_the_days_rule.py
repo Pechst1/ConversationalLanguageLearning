@@ -329,10 +329,14 @@ def test_a_b1_reply_with_three_errors_keeps_three_corrections_the_days_rule_firs
 
 
 @pytest.mark.parametrize("level", ["A1", "A2"])
-def test_an_a1_a2_reply_keeps_exactly_one(level):
+def test_an_a1_a2_reply_keeps_exactly_one_of_the_tutors(level):
+    """Below B1 the tutor is asked for one and one of its own is kept; the basic check's
+    edits on other words come after it (#919: «au usine» was left unmarked)."""
+
     verdict = _three(level)
 
-    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens"]
+    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens", "le appartement"]
+    assert "que je prends" not in [c.span_fr for c in verdict.corrections]  # the tutor's second
     assert lanes.tutor_payload(_payload(level=level))["max_corrections"] == 1
 
 
@@ -341,7 +345,8 @@ def test_each_correction_passes_the_checks_on_its_own_and_overlaps_collapse():
     overlapping = {**SUBJ, "span_fr": "tu reviens", "corrected_fr": "tu reviennes", "rule_id": None}
     verdict = _verdict(SUBJ, SUBJ, overlapping)
     lanes.validate_tutor(verdict, _payload(THREE_TEXT, level="B2", rules=_rules()))
-    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens"]
+    # The tutor's three collapse into one; the basic check's «le appartement» follows (#919).
+    assert [c.span_fr for c in verdict.corrections] == ["que tu reviens", "le appartement"]
 
     verdict = _verdict(gender_only, {**AVANT, "note_native": "La forme correcte est « que je prenne »."}, ELISION)
     lanes.validate_tutor(verdict, _payload(THREE_TEXT, level="B1", rules=_rules()))
@@ -361,7 +366,7 @@ def test_the_turn_carries_all_accepted_corrections_and_shows_the_first_in_front(
     assert [c.corrected_fr for c in public.more] == ["l'appartement", "que je prenne"]
     assert public.more[0].notes_native  # one note per issue, as the first has
 
-    assert lanes.turn_correction(_three("A2"), THREE_TEXT).more == ()
+    assert [c.span_fr for c in lanes.turn_correction(_three("A2"), THREE_TEXT).more] == ["le appartement"]
 
 
 def test_a_prompt_that_withholds_the_correction_withholds_the_others_too(db_session, monkeypatch):

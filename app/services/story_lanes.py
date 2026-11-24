@@ -751,15 +751,13 @@ def validate_tutor(verdict: TutorVerdict, payload: dict) -> None:
         # P3: an error against the day's rule first, then against the week's, then the
         # order the tutor gave (its most structural first).
         kept.sort(key=lambda c: 0 if today and c.rule_id == today else 1 if c.rule_id in recent else 2)
-        kept = _apart(kept, text)
-        if not kept:
-            # #250: the same contract as the scene reply (living_story._validate_turn):
-            # without a model correction that survived, the first model-free edit
-            # («Je suis froid» → «J'ai froid» among them, #193).
-            span, fixed, note = correction_contract.best_deterministic_edit(text, language=language)
-            if span and fixed:
-                kept = [TutorCorrection(span_fr=span, corrected_fr=fixed, note_native=note)]
-        kept = kept[: max_corrections((payload.get("story") or {}).get("level"))]
+        kept = _apart(kept, text)[: max_corrections((payload.get("story") or {}).get("level"))]
+        # #250 / #919: one corrector contract with the Courrier and the Journal
+        # (``correction_contract.merge_deterministic_errata``): the model's corrections,
+        # then every model-free edit on words they leave alone («ce que est», «au usine»
+        # beside the model's «dangereuse»). With no model correction left, the most
+        # serious model-free edit leads («Je suis froid» → «J'ai froid», #193).
+        kept = _with_basic_check(kept, text, language=language)
     verdict.corrections = kept
     first = kept[0] if kept else None
     verdict.correction_span_fr = first.span_fr if first else None
@@ -810,6 +808,32 @@ def _accepted_correction(
         if not note:
             return None
     return TutorCorrection(span_fr=span, corrected_fr=fixed, note_native=note, rule_id=rule_id)
+
+
+def _with_basic_check(kept: list[TutorCorrection], text: str, *, language: str | None) -> list[TutorCorrection]:
+    """The model's corrections, then the model-free edits that touch none of their words,
+    the most serious first, up to :data:`TUTOR_MAX_CORRECTIONS` in all (#919).
+
+    ``max_corrections`` caps what the tutor is asked to find (one below B1); the basic
+    check is the app's own reading of the sentence and is never cut to the model's
+    budget: a learner whose reply had three slips sees three (live walk 19 Nov, A1)."""
+
+    folded = text.casefold()
+    taken: list[tuple[int, int]] = []
+    for item in kept:
+        at = folded.find(item.span_fr.casefold())
+        if at >= 0:
+            taken.append((at, at + len(item.span_fr)))
+    out = list(kept)
+    edits = sorted(correction_contract.deterministic_edits(text), key=lambda e: (-e.severity, e.start))
+    for edit in edits:
+        if len(out) >= TUTOR_MAX_CORRECTIONS:
+            break
+        if any(edit.start < end and start < edit.end for start, end in taken):
+            continue
+        taken.append((edit.start, edit.end))
+        out.append(TutorCorrection(span_fr=edit.span, corrected_fr=edit.replacement, note_native=edit.note_for(language)))
+    return out
 
 
 def _apart(corrections: list[TutorCorrection], text: str) -> list[TutorCorrection]:
