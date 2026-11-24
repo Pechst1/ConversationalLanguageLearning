@@ -1571,6 +1571,36 @@ _FILTER_ALIASES = {"def": "def_", "en": "en_"}
 #: matter for the agreement of a participle or adjective, «you» and «they» for the
 #: person itself.
 _UNDERSPECIFIED_SUBJECTS = frozenset({"I", "we", "you", "they"})
+
+#: #1029: the learner's ``address_preference`` → the gender their «je» / «tu» agrees
+#: in. «neutral» (the default: no gender given) has none.
+SPEAKER_GENDERS = {"masculine": "m", "feminine": "f"}
+SPEAKER_PREFERENCES = frozenset({"neutral", *SPEAKER_GENDERS})
+
+
+def speaker_of(user: Any) -> str:
+    """The speaker a learner's items are written for: their ``address_preference``
+    («masculine», «feminine»), else «neutral»."""
+
+    value = str(getattr(user, "address_preference", "") or "neutral")
+    return value if value in SPEAKER_PREFERENCES else "neutral"
+
+
+def _speaker_slots(bindings: dict[str, dict[str, Any]]) -> list[str]:
+    """#1029: the slots bound to an unnamed «je» / «tu» that carries a gender.
+
+    Their gender is the learner's, not the lexicon's to draw: «je suis partie» is a
+    woman speaking. A «tu» said to a named person («Tu es partie, Lila ?») is hers."""
+
+    named = "VOC" in bindings
+    return [
+        slot
+        for slot, entry in bindings.items()
+        if entry.get("fr") in {"je", "tu"}
+        and entry.get("g") in {"m", "f"}
+        and "pron" in (entry.get("tags") or [])
+        and not (named and entry.get("fr") == "tu")
+    ]
 #: A «we» gloss that also names «our» / «us»: only «nous … notre» is that sentence.
 # #536: an English gloss that names a person's sex («invite her», «his friend»).
 _GENDERED_ENGLISH = re.compile(r"\b(?:he|him|his|himself|she|her|hers|herself)\b", re.IGNORECASE)
@@ -2443,12 +2473,17 @@ class ItemBank:
         known: Iterable[str] = (),
         detector: Any = None,
         story: Iterable[str] = (),
+        speaker: str | None = None,
     ) -> Iterator[BankItem]:
         """Endless distinct items (by fingerprint) of one unit, skipping ``exclude``.
 
         ``detector`` is a callable(sentence) -> bool; an item whose sentence it
         rejects is never yielded. ``story`` (WP-S5) names lexicon ids and cast
         members the learner's story has lately been about; they are preferred.
+        ``speaker`` (#1029) is the learner's ``address_preference``
+        (:func:`speaker_of`): every unnamed «je» / «tu» is then theirs
+        (:meth:`_as_speaker`). ``None`` (no learner: a rule card's own pair) keeps
+        the drawn one.
         Every item passes the naturalness checker
         (:func:`app.services.item_semantics.violations`).
         """
@@ -2466,10 +2501,15 @@ class ItemBank:
             frame = rng.choices(frames, weights=weights, k=1)[0]
             try:
                 bindings = self._bind(frame, rng, known_set, story_set)
-                item = self.render(frame, bindings)
+                spoken = self._as_speaker(frame, bindings, speaker)
             except (RenderError, KeyError, IndexError):
                 misses += 1
                 continue
+            if spoken is None:
+                stats["rejected:speaker"] += 1
+                misses += 1
+                continue
+            bindings, item = spoken
             stats["rendered"] += 1
             clashes = semantics.violations(item)
             if clashes:
@@ -2491,6 +2531,45 @@ class ItemBank:
             misses = 0
             seen |= keys
             yield item
+
+    def _pronoun_as(self, entry: dict[str, Any], gender: str) -> dict[str, Any]:
+        """The lexicon's ``entry`` pronoun («je», «tu») in ``gender``."""
+
+        if entry.get("g") == gender:
+            return entry
+        for other in self.lex.pool("pron"):
+            if other.get("fr") == entry.get("fr") and other.get("n") == entry.get("n") and other.get("g") == gender:
+                return other
+        raise RenderError(f"no {gender} {entry.get('fr')}")
+
+    def _as_speaker(
+        self, frame: _Frame, bindings: dict[str, dict[str, Any]], speaker: str | None
+    ) -> tuple[dict[str, dict[str, Any]], BankItem] | None:
+        """#1029: ``bindings`` with every unnamed «je» / «tu» the learner, and their item.
+
+        The key is printed as «the right sentence», so an agreement with «je» / «tu»
+        is the learner's own: «masculine» gets «Je suis parti», «feminine» «Je suis
+        partie». A learner who gave no gender («neutral») is never told which they
+        are: an item whose key would agree with them is not served (``None``) — the
+        rule is then practised on a named person («Marie est partie»); one whose
+        key says no gender («J'ai ouvert») is, with the unmarked form in its traps."""
+
+        slots = _speaker_slots(bindings) if speaker is not None else []
+        if not slots:
+            return bindings, self.render(frame, bindings)
+
+        def as_gender(gender: str) -> dict[str, dict[str, Any]]:
+            return {**bindings, **{slot: self._pronoun_as(bindings[slot], gender) for slot in slots}}
+
+        gender = SPEAKER_GENDERS.get(str(speaker))
+        if gender is not None:
+            spoken = as_gender(gender)
+            return spoken, self.render(frame, spoken)
+        unmarked = as_gender("m")
+        item = self.render(frame, unmarked)
+        if normalize(item.sentence) != normalize(self.render(frame, as_gender("f")).sentence):
+            return None
+        return unmarked, item
 
     def _variety_keys(self, item: BankItem) -> frozenset[str]:
         """P6: the fingerprints a sentence stands for in the variety guarantee — its own
@@ -2525,10 +2604,13 @@ class ItemBank:
         known: Iterable[str] = (),
         detector: Any = None,
         story: Iterable[str] = (),
+        speaker: str | None = None,
     ) -> list[BankItem]:
         rng = random.Random(str(seed))  # noqa: S311 - reproducible variety, not security
         items: list[BankItem] = []
-        for item in self.sample(unit, rng, exclude=exclude, known=known, detector=detector, story=story):
+        for item in self.sample(
+            unit, rng, exclude=exclude, known=known, detector=detector, story=story, speaker=speaker
+        ):
             items.append(item)
             if len(items) >= count:
                 break
@@ -2660,9 +2742,11 @@ def near_miss_sentences(external_id: str | None, *, seed: str) -> tuple[str, lis
     """A correct sentence and its authored trap forms, with the same context.
 
     Unlike unrelated scene lines, every option exercises the same construction.
+    Said to every learner, so it is «neutral» (#1029): no «je» / «tu» agrees in a
+    gender nobody gave.
     """
     for unit in units_for_external_id(external_id):
-        for item in default_bank().generate(unit, 4, seed=seed, detector=unit_detector(unit)):
+        for item in default_bank().generate(unit, 4, seed=seed, detector=unit_detector(unit), speaker="neutral"):
             wrong = list(dict.fromkeys(item.wrong_sentences))
             if wrong:
                 return item.sentence, wrong[:3]
@@ -4084,6 +4168,7 @@ def build_bank_set(
     rule_examples: Iterable[str] = (),
     pool_outputs: dict[str, Any] | None = None,
     story: Iterable[str] = (),
+    speaker: str | None = None,
 ) -> BankSet | None:
     """The whole exercise payload for one concept, from its units' templates.
 
@@ -4091,6 +4176,7 @@ def build_bank_set(
     session, the last seven days); the rule card's examples are always
     excluded. ``pool_outputs`` (``output_ladder`` + ``produce`` of a vetted
     shared LLM set) replaces the templated production prompts when given.
+    ``speaker`` is the learner's ``address_preference`` (#1029, :meth:`ItemBank.sample`).
     """
 
     units = units_for_external_id(external_id)
@@ -4107,6 +4193,7 @@ def build_bank_set(
             known=known,
             detector=unit_detector(unit),
             story=story,
+            speaker=speaker,
         )
         for unit in units
     ]

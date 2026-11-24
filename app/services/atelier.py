@@ -107,6 +107,7 @@ from app.services.item_bank import (
     judgement_item,
     label_table,
     meaning_cue_text,
+    speaker_of,
     units_for_external_id,
 )
 from app.services.item_bank import fingerprint as bank_fingerprint
@@ -1931,6 +1932,8 @@ def item_bank_exercise_set(
                 rule_examples=rule_examples,
                 pool_outputs=pool_outputs if with_pool else None,
                 story=story,
+                # #1029: the learner is the «je» / «tu» of the set, as they gave their gender.
+                speaker=speaker_of(user),
             )
             problems = AtelierExerciseGenerator._payload_validation_errors(built.payload, concept=concept) if built else ["no bank set"]
             return built, problems

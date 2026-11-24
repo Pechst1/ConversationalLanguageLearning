@@ -256,6 +256,8 @@ def _items_for_rule(
             exclude=blocked,
             # #147: a sentence names only people this learner has met.
             detector=only_met(item_bank.unit_detector(unit), state),
+            # #1029: a «je» / «tu» agrees as the learner gave their gender, or not at all.
+            speaker=item_bank.speaker_of(user),
         )
         for tries, candidate in enumerate(stream):
             if tries >= _MAX_CANDIDATES or len(out) >= count:

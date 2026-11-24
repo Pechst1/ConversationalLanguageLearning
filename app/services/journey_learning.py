@@ -1390,6 +1390,7 @@ def _with_grammar_briefs(
 
     if not any(c.target.kind is TargetKind.GRAMMAR for c in candidates):
         return candidates
+    from app.services import item_bank
     from app.services.chrome_language import user_chrome_language, user_correction_language
     from app.services.concept_life import concept_brief
     from app.services.forge_coaches import card_for_learner, story_state_of
@@ -1428,7 +1429,9 @@ def _with_grammar_briefs(
         brief = _with_held_opportunity_brief(
             brief, (candidate.metadata or {}).get("held_opportunity")
         )
-        brief = _with_coach_scene(brief, language=str(language), level=level, state=state)
+        brief = _with_coach_scene(
+            brief, language=str(language), level=level, state=state, speaker=item_bank.speaker_of(user)
+        )
         # #147: a drill's face follows the card's speaker: someone this learner has met.
         brief = {
             **brief,
@@ -4455,6 +4458,7 @@ def coach_scene_review_task(
     day_key: str,
     level: str | None = None,
     state: dict[str, Any] | None = None,
+    speaker: str | None = None,
 ) -> RecallTask | None:
     """A strong unit's Rappel: the rule's coach says a line, the learner replies.
 
@@ -4477,6 +4481,8 @@ def coach_scene_review_task(
 
     #147: with the learner's thread ``state``, the coach is someone they have met and no
     sentence names anyone they have not (8 Nov, a drill on day 1: «Romy and I send a letter»).
+
+    #1029: ``speaker`` is the learner's ``address_preference`` (:func:`item_bank.speaker_of`).
     """
 
     from app.services import forge_coaches, grammar_items, item_bank
@@ -4498,6 +4504,8 @@ def coach_scene_review_task(
         24,
         seed=f"rappel-scene|{external_id}|{day_key}",
         detector=forge_coaches.only_met(item_bank.unit_detector(unit), state),
+        # #1029: the learner's reply is theirs: its «je» agrees as they gave it, or not at all.
+        speaker=speaker,
     )
     def fits_level(texts: list[str]) -> bool:
         if not level:
@@ -4625,7 +4633,12 @@ def spaced_item_pending(db: Session, *, user: User, brief: dict[str, Any]) -> di
 
 
 def _with_coach_scene(
-    brief: dict[str, Any], *, language: str, level: str | None = None, state: dict[str, Any] | None = None
+    brief: dict[str, Any],
+    *,
+    language: str,
+    level: str | None = None,
+    state: dict[str, Any] | None = None,
+    speaker: str | None = None,
 ) -> dict[str, Any]:
     """WP-94: a strong unit's brief carries its coach mini-scene for the planner.
 
@@ -4639,7 +4652,12 @@ def _with_coach_scene(
         return brief
     try:
         task = coach_scene_review_task(
-            brief, language=language, day_key=datetime.now(UTC).date().isoformat(), level=level, state=state
+            brief,
+            language=language,
+            day_key=datetime.now(UTC).date().isoformat(),
+            level=level,
+            state=state,
+            speaker=speaker,
         )
     except Exception:  # pragma: no cover - a Rappel item is never worth the day
         logger.exception("journey_coach_scene_unavailable")
