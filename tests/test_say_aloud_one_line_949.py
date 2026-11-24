@@ -267,9 +267,10 @@ def test_the_hooks_and_the_card_share_one_ne_rule():
 
     from app.services import learner_facts, story_teaser
 
-    assert story_teaser.drops_ne is learner_facts.drops_ne
-    assert learner_facts.drops_ne("Non, Bastien est pas un ami.")
-    assert learner_facts.drops_ne("J'ai rien entendu.")
-    assert learner_facts.drops_ne("Tu viens jamais au café.")
+    drops_ne = story_teaser.drops_ne
+    assert drops_ne("Non, Bastien est pas un ami."), "the hooks' rule misses a «pas» without «ne»"
+    assert drops_ne("J'ai rien entendu.")
+    assert drops_ne("Tu viens jamais au café.")
     for fine in ("Pourquoi pas ?", "Pas ce soir.", "Rien de grave.", "Je viens, pas toi ?", "Bastien n'est pas un ami."):
-        assert not learner_facts.drops_ne(fine), fine
+        assert not drops_ne(fine), fine
+    assert getattr(learner_facts, "drops_ne", None) is drops_ne, "two «ne» rules, not one"
