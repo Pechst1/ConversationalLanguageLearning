@@ -22,6 +22,8 @@ from collections.abc import Iterable
 from datetime import date as _date
 from typing import Any
 
+from app.services.learner_facts import drops_ne
+
 TEASER_WINDOW_DAYS = 14
 TEASER_LEDGER_LIMIT = 30
 TEASER_QUOTE_CHARS = 110
@@ -80,29 +82,10 @@ _NUMBER_WORDS = {
 
 #: #822: what may stand before a hook's question. The hook is printed as a caption, the
 #: last words of the page, so it may not speak as somebody («je», «me», «moi») unless a
-#: character said that very line in the scene, and it never drops the «ne» of a negation.
-_NEGATIVE = re.compile(r"\b(?:rien|jamais|personne)\b", re.IGNORECASE)
-_NE = re.compile(r"\bn(?:e\b|['’])", re.IGNORECASE)
-#: Uses of the words that are no negation: «de rien», «pour rien», «une personne».
-_NOT_A_NEGATION = re.compile(
-    r"\b(?:de|pour)\s+rien\b|\b(?:une|la|les|des|cette|chaque|en)\s+personnes?\b", re.IGNORECASE
-)
-#: A negation needs its «ne» only on a verb: «Rien de grave.», «Jamais !» need none.
-_HAS_SUBJECT = re.compile(
-    r"(?:^|[\s,;:…(])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela)\b|[jc]['’])"
-    r"|^(?:personne|rien)\s+(?!de\b|d['’])\w",
-    re.IGNORECASE,
-)
+#: character said that very line in the scene, and it never drops the «ne» of a negation
+#: (:func:`learner_facts.drops_ne`, the one rule the line to say aloud shares, #949).
 _FIRST_PERSON = re.compile(r"(?:^|[\s,;:…(])(?:(?:je|me|moi)\b|[jm]['’])", re.IGNORECASE)
 _SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
-
-
-def drops_ne(sentence: Any) -> bool:
-    """Whether a sentence says «rien», «jamais» or «personne» on a verb without its «ne»
-    («J'ai rien entendu.»): spoken French an A1 page does not teach (#822)."""
-
-    line = _NOT_A_NEGATION.sub(" ", " ".join(str(sentence or "").split())).strip()
-    return bool(_NEGATIVE.search(line) and _HAS_SUBJECT.search(line) and not _NE.search(line))
 
 
 def lead_problem(lead: Any, *, spoken: Iterable[str] = ()) -> str | None:

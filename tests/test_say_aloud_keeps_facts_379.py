@@ -10,6 +10,10 @@ The mechanism: for a generated scene the line to repeat was the task's
 had said anything. Nothing the learner then stated could change it. Pinned here: a
 pre-written line is offered only when it keeps every date, number and reason the
 learner gave; otherwise the line is the learner's own sentence, corrected.
+
+#949: the line is at most ten words. The learner's 13-word sentence is cut to the part that
+keeps their date («Je veux retourner le deux décembre.»): a cut says less, never another
+date or reason.
 """
 
 from __future__ import annotations
@@ -22,6 +26,8 @@ from app.services import spoken_reply
 
 REPLY = "Je veux retourner le deux decembre, parce que je suis fatigue de Berlin."
 WRITTEN_BEFOREHAND = "Je rentre le 19 décembre, parce que je reste pour la fête."
+#: The learner's own line, cut to ten words: their date, not the 19th (#949).
+OWN_LINE = "Je veux retourner le deux décembre."
 
 
 @pytest.fixture(autouse=True)
@@ -47,13 +53,13 @@ def test_the_walks_line_does_not_replace_the_learners_date_and_reason():
         _step(REPLY, WRITTEN_BEFOREHAND),
         _correction("Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."),
     )
-    assert line == "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
+    assert line == OWN_LINE
     assert "19" not in line and "fête" not in line
 
 
 def test_without_a_correction_the_line_is_the_learners_own_sentence():
     said = "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
-    assert spoken_reply.repeat_line_for(_step(said, WRITTEN_BEFOREHAND)) == said
+    assert spoken_reply.repeat_line_for(_step(said, WRITTEN_BEFOREHAND)) == OWN_LINE
 
 
 def test_a_sentence_with_its_mistakes_in_it_is_not_offered():
@@ -70,7 +76,8 @@ def test_a_line_that_states_a_different_date_is_not_offered():
 
 def test_a_line_that_keeps_the_date_and_the_reason_is_still_offered():
     suggested = "Je veux rentrer le 2 décembre, parce que je suis très fatigué de Berlin."
-    assert spoken_reply.repeat_line_for(_step(REPLY, suggested)) == suggested
+    # #949: the written line keeps the learner's facts, so it stands, cut to ten words.
+    assert spoken_reply.repeat_line_for(_step(REPLY, suggested)) == "Je veux rentrer le 2 décembre."
 
 
 def test_a_number_said_in_words_equals_the_digits():
@@ -141,8 +148,8 @@ def test_the_audio_door_reads_the_same_line_as_the_recap():
     corrected = "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
     step = _step(REPLY, WRITTEN_BEFOREHAND)
     step.private_task["turns"][0]["correction"] = {"corrected_fr": corrected}
-    assert spoken_reply.repeat_line_for(step) == corrected
-    assert spoken_reply.repeat_line_for(step, _correction(corrected)) == corrected
+    assert spoken_reply.repeat_line_for(step) == OWN_LINE
+    assert spoken_reply.repeat_line_for(step, _correction(corrected)) == OWN_LINE
 
 
 def test_a_date_given_on_the_first_of_three_exchanges_still_counts():
@@ -161,7 +168,7 @@ def test_a_date_given_on_the_first_of_three_exchanges_still_counts():
         }
     )
     line = spoken_reply.repeat_line_for(step, _correction("Je pars seul avec mon sac."))
-    assert line == "Je veux retourner le deux décembre, parce que je suis fatigué de Berlin."
+    assert line == OWN_LINE
 
 
 def test_a_fact_corrected_back_to_the_line_lets_the_line_stand():

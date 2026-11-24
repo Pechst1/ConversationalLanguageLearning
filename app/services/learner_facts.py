@@ -31,7 +31,8 @@ _MULTIPLIERS = {"cent": 100, "cents": 100, "mille": 1000}
 _MONTHS = frozenset(
     "janvier fevrier mars avril mai juin juillet aout septembre octobre novembre decembre".split()
 )
-_REASON = re.compile(r"\b(?:parce qu'|parce que|puisque|puisqu'|car)\s*(.*)$")
+#: «car» is a word of its own: «la carte de ma grand-mère» gives no reason (#949).
+_REASON = re.compile(r"\b(?:parce qu'|parce que|puisque|puisqu'|car\b)\s*(.*)$")
 #: Words that carry no reason: a reason is compared by what it is about.
 _LIGHT = frozenset(
     "parce puisque pour avec dans mais suis fais est sont etre avoir tres trop aussi encore alors donc "
@@ -247,30 +248,38 @@ def facts_of(text: Any) -> dict[str, frozenset]:
     return {kind: value for kind, value in found.items() if value}
 
 
-def clashes(learner_text: Any, line: Any) -> frozenset[str]:
-    """The kinds of fact the learner stated that ``line`` states differently."""
+def clashes(learner_text: Any, line: Any, *, stated_only: bool = False) -> frozenset[str]:
+    """The kinds of fact the learner stated that ``line`` states differently.
+
+    A line that leaves a fact out states it differently too («le 2 décembre» against a line
+    with no date), unless ``stated_only``: a cut of the learner's own words («J'ai trois
+    chats.» of «J'ai trois chats, deux chiens …», «Je pars le 5 mars.» of «…, parce que …»)
+    says less and nothing else, so only the facts it states count (#949)."""
 
     said, offered = facts_of(learner_text), facts_of(line)
     kinds = set()
     for kind, value in said.items():
+        if stated_only and kind not in offered:
+            continue
         other = offered.get(kind, frozenset())
+        same = other <= value if stated_only else value == other
         # A reason is the same reason when it is about one of the same things.
-        if (kind == "reason" and not (value & other)) or (kind != "reason" and value != other):
+        if (kind == "reason" and not (value & other)) or (kind != "reason" and not same):
             kinds.add(kind)
     if _stance_read() and _goes_against(stance_of(learner_text), stance_of(line)):
         kinds.add("stance")
     return frozenset(kinds)
 
 
-def contradicts(learner_text: Any, line: Any) -> bool:
+def contradicts(learner_text: Any, line: Any, *, stated_only: bool = False) -> bool:
     """Does ``line`` state a date, number or reason that is not the learner's own?
 
     A kind of fact the learner did not state never counts against the line."""
 
-    return bool(clashes(learner_text, line))
+    return bool(clashes(learner_text, line, stated_only=stated_only))
 
 
-def latest_clash(turns: list[Any], line: Any) -> int | None:
+def latest_clash(turns: list[Any], line: Any, *, stated_only: bool = False) -> int | None:
     """The index of the latest turn whose fact ``line`` contradicts, or ``None``.
 
     Per kind of fact, only the latest turn that states it counts: a learner who
@@ -280,7 +289,7 @@ def latest_clash(turns: list[Any], line: Any) -> int | None:
     clash = None
     for kind in KINDS:
         latest = next((index for index in reversed(range(len(turns))) if kind in facts_of(turns[index])), None)
-        if latest is not None and kind in clashes(turns[latest], line):
+        if latest is not None and kind in clashes(turns[latest], line, stated_only=stated_only):
             clash = latest if clash is None else max(clash, latest)
     decided: dict[str, tuple[int, bool]] = {}
     for index, turn in enumerate(turns if _stance_read() else []):
@@ -386,5 +395,47 @@ def looks_misspelled(text: Any) -> bool:
         if key in _accented_words():
             return True
         if any(key.startswith(lead) and known(key[len(lead) :]) for lead in _ELIDED):
+            return True
+    return False
+
+
+#: A negation's second word, as a sentence carries it («pas» too: 21 Nov, «Bastien est pas un
+#: ami», #949).
+_NEGATION_WORD = re.compile(r"\b(?:pas|jamais|rien|personne)\b", re.IGNORECASE)
+_NE = re.compile(r"\bn(?:e\b|['’])", re.IGNORECASE)
+#: Uses of the words that are no negation: «de rien», «pour rien», «une personne», «un pas»,
+#: «pas à pas», and «pas» standing for a whole clause («pourquoi pas», «ou pas», «non pas»).
+_NOT_A_NEGATION = re.compile(
+    r"\b(?:de|pour)\s+rien\b|\b(?:une|la|les|des|cette|chaque|en)\s+personnes?\b"
+    r"|\b(?:un|le|ce|mon|ton|son|petit|premier|dernier)\s+pas\b|\bpas\s+à\s+pas\b"
+    r"|\b(?:pourquoi|ou|non)\s+pas\b",
+    re.IGNORECASE,
+)
+#: A negation needs its «ne» only on a verb: «Rien de grave.», «Jamais !» need none.
+_HAS_SUBJECT = re.compile(
+    r"(?:^|[\s,;:…(])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela)\b|[jc]['’])"
+    r"|^(?:personne|rien)\s+(?!de\b|d['’])\w",
+    re.IGNORECASE,
+)
+#: Where a sentence divides into clauses for the «ne» rule: «Moi, j'ai faim, pas toi ?».
+_NE_CLAUSE = re.compile(r"[,;:]|\bmais\b", re.IGNORECASE)
+
+
+def drops_ne(text: Any) -> bool:
+    """Whether a clause says «pas», «jamais», «rien» or «personne» on a verb without its «ne»
+    («J'ai rien entendu.», «Bastien est pas un ami.»): spoken French an A1 page does not
+    teach, and no model line for the learner (#822, #949). The one rule the hooks and the
+    line to say aloud share. A clause with no verb drops nothing («Pas ce soir.», «Rien de
+    grave.»); a clause with no pronoun subject counts only on «pas» or «jamais»: «Rien de
+    grave» reads a verb in «grave»."""
+
+    for clause in _NE_CLAUSE.split(" ".join(str(text or "").split())):
+        line = _NOT_A_NEGATION.sub(" ", clause).strip()
+        negation = _NEGATION_WORD.findall(line)
+        if not negation or _NE.search(line):
+            continue
+        if _HAS_SUBJECT.search(line):
+            return True
+        if {word.lower() for word in negation} & _ALWAYS_NEGATES and has_verb(line):
             return True
     return False
