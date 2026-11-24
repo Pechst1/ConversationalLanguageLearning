@@ -2827,9 +2827,10 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
 
     A further edit in words no fix touched is moved back to the learner's offsets. One
     that touches a fix («à le» over the «à» of «a» -> «à») becomes one edit over both,
-    from the learner's words to the twice-fixed ones, with the further edit's rule and
-    note: «a le» -> «au», «« à le » contracts to « au »». A fold that gives back the
-    learner's own words is dropped with the fixes in it.
+    from the learner's words to the twice-fixed ones, named by :func:`_lead` as
+    :func:`_settle` names its own: the further edit when it took away what a fix wrote,
+    «a le» -> «au», «« à le » contracts to « au »». A fold that gives back the learner's
+    own words is dropped with the fixes in it.
     """
 
     # Where each fix sits in the fixed line, and how far it moves what follows it.
@@ -2867,6 +2868,7 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
         if not moves:
             out.extend(edit for _s, _e, _kind, edit in group)
             continue
+        fixes = [(start, edit) for start, _e, kind, edit in group if kind == "first"]
         low = min(item[0] for item in group)
         high = max(item[1] for item in group)
         piece = line[low:high]
@@ -2876,9 +2878,64 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
         span = source[start:end]
         if _norm(span) == _norm(piece) or is_variant_edit(span, piece):
             continue
-        out.append(replace(moves[0], span=span, replacement=piece, start=start, end=end))
+        lead = _lead(fixes, moves) if fixes else moves[0]
+        out.append(_composed(lead, span=span, replacement=piece, start=start, end=end))
     out.sort(key=lambda e: e.start)
     return out
+
+
+def _written(edit: Edit) -> tuple[int, str]:
+    """What ``edit`` itself writes, and where in its replacement: the replacement without
+    the letters it keeps of the learner's words on either side («a» -> «à»: «à»; «des
+    amis» -> «de amis»: nothing, a deletion; «d echarpe» -> «d'echarpe»: «'»)."""
+
+    span, replacement = edit.span, edit.replacement
+    head = 0
+    while head < min(len(span), len(replacement)) and span[head] == replacement[head]:
+        head += 1
+    tail = 0
+    while tail < min(len(span), len(replacement)) - head and span[-1 - tail] == replacement[-1 - tail]:
+        tail += 1
+    return head, replacement[head : len(replacement) - tail]
+
+
+def _overrules(later: Edit, earlier: Edit, at: int) -> bool:
+    """Whether ``later``, an edit on the line in which ``earlier``'s replacement stands at
+    ``at``, takes away everything ``earlier`` wrote (#1047).
+
+    «à le» -> «au» over the «à» of «a» -> «à»: the grave accent is not in «au», so the
+    accent's note («the preposition takes a grave accent: « au »») would be false. «de
+    écharpe» -> «d'écharpe» over «echarpe» -> «écharpe» keeps the accent; «ne aime» ->
+    «n'aime» over «ne pas aime» -> «ne aime pas» leaves «aime pas» where it was put."""
+
+    offset, wrote = _written(earlier)
+    if not wrote:
+        return False
+    begin = at + offset
+    return later.start <= begin and begin + len(wrote) <= later.end and wrote not in later.replacement
+
+
+def _lead(earlier: list[tuple[int, Edit]], later: list[Edit]) -> Edit:
+    """The fix that names a composed edit: the one whose words the learner reads (#1047).
+
+    ``earlier`` are fixes with where their replacement stands in the line ``later`` was
+    found on. A later fix that took away what an earlier one wrote names it («a le» ->
+    «au» is a contraction, not an accent); else the first earlier fix keeps its name, its
+    note requoted to the whole («ne pas aime» -> «n'aime pas» stays a negation). The
+    single rule both :func:`_settle` and :func:`_fold_into_source` compose by."""
+
+    for edit in later:
+        if any(_overrules(edit, fix, at) for at, fix in earlier):
+            return edit
+    return min(earlier, key=lambda item: item[0])[1]
+
+
+def _composed(lead: Edit, *, span: str, replacement: str, start: int, end: int) -> Edit:
+    """``lead`` (its rule, label, kind and hint) over ``span`` -> ``replacement``, its note
+    quoting the whole replacement where it quoted its own."""
+
+    note = {lang: _requote(text, lead.replacement, replacement) for lang, text in lead.note.items()}
+    return replace(lead, span=span, replacement=replacement, start=start, end=end, note=note)
 
 
 def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
@@ -2950,7 +3007,9 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
 
     The replacement is spliced into the sentence and the raw rules run again; an edit
     they find inside (or across the edge of) the replaced region is folded into this
-    one. Two rounds at most: a fix that still does not settle is not shown."""
+    one, named by :func:`_lead`: an inner edit that took away what this one wrote names
+    it («a» -> «à» in «a le» settles as «au», a contraction, #1047). Two rounds at most:
+    a fix that still does not settle is not shown."""
 
     region_start, region_end = edit.start, edit.start + len(edit.replacement)
     context = source[: edit.start] + edit.replacement + source[edit.end :]
@@ -2973,8 +3032,8 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
     span = source[low:end]
     if _norm(span) == _norm(replacement):
         return None
-    note = {lang: _requote(text, edit.replacement, replacement) for lang, text in edit.note.items()}
-    composed = replace(edit, span=span, replacement=replacement, start=low, end=end, note=note)
+    lead = _lead([(edit.start, edit)], inner)
+    composed = _composed(lead, span=span, replacement=replacement, start=low, end=end)
     return _settle(source, composed, cast, depth + 1)
 
 

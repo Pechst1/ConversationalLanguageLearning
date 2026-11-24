@@ -495,3 +495,103 @@ def test_journal_foreground_is_one_of_its_fixes():
         "errata": [{"span_fr": "a", "corrected_fr": "à"}],
     }
     assert verdicts.from_journal(payload, text=A_TWICE_LINE).corrected == "Je vais à Paris et il a faim."
+
+
+# ---------------------------------------------------------------------------
+# #1047: a fix composed of two rules is named after the one whose words the
+# learner reads
+# ---------------------------------------------------------------------------
+
+#: #1047 (walk 24 Nov, a1-de-fresh): the Courrier reply of day 1 and the scene reply of day 3.
+A_LE_LINES = [
+    pytest.param("D abord je vais a le notaire demain.", id="courrier-d1"),
+    pytest.param("Mais demain je suis a le notaire avec Camille.", id="scene-d3"),
+    pytest.param("Je vais a le cafe.", id="996d"),
+]
+_CONTRACTION_LABEL = {"en": "Contraction", "de": "Verschmelzung", "fr": "Contraction"}
+_CONTRACTION_NOTE = {
+    "en": "« à le » contracts to « au ».",
+    "de": "« à le » verschmilzt zu « au ».",
+    "fr": "« à le » se contracte en « au ».",
+}
+_ACCENT_WORDS = re.compile(r"grave|gravis|accent|akzent", re.IGNORECASE)
+
+
+@pytest.mark.parametrize("line", A_LE_LINES)
+def test_a_le_is_explained_as_a_contraction(line):
+    """#1047 done-when: «a le» -> «au» is a contraction, whether the line read again
+    (``_fold_into_source``) or the «à» settling in place (``_settle``) found it. «au» has
+    no grave accent, and the note never says it has."""
+
+    [au] = [e for e in cc.deterministic_edits(line) if e.replacement == "au"]
+    assert (au.rule_id, au.span) == ("FR_CONTRACTION", "a le"), au
+    assert au.label == _CONTRACTION_LABEL, au.label
+    assert au.note == _CONTRACTION_NOTE, au.note
+    assert au.task_error_type == "articles", au.task_error_type
+    for language in ("en", "de", "fr"):
+        assert not _ACCENT_WORDS.search(au.note_for(language)), au.note_for(language)
+
+
+@pytest.mark.parametrize("line", A_LE_LINES)
+def test_a_le_through_the_courrier_verdict(line):
+    """#1047 done-when, the way the Courrier prints it: the stored row of a check with no
+    model, read back as the Courrier's verdict, names «au» as a contraction."""
+    from app.services import verdicts
+
+    errata = cc.deterministic_errata(line, language="de")
+    [row] = [item for item in errata if item["corrected_target"] == "au"]
+    assert (row["external_id"], row["display_label"]) == ("FR_CONTRACTION", "Verschmelzung"), row
+    assert row["why_wrong"] == _CONTRACTION_NOTE["de"], row["why_wrong"]
+    payload = {"errata": errata, "verdict": "unassessed", "correction_debug": {"fallback_used": True, "failure": "no_model"}}
+    verdict = verdicts.from_courrier(payload, text=line)
+    assert " au " in (verdict.corrected or ""), verdict.corrected
+    [listed] = [edit for edit in verdict.edits if edit.replacement == "au"]
+    assert not _ACCENT_WORDS.search(listed.note), listed.note
+    assert listed.note == _CONTRACTION_NOTE["de"], listed.note
+
+
+def _written(span: str, replacement: str) -> tuple[int, str]:
+    """Where in ``replacement`` a fix wrote something, and what: ``replacement`` without
+    the letters it keeps of ``span`` on either side."""
+    head = 0
+    while head < min(len(span), len(replacement)) and span[head] == replacement[head]:
+        head += 1
+    tail = 0
+    while tail < min(len(span), len(replacement)) - head and span[-1 - tail] == replacement[-1 - tail]:
+        tail += 1
+    return head, replacement[head : len(replacement) - tail]
+
+
+def test_a_composed_fix_carries_the_rule_whose_words_it_prints(monkeypatch):
+    """#1047's property: whenever ``_settle`` composes a fix from two rules, the rule that
+    names it is the one whose words the learner reads. When the fix found inside rewrites
+    every letter the first one wrote («à» -> «au»), the first rule's note no longer holds
+    («a grave accent: « au »») and the fix found inside names it, as ``_fold_into_source``
+    names a fold; otherwise the first fix keeps the name («ne pas aime» -> «n'aime pas»
+    stays a negation, «des amis» -> «d'amis» a partitive)."""
+
+    seen: list[str] = []
+    wrong: list[str] = []
+    settle = cc._settle
+
+    def spy(source, edit, cast, depth=0):
+        result = settle(source, edit, cast, depth)
+        if result is None or result == edit:
+            return result
+        context = source[: edit.start] + edit.replacement + source[edit.end :]
+        region = (edit.start, edit.start + len(edit.replacement))
+        inner = [e for e in cc._raw_edits(context, cast) if e.start < region[1] and region[0] < e.end]
+        offset, wrote = _written(edit.span, edit.replacement)
+        at = edit.start + offset
+        overruled = [e for e in inner if wrote and e.start <= at and at + len(wrote) <= e.end and wrote not in e.replacement]
+        lead = overruled[0] if overruled else edit
+        seen.append(f"{edit.rule_id}+{'+'.join(e.rule_id for e in inner)}")
+        if (result.rule_id, result.label, result.task_error_type) != (lead.rule_id, lead.label, lead.task_error_type):
+            wrong.append(f"{source!r}: {result.span!r} -> {result.replacement!r} named {result.rule_id}, not {lead.rule_id}")
+        return result
+
+    monkeypatch.setattr(cc, "_settle", spy)
+    for line in [*_floor_sentences(), *TWICE, *(param.values[0] for param in A_LE_LINES)]:
+        cc.deterministic_edits(line)
+    assert "FR_A_GRAVE+FR_CONTRACTION" in seen and len(set(seen)) >= 4, sorted(set(seen))
+    assert not wrong, wrong
