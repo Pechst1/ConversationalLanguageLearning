@@ -922,6 +922,8 @@ class BankItemProvider:
                 exclude=blocked,
                 detector=only_met(item_bank.unit_detector(unit), self.story_state),
                 story=self.story,
+                # #1029: the learner is the «je» / «tu» of the item, as they gave their gender.
+                speaker=item_bank.speaker_of(self.user),
             )
             for tries, candidate in enumerate(stream):
                 if tries >= self.MAX_CANDIDATES * count or len(made) >= count:
