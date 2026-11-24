@@ -128,6 +128,7 @@ import PhoneProductNav from '@/components/layout/PhoneProductNav';
 // entirely additive: with the capability off nothing here renders and every
 // legacy route, deep link and in-progress session behaves exactly as before.
 import {
+  formatPlannedDuration,
   JourneySession,
   JourneyTodayCard,
   useDailyJourney,
@@ -3085,7 +3086,7 @@ function TodayView({
                 id: 'forge',
                 label: forgeEntry.label,
                 meta: extensionMinutes(dayTime, 'forge', chromeLanguage),
-                ariaLabel: `${forgeEntry.label} · ${forgeEntry.minutes} min`,
+                ariaLabel: `${forgeEntry.label} · ${formatPlannedDuration(forgeEntry.minutes * 60, chromeLanguage)}`,
                 href: forgeEntry.href,
                 shape: 'reward' as const,
               }

@@ -19,12 +19,17 @@
 
 import { useEffect, useState } from 'react';
 
-import { atelierCopy } from '@/lib/atelier-v2-copy';
+import { formatPlannedDuration } from '@/components/atelier-v2/journey/journey-state';
+import { approxMinutes } from '@/components/atelier-v2/journey/time-estimate';
+import { atelierCopy, normalizeControlLanguage } from '@/lib/atelier-v2-copy';
 import { oncePerLoad } from '@/lib/once-per-load';
 import type { JournalEnvelope } from '@/services/api';
 import apiService from '@/services/api';
 
 export const JOURNAL_HOME_HREF = '/notebook?mode=journal';
+
+/** Two to four sentences from memory: about two minutes. */
+const RETELL_SECONDS = 120;
 
 /** The shape of HomeScreen's `HomeChip` (structural, so this file stays pure). */
 export type JournalHomeChip = {
@@ -51,16 +56,18 @@ export function journalWaiting(envelope: JournalEnvelope | null | undefined): Jo
 /**
  * The chip, in Home's chrome language. «Raconter hier» when the scene was
  * yesterday; a scene from further back is «la scène», never «hier».
- * Two to four sentences: «≈ 2 min».
+ * Two to four sentences: two minutes, said through the chips' one minutes copy
+ * («≈ 2 min», «≈ 2 Min.»), the same words as the letter chip beside it (#998).
  */
 export function journalHomeChip(waiting: JournalWaiting | null, language: unknown): JournalHomeChip | null {
   if (!waiting) return null;
   const copy = atelierCopy(language);
+  const chrome = normalizeControlLanguage(language);
   return {
     id: 'journal',
     label: waiting.daysAgo === 1 ? copy.home_journal : copy.home_journal_older,
-    meta: '≈ 2 min',
-    ariaLabel: `${copy.home_journal_aria} · 2 min`,
+    meta: approxMinutes(RETELL_SECONDS, chrome) ?? '',
+    ariaLabel: `${copy.home_journal_aria} · ${formatPlannedDuration(RETELL_SECONDS, chrome)}`,
     href: JOURNAL_HOME_HREF,
     shape: 'story',
   };
