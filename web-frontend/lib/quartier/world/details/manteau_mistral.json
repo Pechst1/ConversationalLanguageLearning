@@ -1,0 +1,20 @@
+{
+  "id": "manteau_mistral",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "Le manteau du Mistral", "en": "The coat at Le Mistral", "de": "Der Mantel im Mistral" },
+  "moment": "a page of the learner's own story left «le manteau du Mistral» at Le Mistral: the learner's coat hangs on the hook under Odile's portrait, in the corner above the zinc",
+  "mark": { "name_fr": "le manteau du Mistral", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "snapshot", "at": [-34.27, 2.04, -18.74], "rot": 0, "text": ["Odile, au Mistral"] },
+    { "kind": "coat", "at": [-34.27, 1.86, -18.745], "rot": 0, "tone": "navy" }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/09-entre-les-episodes.md",
+    "scenes": [
+      "the story order «le manteau du Mistral» at le_mistral (1 life): «The learner's coat hangs on the hook under Odile's portrait, in the corner above the zinc.»",
+      "day 19 «Le billet, encore»: Lila, «Ce soir, prends un manteau. Je te montre quelque chose.» (09-entre-les-episodes.md); Odile appears in Polaroids only (10-lieux-et-images.md); the learner's face is never described"
+    ]
+  }
+}

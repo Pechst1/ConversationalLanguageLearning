@@ -361,3 +361,36 @@ test("the drawing «Maîtresse à Berlin», pinned beside Odile's Polaroid by th
   // her name card sits under her photo, as the cards sit under the Polaroids on the party's wall
   assert.ok(Math.abs(name.at[0] - photo.at[0]) < 0.02 && nameBox.y1 < box(photo).y0, 'the photo above her name card');
 });
+
+test("the learner's coat, on the hook under Odile's Polaroid in the corner by the zinc: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'manteau_mistral').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: 'le manteau du Mistral', location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'Le manteau du Mistral', location_id: 'le_mistral' }]), ['manteau_mistral']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'le manteau du Mistral', location_id: 'odile_flat' }]), []);
+  const coat = spec.things.find((t) => t.kind === 'coat');
+  const photo = spec.things.find((t) => t.kind === 'snapshot');
+  assert.ok(coat && photo, 'the coat and the portrait it hangs under');
+  // the learner's own coat, not Odile's green one (the coat's default tone)
+  assert.ok(coat.tone && coat.tone !== 'coat', "the learner's coat in a colour of its own");
+  // another photo of Odile than the one by the booth: by day, with its caption
+  assert.ok(photo.text?.[0], 'a captioned Polaroid, not the same photo twice');
+  // both on the north wall's face, facing the room
+  for (const t of [coat, photo]) {
+    assert.equal(t.rot, 0);
+    assert.ok(t.at[2] - ROOM.z0 > 0 && t.at[2] - ROOM.z0 < 0.03, `the ${t.kind} on the wall's face`);
+  }
+  // in the corner the zinc's north end makes with the booth's end (mistral.ts: the booth's end
+  // panel stands from x -33.8): the coat, 0.6 m across, hangs between them, its hem off the floor
+  const coatBox = { x0: coat.at[0] - 0.3, x1: coat.at[0] + 0.3, y0: coat.at[1] - 1.0, y1: coat.at[1] + 0.03 };
+  assert.ok(coatBox.x0 > ZINC.front - 0.4 && coatBox.x1 < -33.8, 'the coat between the zinc and the booth');
+  assert.ok(ZINC.north - ROOM.z0 > 0.2, 'the zinc stops short of the wall, so the coat hangs clear of it');
+  assert.ok(coatBox.y0 > ROOM.floor + 0.5 && coatBox.y1 < ZINC.top + 0.75, 'the coat hangs at a hook, its hem off the floor');
+  // the photo just above the hook, centred on it, clear of the clock over the zinc's far end
+  const [pw, ph] = [0.088, 0.107];
+  const photoBox = { x0: photo.at[0] - pw / 2, x1: photo.at[0] + pw / 2, y0: photo.at[1] - ph / 2, y1: photo.at[1] + ph / 2 };
+  assert.ok(Math.abs(photo.at[0] - coat.at[0]) < 0.02, 'the photo over the hook');
+  assert.ok(photoBox.y0 > coatBox.y1 && photoBox.y0 - coatBox.y1 < 0.15, 'just above it');
+  assert.ok(photoBox.x0 > -35.9 + 0.26 || photoBox.y1 < 3.05 - 0.26, 'clear of the clock');
+});

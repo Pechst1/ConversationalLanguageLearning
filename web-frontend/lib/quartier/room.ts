@@ -2190,11 +2190,12 @@ function thing(B: Build, t: RoomThing, i: number) {
     }
     case 'snapshot': {
       // an instant photo pinned to a wall, its white frame wider at the foot: Odile at the zinc,
-      // her short white hair and moss-green cardigan, laughing at something out of the frame
+      // her short white hair and moss-green cardigan, laughing at something out of the frame; with
+      // `text`, another photo of her by day, its caption on the foot in a hand
       // (`at` the wall's face at its centre, facing local +z; 8.8 by 10.7 cm)
       const [w, h] = [0.088, 0.107];
       pinUp(B, x, y, zz, rot, w, h, z, mix(INKS.card, INKS.paper, 0.2), 0.004);
-      card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, snapshotArt(), 3600);
+      card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, snapshotArt(t.text?.[0] ?? ''), 3600);
       return;
     }
     case 'rug': {
@@ -3488,29 +3489,45 @@ function crayonArt(lines: string[]) {
   };
 }
 
-/** Odile at the zinc in an instant photo: short white hair, moss-green cardigan, laughing off-frame. */
-function snapshotArt() {
+/**
+ * Odile at the zinc in an instant photo: short white hair, moss-green cardigan, laughing off-frame.
+ * With a caption (written on the white foot in a hand) it is another photo: daytime, the window's
+ * light behind her, and she has turned the other way.
+ */
+function snapshotArt(caption = '') {
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.fillStyle = css(mix(INKS.card, INKS.paper, 0.2));
     ctx.fillRect(0, 0, w, h);
     const m = w * 0.07;
     const ph = w - 2 * m;
+    const day = caption !== '';
     ctx.save();
     ctx.beginPath();
     ctx.rect(m, m, ph, ph);
     ctx.clip();
-    // the café behind her, amber, the zinc's grey edge low across it, a globe's glow
+    if (day) {
+      // the other photo is the same scene seen the other way round
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+    }
+    // the café behind her: amber under a globe's glow at night; by day the window, pale, its bars
     const bg = ctx.createLinearGradient(0, m, 0, m + ph);
-    bg.addColorStop(0, css(mix(INKS.ochre, INKS.sunflower, 0.35)));
-    bg.addColorStop(1, css(mix(INKS.ochre, INKS.ink, 0.35)));
+    bg.addColorStop(0, css(day ? mix(INKS.card, INKS.cobalt, 0.22) : mix(INKS.ochre, INKS.sunflower, 0.35)));
+    bg.addColorStop(1, css(day ? mix(INKS.ochre, INKS.card, 0.45) : mix(INKS.ochre, INKS.ink, 0.35)));
     ctx.fillStyle = bg;
     ctx.fillRect(m, m, ph, ph);
-    ctx.fillStyle = css(mix(INKS.card, INKS.sunflower, 0.5));
-    ctx.globalAlpha = 0.6;
-    ctx.beginPath();
-    ctx.arc(m + ph * 0.82, m + ph * 0.16, ph * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    if (day) {
+      ctx.fillStyle = css(mix(INKS.green, INKS.ink, 0.3));
+      for (const u of [0.66, 0.94]) ctx.fillRect(m + ph * u, m, ph * 0.035, ph * 0.84);
+      ctx.fillRect(m + ph * 0.66, m + ph * 0.36, ph * 0.34, ph * 0.03);
+    } else {
+      ctx.fillStyle = css(mix(INKS.card, INKS.sunflower, 0.5));
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.arc(m + ph * 0.82, m + ph * 0.16, ph * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     ctx.fillStyle = css(mix(INKS.paper, INKS.ink, 0.4));
     ctx.fillRect(m, m + ph * 0.84, ph, ph * 0.16);
     // her shoulders in the moss-green cardigan, a white collar
@@ -3557,6 +3574,21 @@ function snapshotArt() {
     ctx.strokeStyle = css(mix(INKS.card, INKS.ochre, 0.15));
     ctx.lineWidth = Math.max(1, w * 0.01);
     ctx.strokeRect(m, m, ph, ph);
+    if (day) {
+      // the caption on the foot, in blue ballpoint, a little uphill
+      ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.35));
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const foot = h - (m + ph);
+      let s = Math.round(foot * 0.5);
+      ctx.font = SERIF(s, 500);
+      while (s > 6 && ctx.measureText(caption).width > w * 0.84) ctx.font = SERIF(--s, 500);
+      ctx.save();
+      ctx.translate(w / 2, m + ph + foot * 0.52);
+      ctx.rotate(-0.04);
+      ctx.fillText(caption, 0, 0);
+      ctx.restore();
+    }
   };
 }
 
