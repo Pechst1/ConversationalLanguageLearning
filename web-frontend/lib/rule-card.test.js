@@ -349,3 +349,19 @@ test('the x-ray and the card depth are drawn with av2 tokens only', () => {
   assert.doesNotMatch(block, /#[0-9a-f]{3,6}\b/i);
   assert.doesNotMatch(block, /font-family|text-transform:\s*uppercase/);
 });
+
+test("#1049: a card the met gate left unvoiced shows no face, not even the stand-in coach's", () => {
+  const v2 = JSON.parse(
+    fs.readFileSync(path.join(WEB_ROOT, '..', 'app', 'data', 'rule_cards', 'fr2_A1.json'), 'utf8'),
+  ).cards;
+  // Romy's «J'ai vingt-cinq ans» before Romy is met: La Forge's coach is the stand-in, Margaux.
+  const card = { ...v2.FR2_A11_AVOIR, speaker: null, unvoiced: true };
+  const coach = { id: 'margaux_barman', name: 'Margaux' };
+  const html = render({ card, language: 'de', variant: 'inline', conceptId: 3, coach });
+  assert.match(html, /vingt-cinq ans/);
+  assert.doesNotMatch(html, /rc-source__name/, "the line is Romy's age; nobody else may be named over it");
+  assert.doesNotMatch(html, /Margaux/);
+  // A card that names nobody for no such reason is still said by its coach.
+  const said = render({ card: { ...card, unvoiced: undefined }, language: 'de', variant: 'inline', conceptId: 3, coach });
+  assert.match(said, /rc-source__name">Margaux/);
+});

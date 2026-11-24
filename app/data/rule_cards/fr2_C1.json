@@ -125,6 +125,7 @@
     },
     "FR2_C11_CONCORDANCE_SUBJ": {
       "speaker": "lila_bonnet",
+      "keeps_speaker": true,
       "example": {
         "fr": "Ma mère voulait que je [finisse] mes études, bien que j'[aie déjà trouvé] un emploi.",
         "tr": {

@@ -794,6 +794,11 @@ class RuleCardPayload(_RuleCardModel):
     contrast_with: list[RuleCardLink] | None = None
     #: The headline is a line of today's scene, not the catalogue's example.
     from_scene: bool | None = None
+    #: #1049: the example states its speaker's age, job or family, so before that speaker
+    #: is met the card names nobody rather than a stand-in of whom it is false.
+    keeps_speaker: bool | None = None
+    #: The met gate withheld the speaker: no face on the card, not even the coach's.
+    unvoiced: bool | None = None
 
 
 class RulePrompt(JourneyModel):

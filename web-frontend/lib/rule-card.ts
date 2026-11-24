@@ -31,6 +31,8 @@ export type RuleCardPartner = { id: string; note?: Localized; title?: Localized 
 
 export type RuleCardData = {
   speaker?: string | null;
+  /** #1049: the met gate withheld the speaker (their line is about them): no face, not even the coach's. */
+  unvoiced?: boolean | null;
   example: RuleCardExample;
   rule: Localized;
   pattern?: RuleCardPattern | null;
