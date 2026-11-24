@@ -7366,21 +7366,151 @@ def short_name(member: dict) -> str:
     return name.split()[0] if name else str(member.get("id") or "").split("_")[0].capitalize()
 
 
-def objective_addressees(objective: str | None, cast: list[dict]) -> list[tuple[dict, str]]:
-    """Every cast member the objective asks the learner to speak to, with the word
-    that names them there: ``[(member, "Romy")]``."""
+# #970 (live walk 21 Nov): the model reported Gus' own question, «Gus asks if he should
+# speak to Bastien or stay silent.», and the guard read «speak to Bastien» as an order
+# to the learner and re-addressed it: «… speak to Gus …». An addressing verb is the
+# learner's only when the learner is its subject. The subject is read from the words
+# just before the verb in its clause: nothing, a comma, «so», «then» or «you (to)»
+# leave it the learner's (an imperative); a cast member or a third-person pronoun
+# before a modal («he should speak to»), before a governing verb and «to» («Gus
+# wonders whether to talk to»), or right before it («Gus parle à») make it that
+# member's own act.
+#: Where the clause the subject is read in begins. Its own name: ``_SENTENCE_END``
+#: further down is another pattern and rebinds a shared name (#1013 review).
+_ADDRESS_CLAUSE_END = re.compile(r"[.!?;:…](?=\s|$)")
+_ADDRESS_WORD = re.compile(r"[^\W\d_][\w'’-]*|,")
+_ADDRESS_MODALS = frozenset(
+    {"should", "could", "can", "will", "would", "might", "must", "may", "shall", "d",
+     "doit", "devrait", "peut", "pourrait", "veut", "voudrait", "va", "ose", "soll",
+     "sollte", "kann", "muss", "möchte"}
+)
+_ADDRESS_ADVERBS = frozenset(
+    {"not", "never", "also", "still", "first", "finally", "really", "just", "rather",
+     "even", "maybe", "perhaps", "pas", "plutôt", "nicht"}
+)
+_ADDRESS_INFINITIVE_LEADS = frozenset({"whether", "if", "how", "when", "where", "what", "not", "never"})
+#: The learner as a verb's subject: «you should ask», «tu peux demander à».
+_ADDRESS_LEARNER = frozenset({"you", "i", "we", "tu", "vous", "je", "on", "nous", "du", "ich"})
+#: Verbs that hand their «to …» on to the learner: «Gus says to ask Bastien».
+_ADDRESS_RELAYS = frozenset({"says", "tells", "suggests", "advises", "reminds", "urges", "recommends"})
+_ADDRESS_THIRD = {"he": "m", "she": "f", "il": "m", "elle": "f", "er": "m", "they": "", "ils": "", "elles": ""}
+#: The subject of a verb a third person does whom the cast does not name.
+SOMEONE = "?"
+#: The preposition an addressing verb ends on («speak to», «parle à», «sprich mit»).
+_ADDRESS_PREPOSITION = re.compile(r"\s+(?:to|with|from|à|avec|mit)\s*$", re.IGNORECASE)
+_REFLEXIVE = {"m": "himself", "f": "herself"}
 
-    found: list[tuple[dict, str]] = []
-    for match in _ADDRESSING.finditer(str(objective or "")):
+
+def _cast_member_named(word: str, cast: list[dict]) -> dict | None:
+    key = _folded(word)
+    return next((m for m in cast if key and key in _name_keys(m)), None)
+
+
+def _pronoun_referent(before: str, gender: str, cast: list[dict]) -> str:
+    """The cast member a «he»/«she» refers to: the last one named before it whose
+    gender agrees, else :data:`SOMEONE`."""
+
+    for word in reversed(re.findall(r"[^\W\d_]+", before)):
+        member = _cast_member_named(word, cast)
+        if member is not None and (not gender or str(member.get("gender") or gender) == gender):
+            return str(member.get("id"))
+    return SOMEONE
+
+
+def _addressing_subject(text: str, match: re.Match[str], cast: list[dict]) -> str | None:
+    """Who does the addressing verb ``match`` of ``text``: ``None`` for the learner (an
+    imperative, «you should ask»), a cast member's id for that member's own act
+    («Gus wonders whether to talk to …», «he should speak to …»), or :data:`SOMEONE`
+    for a third person the cast does not name."""
+
+    ends = [end.end() for end in _ADDRESS_CLAUSE_END.finditer(text, 0, match.start())]
+    words = [
+        re.sub(r"^(?:s|qu|j|l)['’]", "", word.casefold())
+        for word in _ADDRESS_WORD.findall(text[ends[-1] if ends else 0 : match.start()])
+    ]
+
+    def drop_adverbs() -> None:
+        while words and words[-1] in _ADDRESS_ADVERBS:
+            words.pop()
+
+    drop_adverbs()
+    if words and words[-1] in _ADDRESS_MODALS:  # «he should speak to»
+        words.pop()
+        drop_adverbs()
+    elif words and words[-1] == "to":  # «Gus wonders whether to talk to»
+        words.pop()
+        while len(words) > 1 and words[-1] in _ADDRESS_INFINITIVE_LEADS:
+            words.pop()
+        governing = words.pop() if words else ""
+        if governing in _ADDRESS_LEARNER | _ADDRESS_RELAYS or not governing.endswith("s"):
+            return None  # «asks you to», «Gus says to», «Try to», «Ask Bastien to»
+        drop_adverbs()
+    if not words or words[-1] in _ADDRESS_LEARNER:
+        return None
+    subject = words[-1]
+    if subject in _ADDRESS_THIRD:
+        return _pronoun_referent(text[: match.start()], _ADDRESS_THIRD[subject], cast)
+    member = _cast_member_named(subject, cast)
+    return str(member.get("id")) if member is not None else None
+
+
+def _addressings(text: str, cast: list[dict]) -> list[tuple[re.Match[str], dict, str, str | None]]:
+    """Each addressing verb of ``text`` that names a cast member as the one spoken to:
+    ``(match, member, word, subject)``, ``subject`` as :func:`_addressing_subject`."""
+
+    found = []
+    for match in _ADDRESSING.finditer(text):
         raw = match.group("name")
         if re.search(r"['’]s$", raw, re.IGNORECASE):
             continue  # «Invite Romy's friend»: Romy is not the one spoken to
         word = re.sub(r"['’].*$", "", raw)
-        key = _folded(word)
-        member = next((m for m in cast if key and key in _name_keys(m)), None)
-        if member is not None and all(member.get("id") != seen.get("id") for seen, _ in found):
+        member = _cast_member_named(word, cast)
+        if member is not None:
+            found.append((match, member, word, _addressing_subject(text, match, cast)))
+    return found
+
+
+def objective_addressees(objective: str | None, cast: list[dict]) -> list[tuple[dict, str]]:
+    """Every cast member the objective asks the learner to speak to, with the word
+    that names them there: ``[(member, "Romy")]``. A verb a cast member does («Gus
+    asks if he should speak to Bastien») is that member's act, never the learner's
+    (#970); every imperative to the learner still counts (WP-103 T4)."""
+
+    found: list[tuple[dict, str]] = []
+    for _match, member, word, subject in _addressings(str(objective or ""), cast):
+        if subject is None and all(member.get("id") != seen.get("id") for seen, _ in found):
             found.append((member, word))
     return found
+
+
+def self_addressed(text: str | None, character_id: str, cast: list[dict]) -> str | None:
+    """#970: the word naming the speaker where ``text`` has the speaker address
+    themselves («Gus asks if he should speak to Gus»), else ``None``. A gloss never
+    names the speaker as its own addressee."""
+
+    for _match, member, word, subject in _addressings(str(text or ""), cast):
+        if member.get("id") == character_id and subject == character_id:
+            return word
+    return None
+
+
+def without_self_address(text: str | None, word: str, member: dict, cast: list[dict]) -> str:
+    """``text`` with the speaker no longer addressing themselves: «speak to Gus» →
+    «speak», «ask Gus» → «ask himself». Only where the verb is already theirs."""
+
+    value = str(text or "")
+    member_id = str(member.get("id") or "")
+    for match, found, named, subject in reversed(_addressings(value, cast)):
+        if found.get("id") != member_id or subject != member_id or _folded(named) != _folded(word):
+            continue
+        name_end = match.end() + len(named)
+        preposition = _ADDRESS_PREPOSITION.search(match.group(0))
+        if preposition is not None:
+            value = value[: match.start() + preposition.start()] + value[name_end:]
+        else:
+            reflexive = _REFLEXIVE.get(str(member.get("gender") or ""), "themselves")
+            value = value[: match.end()] + reflexive + value[name_end:]
+    return value
 
 
 def objective_addressee_mismatch(
@@ -7759,38 +7889,63 @@ def _check_addressee(draft: SceneDraft, context: dict) -> None:
     rejection carries the draft re-addressed deterministically (the name, and the
     pronouns when the genders differ) — served on the retry if it repeats the mistake,
     and if the retry fails. A scene is never lost to it.
+
+    #970: the same holds for an objective that names the speaker as its own addressee
+    («Gus asks if he should speak to Gus or stay silent.»), whether the model wrote it
+    or the re-address made it: refused once, and served without the self-address.
     """
 
     cast = [member for member in (context.get("world") or {}).get("cast") or [] if member.get("id")]
     addressed = next((m for m in cast if m.get("id") == draft.character_id), None)
-    mismatch = objective_addressee_mismatch(draft.objective_native, draft.character_id, cast)
-    if addressed is None or mismatch is None:
+    if addressed is None:
         return
-    other, word = mismatch
+    mismatch = objective_addressee_mismatch(draft.objective_native, draft.character_id, cast)
     repaired = draft.model_copy(deep=True)
-    repaired.objective_native = readdress(draft.objective_native, word, other, addressed, pronouns=True)
-    repaired.objective_semantics = readdress(
-        draft.objective_semantics, word, other, addressed, pronouns=True
-    )
-    repaired.hint_native = readdress(draft.hint_native, word, other, addressed, pronouns=True)
-    repaired.suggested_response_fr = readdress(
-        draft.suggested_response_fr, word, other, addressed, pronouns=False
-    )
-    them, speaker = short_name(other), short_name(addressed)
-    hint = (
-        f"The objective asks the learner to talk to {them} (\"{draft.objective_native}\"), "
-        f"but character_id is {draft.character_id}: {speaker} is the one who speaks to the "
-        f"learner and answers. The person the objective addresses IS the addressed "
-        f"character. Either rewrite the objective to address {speaker}, or make {them} "
-        f"the character_id and give {them} opening_line_fr."
-    )
+    speaker = short_name(addressed)
+    if mismatch is not None:
+        other, word = mismatch
+        repaired.objective_native = readdress(draft.objective_native, word, other, addressed, pronouns=True)
+        repaired.objective_semantics = readdress(
+            draft.objective_semantics, word, other, addressed, pronouns=True
+        )
+        repaired.hint_native = readdress(draft.hint_native, word, other, addressed, pronouns=True)
+        repaired.suggested_response_fr = readdress(
+            draft.suggested_response_fr, word, other, addressed, pronouns=False
+        )
+        them = short_name(other)
+        reason = "objective_addresses_other_character"
+        hint = (
+            f"The objective asks the learner to talk to {them} (\"{draft.objective_native}\"), "
+            f"but character_id is {draft.character_id}: {speaker} is the one who speaks to the "
+            f"learner and answers. The person the objective addresses IS the addressed "
+            f"character. Either rewrite the objective to address {speaker}, or make {them} "
+            f"the character_id and give {them} opening_line_fr."
+        )
+    else:
+        reason = "objective_addresses_its_speaker"
+        hint = (
+            f"The objective has {speaker} address {speaker} (\"{draft.objective_native}\"). "
+            f"{speaker} speaks this line: say who {speaker} is talking about or to, or what "
+            f"{speaker} asks the learner, never {speaker} as {speaker}'s own addressee."
+        )
+    # #970: whichever way the page was written or re-addressed, the served gloss never
+    # names the speaker as its own addressee («Gus asks if he should speak to Gus»).
+    self_address = False
+    for field in ("objective_native", "objective_semantics", "hint_native"):
+        text = getattr(repaired, field)
+        named = self_addressed(text, draft.character_id, cast)
+        if named is not None:
+            self_address = True
+            setattr(repaired, field, without_self_address(text, named, addressed, cast))
+    if mismatch is None and not self_address:
+        return
     aids = None
     try:
         _check_reading_aids(repaired, context)
     except SoftRejection as exc:
         aids = exc.hint
     raise SoftRejection(
-        "objective_addresses_other_character",
+        reason,
         hint=" ".join(part for part in (hint, aids) if part),
         proposal=repaired,
     )
