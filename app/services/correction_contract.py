@@ -1137,6 +1137,14 @@ _RULE_TEXT: dict[str, dict[str, dict[str, str]]] = {
             "fr": "Cela s’écrit « {right} ».",
         },
     },
+    "FR_ELIDED_ARTICLE": {
+        "label": {"en": "Elision", "de": "Elision", "fr": "Élision"},
+        "note": {
+            "en": "« {word} » stands for « {det} le »; in front of a vowel or a silent h « le » drops its vowel: « {right} ».",
+            "de": "« {word} » steht für « {det} le »; vor einem Vokal oder stummen h verliert « le » seinen Vokal: « {right} ».",
+            "fr": "« {word} » vaut « {det} le » ; devant une voyelle ou un h muet, « le » s’élide : « {right} ».",
+        },
+    },
     "FR_CONTRACTION": {
         "label": {"en": "Contraction", "de": "Verschmelzung", "fr": "Contraction"},
         "note": {
@@ -1334,6 +1342,11 @@ _RULE_HINT: dict[str, dict[str, str]] = {
         "de": "Prüf, wie man dieses Wort schreibt.",
         "fr": "Vérifie l’orthographe de ce mot.",
     },
+    "FR_ELIDED_ARTICLE": {
+        "en": "« {word} » is « {det} le », and the next word starts with a vowel: what happens to « le »?",
+        "de": "« {word} » ist « {det} le », und das nächste Wort beginnt mit einem Vokal: Was passiert mit « le »?",
+        "fr": "« {word} », c’est « {det} le », et le mot suivant commence par une voyelle : que devient « le » ?",
+    },
     "FR_CONTRACTION": {
         "en": "« {wrong} » contracts into one word: which?",
         "de": "« {wrong} » verschmilzt zu einem Wort: zu welchem?",
@@ -1427,6 +1440,7 @@ def _edit(rule_id: str, text: str, start: int, end: int, replacement: str, **fie
         "FR_ELISION": "orthography",
         "FR_SPELLING": "orthography",
         "FR_CONTRACTION": "articles",
+        "FR_ELIDED_ARTICLE": "articles",
         "FR_GENDER_DET": "gender_agreement",
         "FR_CET": "gender_agreement",
         "FR_MON_VOWEL": "gender_agreement",
@@ -1631,7 +1645,8 @@ _ELIDE_ONLY_BEFORE: dict[str, frozenset[str]] = {
     "jusque": frozenset({"à", "au", "aux", "ici", "où", "alors", "en"}),
     "lorsque": _SUBJECTS_AND_ARTICLES,
     "puisque": _SUBJECTS_AND_ARTICLES,
-    "que": _SUBJECTS_AND_ARTICLES | {"y", "est-ce", "au", "aux", "à"},
+    # #919: «ce que est Solvel» is «ce qu'est Solvel», as «ce est» is «c'est».
+    "que": _SUBJECTS_AND_ARTICLES | {"y", "est-ce", "au", "aux", "à", "est", "était", "étaient"},
 }
 #: «ne» elides only in a real negation: its partner follows in the clause («je ne aime
 #: pas»). Without one the «ne» is a word quoted, not used («ne est possible»).
@@ -1721,6 +1736,9 @@ def _elision(source: str, tokens: list[Tok], i: int) -> tuple[int, str] | None:
     apostrophe = "’" if "’" in source else "'"
     return nxt.end, _case(source[tok.start : tok.end], elided) + apostrophe + written
 
+
+#: «au» is «à le», «du» is «de le» (#919).
+_CONTRACTED_ARTICLES = {"au": "à", "du": "de"}
 
 _PLURAL_DETS = frozenset(
     # «leurs» is left out: «leurs voiture» is as often «leur voiture» (one car each)
@@ -3221,6 +3239,29 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
                 add(_edit("FR_ELISION", source, tok.start, end, glued, right=glued,
                           word=source[tok.start:tok.end].casefold()))
                 continue
+
+        # --- «au usine» -> «à l'usine», «du eau» -> «de l'eau» (#919) -----------------
+        # «au» and «du» are «à le» and «de le»; in front of a vowel «le» elides and there
+        # is nothing left to contract. Only a lexicon noun, written in lower case and not
+        # a verb form, follows («il a du aller» is «dû», «au Opéra» is a name).
+        if (
+            tok.low in _CONTRACTED_ARTICLES
+            and joined_next
+            and nxt is not None
+            and not glued_before
+            and _same_clause(source, tok, nxt)
+            and source[nxt.start : nxt.end] == nxt.low
+            and _vowel_sound(nxt.low)
+            and _is_noun(nxt.low)
+            and not _could_be_verb(nxt.low)
+            and not (prev is not None and prev.low in _FORM_PERSONS and _FORM_LEMMA.get(prev.low) == "avoir")
+        ):
+            det = _CONTRACTED_ARTICLES[tok.low]
+            apostrophe = "’" if "’" in source else "'"
+            right = f"{_case(source[tok.start:tok.end], det)} l{apostrophe}{source[nxt.start:nxt.end]}"
+            add(_edit("FR_ELIDED_ARTICLE", source, tok.start, nxt.end, right, right=right, det=det,
+                      word=tok.low))
+            continue
 
         # --- determiner / noun gender --------------------------------------------------
         if joined_next and nxt is not None and tok.low in (_MASC_DET.keys() | _FEM_DET.keys()):
