@@ -653,6 +653,11 @@ class AuthoredSceneDraft(SceneDraft):
     — built by ``app.services.season.runtime.tentpole_brief`` from the season files."""
 
     panels: list[AuthoredPanel] = Field(min_length=1, max_length=24)
+    # #1064: an authored question may be asked in silence (Toi's balloon): the page then
+    # has no opening line, and no translation of one. Never the page title in its place,
+    # or the title is read as the addressee's words.
+    opening_line_fr: str = Field(default="", max_length=320)
+    translation_native: str = Field(default="", max_length=400)
 
 
 def draft_model_for(story_context: dict | None) -> type[SceneDraft]:
