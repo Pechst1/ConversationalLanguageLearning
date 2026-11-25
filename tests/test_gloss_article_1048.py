@@ -59,7 +59,7 @@ def _objects() -> list[tuple[str, str, str, str | None]]:
     return rows
 
 
-def test_the_walks_object_says_what_its_glosses_say() -> None:
+def test_walk_item() -> None:
     rows = {fr: (en, de) for verb, fr, en, de in _objects() if verb == "avoir"}
     mistral = [fr for fr in rows if fr.endswith("rendez-vous au Mistral")]
     assert mistral, sorted(rows)
@@ -68,7 +68,7 @@ def test_the_walks_object_says_what_its_glosses_say() -> None:
         assert _FR_INDEFINITE.match(fr), f"«{fr}» has no article, its glosses do: «{en}» / «{de}»"
 
 
-def test_every_object_and_its_glosses_agree_on_the_indefinite_article() -> None:
+def test_all_objects() -> None:
     clashes: list[str] = []
     for verb, fr, en, de in _objects():
         has_article = bool(_FR_INDEFINITE.match(fr))

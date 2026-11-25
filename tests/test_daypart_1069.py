@@ -31,8 +31,9 @@ BOTH = {"morning", "evening"}
         "Ce matin, nous avons travaillé le soir.",
         "Il a lu toute la soirée ce matin.",
     ],
+    ids=["walk", "voc", "soir", "soiree"],
 )
-def test_a_sentence_with_a_morning_and_a_night_is_a_clash(sentence: str) -> None:
+def test_clash(sentence: str) -> None:
     kinds = {clash.kind for clash in sem.sentence_violations(sentence)}
     assert kinds & {"time", "daypart"}, f"«{sentence}» says morning and night, no clash named: {kinds}"
 
@@ -40,8 +41,9 @@ def test_a_sentence_with_a_morning_and_a_night_is_a_clash(sentence: str) -> None
 @pytest.mark.parametrize(
     "sentence",
     ["Elles ont conduit la nuit.", "Ce matin, elles ont conduit dans Paris.", "Hier soir, j'ai lu le journal."],
+    ids=["nuit", "matin", "soir"],
 )
-def test_one_part_of_the_day_is_fine(sentence: str) -> None:
+def test_fine(sentence: str) -> None:
     assert sem.sentence_violations(sentence) == [], sentence
 
 
@@ -54,7 +56,7 @@ def _entries_naming(part: str) -> list[dict]:
     return [entry for entry in entries if sem.dayparts(entry.get("fr")) == {part}]
 
 
-def test_a_night_entry_never_binds_next_to_a_morning_one() -> None:
+def test_source() -> None:
     """At the source: the bank's pair filter keeps «la nuit» away from «ce matin»."""
 
     mornings, nights = _entries_naming("morning"), _entries_naming("evening")
@@ -80,7 +82,7 @@ def _bank_sentences(bank: ib.ItemBank, frame, draws: int) -> list[str]:
     return sentences
 
 
-def test_no_bank_sentence_says_morning_and_night() -> None:
+def test_bank() -> None:
     """Every frame of FR2_A21_PC_AVOIR (the walk's unit) and every ``~voc`` frame
     of the bank, bound before the checker sees them: none names both parts of the day."""
 
