@@ -1844,6 +1844,9 @@ class _Frame:
     #: WP-S5: the time categories the frame's literal words carry
     #: («ce soir», «le samedi», «en train de»), so a slot never adds a clash.
     times: tuple[str, ...] = ()
+    #: #1069: the parts of the day the frame's literal words name («ce matin»),
+    #: so a slot never adds the other one («la nuit»).
+    parts: frozenset[str] = frozenset()
     #: WP-S5: an optional coach line (``{"fr", "en"}``, with slots) the
     #: sentence answers — the free-use rung's two-line scene.
     ask: dict[str, str] | None = None
@@ -2054,6 +2057,7 @@ class ItemBank:
                     weight=float(raw.get("weight") or 1.0),
                     gloss=bool(raw.get("gloss", spec.get("gloss", False))),
                     times=(*(raw.get("times") or ()), *semantics.time_marks(_literal_text(raw["fr"]))),
+                    parts=frozenset(semantics.dayparts(_literal_text(raw["fr"]))),
                     ask=raw.get("ask") if isinstance(raw.get("ask"), dict) else None,
                     de=raw.get("de") if isinstance(raw.get("de"), str) else None,
                 )
@@ -2151,12 +2155,14 @@ class ItemBank:
             taken = used_ids.setdefault(pool_key, set())
             entries = [entry for entry in entries if str(entry.get("id")) not in taken]
             # WP-S5: only what makes sense next to what is already bound —
-            # a carrot at the market, a price that fits, one time of day.
+            # a carrot at the market, a price that fits, one time of day,
+            # one part of the day (#1069).
             head = bindings.get(spec.split("@", 1)[1]) if "@" in spec else None
             entries = [
                 entry
                 for entry in entries
                 if not semantics.time_conflict(frame.times, semantics.entry_marks(entry))
+                and not semantics.daypart_clash(frame.parts, semantics.entry_dayparts(entry))
                 and (head is None or semantics.link_clash(head, entry) is None)
                 and all(semantics.pair_clash(entry, other) is None for other in bindings.values())
             ]

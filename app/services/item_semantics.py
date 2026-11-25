@@ -114,6 +114,26 @@ def dayparts(text: Any) -> set[str]:
     return found
 
 
+def daypart_clash(first: Iterable[str], second: Iterable[str]) -> bool:
+    """#1069: one side names a morning, the other a night or an evening.
+
+    The part of the day is its own axis, apart from the time categories: «la
+    nuit» is a verb's complement («conduire la nuit»), not a time expression,
+    yet it cannot share a sentence with «ce matin», whatever the verb.
+    """
+
+    first, second = set(first), set(second)
+    return bool(first) and bool(second) and first.isdisjoint(second)
+
+
+def entry_dayparts(entry: dict[str, Any]) -> set[str]:
+    """The parts of the day an entry names: a verb's own (``daypart``), else its words."""
+
+    if _is_verb(entry) and entry.get("daypart"):
+        return {str(entry["daypart"])}
+    return dayparts(entry.get("fr"))
+
+
 def time_conflict(first: Iterable[str], second: Iterable[str]) -> tuple[str, str] | None:
     """The first clashing pair between two sets of marks, if any."""
 
@@ -233,11 +253,10 @@ def pair_clash(a: dict[str, Any], b: dict[str, Any]) -> Clash | None:
         if first.get("fits") is not None and second.get("kind") in {"food", "obj"}:
             if second.get("id") not in first["fits"]:
                 return Clash("container", f"{first.get('fr')} de {second.get('fr')}")
-        # Part of the day: getting up is a morning thing.
-        if _is_verb(first) and first.get("daypart"):
-            parts = dayparts(second.get("fr"))
-            if parts and first["daypart"] not in parts:
-                return Clash("daypart", f"{first.get('inf')} with {second.get('fr')}")
+    # Part of the day (#1069): getting up is a morning thing, «la nuit» never
+    # goes with «ce matin», whatever the verb.
+    if daypart_clash(entry_dayparts(a), entry_dayparts(b)):
+        return Clash("daypart", f"{a.get('inf') or a.get('fr')} with {b.get('inf') or b.get('fr')}")
     # One person never does a thing with themself.
     shared = members(a) & members(b)
     if shared:
@@ -392,6 +411,8 @@ def sentence_violations(sentence: str, english: str = "") -> list[Clash]:
     if conflict:
         found.append(Clash("time", f"{conflict[0]}/{conflict[1]}: {sentence}"))
     parts = dayparts(text)
+    if parts == {"morning", "evening"}:
+        found.append(Clash("daypart", sentence))
     if re.search(r"\b(?:lève|lèves|lèvent|levé|levée|levés|levées|lever|réveill\w*)\b", text) and "evening" in parts:
         found.append(Clash("daypart", sentence))
     if re.search(r"\b(?:couche|couches|couchent|couché|couchée|couchés|couchées|coucher)\b", text) and "morning" in parts:
@@ -497,7 +518,9 @@ __all__ = [
     "Clash",
     "TIME_CONFLICTS",
     "adjective_fits",
+    "daypart_clash",
     "dayparts",
+    "entry_dayparts",
     "is_story_entry",
     "is_story_linked",
     "link_clash",
