@@ -18,8 +18,19 @@ const isWordChar = (char: string | undefined) => !!char && /[0-9A-Za-zÀ-ÖØ-ö
 
 // -1 when absent or there more than once: an erratum carries no offset, so
 // «partie» in «Elle est partie et il est partie» could be either, and fixing
-// the wrong one must not pass. That line is retyped whole.
-function wordFind(folded: string, wrong: string, taken: Array<[number, number]>): number {
+// the wrong one must not pass. That line is retyped whole. #1044: unless as many
+// errata (`fixes`) make the same fix as there are free places for it: «je ai» →
+// «j'ai» listed for both «je ai» of «… je ai. Je ai …» fixes every place, so the
+// place spelled exactly as the erratum (`exact` in `line`, case and all) is this
+// erratum's; else the first free one, in line order.
+function wordFind(
+  folded: string,
+  wrong: string,
+  taken: Array<[number, number]>,
+  fixes = 1,
+  line = '',
+  exact = '',
+): number {
   const found: number[] = [];
   let start = folded.indexOf(wrong);
   while (start >= 0) {
@@ -28,7 +39,31 @@ function wordFind(folded: string, wrong: string, taken: Array<[number, number]>)
     if (bounded && taken.every(([a, b]) => end <= a || start >= b)) found.push(start);
     start = folded.indexOf(wrong, start + 1);
   }
-  return found.length === 1 ? found[0] : -1;
+  if (found.length === 1) return found[0];
+  if (found.length > 0 && found.length === fixes) {
+    const own = found.filter((at) => !!exact && line.slice(at, at + exact.length) === exact);
+    return (own.length ? own : found)[0];
+  }
+  return -1;
+}
+
+// #1044: `fix` with the first letter's case of the word it replaces in the line. An
+// erratum is found case aside, so «je ai» → «j'ai» may be placed on the «Je ai» that
+// opens a sentence: when the line's first letter differs in case from the erratum's,
+// the erratum was written for another place, and its fix takes the line's case here.
+function inLineCase(placed: string, wrong: string, fix: string): string {
+  if (!fix || !wrong || placed === wrong[0] || placed.toLowerCase() !== wrong[0].toLowerCase()) return fix;
+  return (placed === placed.toUpperCase() ? fix[0].toUpperCase() : fix[0].toLowerCase()) + fix.slice(1);
+}
+
+// How many errata, from `index` on, make the same fix as `errata[index]` (case aside).
+function sameFixLeft(errata: Erratum[], index: number): number {
+  const key = (item: Erratum | null | undefined): string | null =>
+    !item || typeof item !== 'object' || item.task_error_type === 'task_compliance'
+      ? null
+      : JSON.stringify([String(item.learner_text || '').trim().toLowerCase(), String(item.corrected_target || '').trim().toLowerCase()]);
+  const mine = key(errata[index]);
+  return errata.slice(index).filter((item) => key(item) === mine).length;
 }
 
 /**
@@ -75,10 +110,12 @@ export function repairParts(learner: string, errata: Erratum[] | null | undefine
     if (!wrong || !fix || wrong.toLowerCase() === folded.trim()) return null;
     // Same length as the line: lower-casing French keeps every offset.
     if (wrong.toLowerCase().length !== wrong.length) return null;
-    const start = wordFind(folded, wrong.toLowerCase(), spans.map((span) => [span.start, span.end]));
+    const taken = spans.map((span): [number, number] => [span.start, span.end]);
+    const start = wordFind(folded, wrong.toLowerCase(), taken, sameFixLeft(list, index), line, wrong);
     if (start < 0) return null;
     const narrow = narrowRepair(wrong, fix);
-    spans.push({ start: start + narrow.skip, end: start + narrow.skip + narrow.length, fix: narrow.fix, erratum: index });
+    const placedFix = narrow.skip ? narrow.fix : inLineCase(line[start], wrong, narrow.fix);
+    spans.push({ start: start + narrow.skip, end: start + narrow.skip + narrow.length, fix: placedFix, erratum: index });
   }
   if (!spans.length) return null;
   spans.sort((a, b) => a.start - b.start);

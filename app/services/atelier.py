@@ -1,6 +1,7 @@
 """Atelier grammar practice services."""
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import re
@@ -826,7 +827,8 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
     if len(folded) != len(line):
         return None  # offsets into the line must survive the fold
     spans: list[tuple[int, int, str, int]] = []
-    for index, erratum in enumerate(errata or []):
+    listed = list(errata or [])
+    for index, erratum in enumerate(listed):
         if not isinstance(erratum, dict) or erratum.get("task_error_type") == "task_compliance":
             continue
         wrong = str(erratum.get("learner_text") or "").strip()
@@ -835,10 +837,12 @@ def repair_parts(learner: str, errata: list[dict[str, Any]] | None) -> list[dict
             continue  # a no-op erratum asks nothing of the line
         if not wrong or not fix or wrong.lower() == folded.strip():
             return None
-        start = _word_find(folded, wrong.lower(), spans)
+        start = _word_find(folded, wrong.lower(), spans, fixes=_same_fix_left(listed, index), line=line, exact=wrong)
         if start < 0:
             return None
         skip, length, fix = narrow_repair(wrong, fix)
+        if not skip:
+            fix = _in_line_case(line[start], wrong, fix)
         spans.append((start + skip, start + skip + length, fix, index))
     if not spans:
         return None
@@ -882,12 +886,51 @@ def narrow_repair(wrong: str, fix: str) -> tuple[int, int, str]:
     return first_at, last_at + len(last_word) - first_at, " ".join(fixed[lead : len(fixed) - trail])
 
 
-def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) -> int:
+def _same_fix_left(errata: list[Any], index: int) -> int:
+    """How many errata, from ``index`` on, make the same fix as ``errata[index]``
+    (case aside): «je ai» -> «j'ai» once for each place it stands (#1044)."""
+
+    def key(item: Any) -> tuple[str, str] | None:
+        if not isinstance(item, dict) or item.get("task_error_type") == "task_compliance":
+            return None
+        return (str(item.get("learner_text") or "").strip().lower(), str(item.get("corrected_target") or "").strip().lower())
+
+    mine = key(errata[index])
+    return sum(1 for item in errata[index:] if key(item) == mine)
+
+
+def _in_line_case(placed: str, wrong: str, fix: str) -> str:
+    """``fix`` with the first letter's case of the word it replaces in the line (#1044).
+
+    An erratum is found case aside, so «je ai» -> «j'ai» may be placed on the «Je ai»
+    that opens a sentence. When the line's first letter differs in case from the
+    erratum's, the erratum was written for another place: its fix takes the line's
+    case there («J'ai»), never the other place's.
+    """
+
+    if not fix or not wrong or placed == wrong[0] or placed.lower() != wrong[0].lower():
+        return fix
+    return (fix[0].upper() if placed.isupper() else fix[0].lower()) + fix[1:]
+
+
+def _word_find(
+    folded: str,
+    wrong: str,
+    taken: list[tuple[int, int, str, int]],
+    *,
+    fixes: int = 1,
+    line: str = "",
+    exact: str = "",
+) -> int:
     """Where ``wrong`` stands in the line as a whole word overlapping no span taken.
 
     -1 when it is not there, or when it is there more than once: an erratum
     carries no offset, so «partie» in «Elle est partie et il est partie» could
     be either, and fixing the wrong one must not pass. That line is retyped whole.
+    #1044: unless as many errata (``fixes``) make the same fix as there are free
+    places for it: «je ai» -> «j'ai» listed for both «je ai» of «… je ai. Je ai …»
+    fixes every place. The place spelled exactly as the erratum (``exact`` in
+    ``line``, case and all) is this erratum's; else the first free one, in line order.
     """
 
     found: list[int] = []
@@ -898,7 +941,12 @@ def _word_find(folded: str, wrong: str, taken: list[tuple[int, int, str, int]]) 
         if bounded and all(end <= a or start >= b for a, b, _fix, _index in taken):
             found.append(start)
         start = folded.find(wrong, start + 1)
-    return found[0] if len(found) == 1 else -1
+    if len(found) == 1:
+        return found[0]
+    if found and len(found) == fixes:
+        own = [start for start in found if exact and line[start : start + len(exact)] == exact]
+        return (own or found)[0]
+    return -1
 
 
 def repair_line_from_parts(learner: str, errata: list[dict[str, Any]] | None) -> str | None:
@@ -992,8 +1040,19 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     the pronoun) is not what the rule is about, so a learner who changed it («la
     gare», «Nous préférons») did not slip on the rule, and reciting the rule's
     headline would blame the wrong thing. Without two distinct choices the item
-    gives no such evidence and this is False."""
+    gives no such evidence and this is False.
 
+    #1067: the item's declared ``target_span`` says what the rule's form is, and it is
+    read first. A change outside the span is outside the rule. Inside it, a slip of
+    form (another form of the same word, as the slip classifier names it: «a» for «as»,
+    «le» for «la») is the rule's own, whatever the choices share: «Tu as dit» / «Tu as
+    dire» both hold «as», which made «Tu a dit» look like another word. A different
+    word inside the span («gare» for «poste», «vous» for «tu») is still read from the
+    choices, as before."""
+
+    inside = _miss_inside_the_span(item, learner, target)
+    if inside is not None:
+        return not inside
     options = [str(option) for option in (item.get("choices") or item.get("options") or []) if isinstance(option, str)]
     forms = [_normalize(option).split() for option in dict.fromkeys([target, *options]) if _normalize(option)]
     if len(forms) < 2:
@@ -1001,6 +1060,35 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     fixed = set.intersection(*(set(form) for form in forms))
     learner_words = set(_normalize(learner).split())
     return bool(fixed) and not fixed <= learner_words
+
+
+def _miss_inside_the_span(item: dict[str, Any], learner: str, target: str) -> bool | None:
+    """#1067: whether a typed miss is a slip of the rule's form inside the item's
+    declared ``target_span``: True when every change is another form of the span's own
+    word, False when a change falls outside the span, ``None`` when the span says
+    nothing (no span, a span the key does not hold, or a different word inside it)."""
+
+    from app.services.forge_grading import slip_kind
+
+    span = _normalize(item.get("target_span")).split()
+    right = _normalize(target).split()
+    said = _normalize(learner).split()
+    if not span or not right or not said or said == right:
+        return None
+    first = next((at for at in range(len(right) - len(span) + 1) if right[at : at + len(span)] == span), -1)
+    if first < 0:
+        return None
+    last = first + len(span)
+    form_slips = True
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=said, b=right, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        if j1 < first or j2 > last or (j1 == j2 and not first < j1 < last):
+            return False  # a word changed, missing or added outside the rule's span
+        form_slips = form_slips and tag == "replace" and i2 - i1 == j2 - j1 and all(
+            slip_kind(said[i1 + at], right[j1 + at]) for at in range(i2 - i1)
+        )
+    return True if form_slips else None
 
 
 def _form_right_only_order_differs(
@@ -5136,18 +5224,59 @@ class AtelierCorrectionService:
         return named or (items[0] if len(items) == 1 else {})
 
     @staticmethod
-    def _repair_is_right(typed: str, source: str, accepted: list[str | None]) -> bool:
+    def _repair_verdict(typed: str, source: str, accepted: list[str | None]) -> Any:
         """#503: the one judge of a typed repair, for keyed and model-judged rounds.
 
         The whole corrected line, the corrected part, or the part with some of the
         unchanged words around it are right (``answer_acceptance.judge_repair``).
         Accents count: they are often the fix.
+
+        #1045: the judge's whole verdict is kept, not only its yes or no, so a repair
+        refused for an accent says which word («cafe» for «café»). An accent the
+        learner's own line already had right and only the copy dropped is no fix left
+        undone: that copy is accepted, with the same note, as the first check accepts it.
         """
 
-        from app.services.answer_acceptance import judge_repair
+        from app.services.answer_acceptance import (
+            Verdict,
+            fold_typography,
+            judge_repair,
+            strip_accents,
+        )
 
         keys = [line for line in accepted if line and line.strip()]
-        return bool(typed) and bool(keys) and judge_repair(typed, source, keys, accents="strict", typo=False).correct
+        if not typed or not keys:
+            return Verdict(correct=False)
+        strict = judge_repair(typed, source, keys, accents="strict", typo=False)
+        if strict.correct or strict.note != "accent":
+            return strict
+        lenient = judge_repair(typed, source, keys, accents="lenient", typo=False)
+        if not lenient.correct or not lenient.accent_slip:
+            return strict  # an accent that is grammar (a/à, a participle's -é): a miss, named
+        said = fold_typography(lenient.read_as or typed).split()
+        right = fold_typography(lenient.expected or "").split()
+        if len(said) != len(right):
+            return strict
+        # Verify of #1055: «already right» is judged at the word's own place in the
+        # learner's line, never anywhere in it. «Je préfère le thé, Romy prefere le
+        # café.» holds «préfère» once, but not where the fix «prefere → préfère» goes:
+        # retyping that line is the slip left undone. The right line is aligned to the
+        # learner's word by word; a word of it stands where the learner had it right
+        # only inside a stretch the two share.
+        own = fold_typography(source).split()
+        had_right: set[int] = set()
+        for block in difflib.SequenceMatcher(a=own, b=right, autojunk=False).get_matching_blocks():
+            had_right.update(range(block.b, block.b + block.size))
+        slips = [
+            (at, got, want)
+            for at, (got, want) in enumerate(zip(said, right, strict=True))
+            if got != want and strip_accents(got) == strip_accents(want)
+        ]
+        # Only an accent left out («cafe»), never one added («déscendu»), and only on a
+        # word the learner's own line already had right, at that place.
+        if slips and all(got == strip_accents(want) and at in had_right for at, got, want in slips):
+            return lenient
+        return strict
 
     def record_micro_repair(
         self,
@@ -5224,7 +5353,8 @@ class AtelierCorrectionService:
                 source = self._in_gap_line(gap_line, source) if source.strip() else source
                 key_line = self._in_gap_line(gap_line, key_line or target)
             accepted = [target, key_line, repair_line_from_parts(source, [erratum]) if source else None]
-        is_correct = self._repair_is_right(typed, source, accepted)
+        verdict = self._repair_verdict(typed, source, accepted)
+        is_correct = bool(verdict.correct)
         repairs = dict(correction.get("micro_repairs") or {})
         repairs[str(erratum_index)] = {
             "target": target,
@@ -5233,6 +5363,11 @@ class AtelierCorrectionService:
             "erratum_index": erratum_index,
             "submitted_at": datetime.now(UTC).isoformat(),
         }
+        if verdict.note == "accent" and verdict.expected_word:
+            # #1045: the screen names the word whose accent is missing, hit or miss.
+            repairs[str(erratum_index)].update(
+                note="accent", learner_word=verdict.learner_word, expected_word=verdict.expected_word
+            )
         correction["micro_repairs"] = repairs
         # Owner 2026-11-13: the repair was the second chance; the solution is shown from now on.
         from app.services import solution_gate

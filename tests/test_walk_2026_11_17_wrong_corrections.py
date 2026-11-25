@@ -222,6 +222,7 @@ def test_recall_with_a_bare_noun_key_refuses_the_wrong_article():
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,  # verify of #1055: a renamed judge must fail this, not xfail it
     reason=(
         "Forge · 2026-11-17 · case 6, documented: a repair gap accepts the one fix the model "
         "chose (record_micro_repair: target, key line, the line rebuilt from the erratum). There "
@@ -236,7 +237,7 @@ def test_forge_repair_accepts_another_right_fix():
     source = "Marin m'a apporté une soupe et je lui en remercie beaucoup, mais la clé me fait toujours peur."
     errata = [{"learner_text": "lui en", "corrected_target": "l'en", "task_error_type": "pronouns"}]
     accepted = ["l'en", None, repair_line_from_parts(source, errata)]
-    assert AtelierCorrectionService._repair_is_right("le", source, accepted)
+    assert AtelierCorrectionService._repair_verdict("le", source, accepted).correct
 
 
 # ---------------------------------------------------------------------------

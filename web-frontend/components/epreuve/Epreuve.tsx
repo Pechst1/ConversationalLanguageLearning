@@ -747,10 +747,13 @@ export function EpRepair({
   onSubmit,
   submitting,
   disabled,
+  accent,
 }: {
   target: string;
   typed?: string;
   status?: 'ok' | 'no' | null;
+  /** #1045: the word whose accent the copy left out, when that was its one slip. */
+  accent?: string | null;
   errFrom?: number | null;
   onChange?: (value: string) => void;
   onSubmit?: () => void;
@@ -807,12 +810,12 @@ export function EpRepair({
       )}
       {status === 'ok' && (
         <Notice tone="quiet" shape="done">
-          <p>{t.repair_ok}</p>
+          <p>{accent ? fill(t.repair_accent_ok, { word: accent }) : t.repair_ok}</p>
         </Notice>
       )}
       {status === 'no' && (
         <Notice tone="alert" live="alert" shape="action">
-          <p>{t.repair_no}</p>
+          <p>{accent ? fill(t.repair_accent_no, { word: accent }) : t.repair_no}</p>
         </Notice>
       )}
     </Surface>
@@ -830,10 +833,13 @@ export function EpPartsRepair({
   onSubmit,
   submitting,
   children,
+  accent,
 }: {
   parts: RepairPart[];
   typed: Record<number, string>;
   status?: 'ok' | 'no' | null;
+  /** #1045: the word whose accent the line left out, when that was its one slip. */
+  accent?: string | null;
   onChange?: (typed: Record<number, string>) => void;
   onSubmit?: () => void;
   submitting?: boolean;
@@ -888,12 +894,12 @@ export function EpPartsRepair({
       )}
       {done && (
         <Notice tone="quiet" shape="done">
-          <p>{t.repair_parts_ok}</p>
+          <p>{accent ? fill(t.repair_accent_ok, { word: accent }) : t.repair_parts_ok}</p>
         </Notice>
       )}
       {status === 'no' && (
         <Notice tone="alert" live="alert" shape="action">
-          <p>{t.repair_parts_no}</p>
+          <p>{accent ? fill(t.repair_accent_no, { word: accent }) : t.repair_parts_no}</p>
         </Notice>
       )}
     </Surface>
