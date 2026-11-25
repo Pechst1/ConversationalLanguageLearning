@@ -338,7 +338,11 @@ the steps above with these differences.
      across the top, the date in the corner], `size` [width, height]) and `snapshot` (an instant
      photo of Odile laughing at the zinc, pinned through its top border, 8.8 by 10.7 cm; with
      `text`, another photo of her, by day before the window and turned the other way, `text[0]`
-     its caption on the foot in a hand);
+     its caption on the foot in a hand), `polaroidwall` (Odile's wall for the party: rows of
+     Polaroids each with Lila's small card under it, a gap three photos wide from the row over
+     the centre down to the bottom, and with `text` the burnt Polaroid alone in it, `text[0]` its
+     caption; `size` [width, height], a photo every 0.2 by 0.24 m: `polaroidWall()` gives the
+     layout);
      a room's cards share one sign atlas (2048 px square): keep what they ask under about 0.6 of
      it, or the last ones print blank; in a
      street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
@@ -432,7 +436,9 @@ One a run, in this order:
   the booth by Gus's corner, under the old poster (`carte_nom_odile`), and the pupils' drawing
   «Maîtresse à Berlin», dated 8 janvier, beside a Polaroid of Odile pinned just above that card
   (`dessin_maitresse`), and the learner's navy coat on a hook in the corner by the zinc's
-  north end, under a daytime Polaroid of Odile captioned «Odile, au Mistral» (`manteau_mistral`).
+  north end, under a daytime Polaroid of Odile captioned «Odile, au Mistral» (`manteau_mistral`),
+  and Odile's wall: some sixty Polaroids between the two posters above the booth, the burnt one
+  alone in the gap over the sconce (`mur_odile`).
 - **The plan's ladder** (`docs/story/season-1/09-entre-les-episodes.md` and the episodes): the
   learner's usual cup on the zinc after «La même chose ?» (done), then the next line of the
   ladder that leaves a thing in Le Mistral (the party's garlands…). It waits on the season flag

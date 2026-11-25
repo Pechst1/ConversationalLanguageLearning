@@ -1,0 +1,19 @@
+{
+  "id": "mur_odile",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "Le mur d'Odile", "en": "Odile's wall", "de": "Odiles Wand" },
+  "moment": "a page of the learner's own story left «le mur d'Odile» at Le Mistral: rows of Odile's Polaroids pinned on the wall above the booth, with one photo at the very centre",
+  "mark": { "name_fr": "le mur d'Odile", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "polaroidwall", "at": [-30.2, 2.69, -18.74], "rot": 0, "size": [3.0, 1.2], "text": ["14 mars. 23 h. J'ai oublié. Encore."] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/04-la-photographie.md",
+    "scenes": [
+      "the story order «le mur d'Odile» at le_mistral (1 life): «Rows of Odile's Polaroids pinned on the wall above the booth, with one photo at the very centre.»",
+      "T4 «La photographie»: «Le mur d'Odile», sixty Polaroids pinned above the booth, each with Lila's small card under it (setting, P2); the burnt Polaroid, her kitchen at night, the neon «LARTSIM» through the window, «14 mars. 23 h. J'ai oublié. Encore.» (P6); R3 wall: «The burnt Polaroid is pinned alone in the middle of a gap, where Lila has moved the others aside to give it room.»"
+    ]
+  }
+}

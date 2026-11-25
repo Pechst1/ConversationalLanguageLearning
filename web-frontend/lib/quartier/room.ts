@@ -215,7 +215,8 @@ export type ThingKind =
   | 'carte'
   | 'pinned'
   | 'drawing'
-  | 'snapshot';
+  | 'snapshot'
+  | 'polaroidwall';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -1074,6 +1075,24 @@ function pinUp(B: Build, x: number, y: number, zz: number, rot: number, w: numbe
     D.cylinder(0, h / 2 - from, 0.006, 0.0015, 0.0015, 0.008, 4, steel, { flat: true });
     D.ball(0, h / 2 - from, 0.02, 0.011, 0.011, 0.008, pin, 1);
   });
+}
+
+/**
+ * The layout of Odile's wall of Polaroids (`polaroidwall`, `size` [width, height]): a photo every
+ * 0.2 m across and 0.24 m down, an odd number each way, centred on the wall's `at`; the gap three
+ * photos wide, from the row over the centre down to the bottom row. `photos` are the photos round
+ * the gap, each at its centre's offset [u across, v up] from `at` (before the hands' small shifts).
+ */
+export function polaroidWall(size: [number, number]) {
+  const [W, H] = size;
+  const cols = Math.max(1, Math.floor(W / 0.2)) | 1;
+  const rows = Math.max(1, Math.floor(H / 0.24)) | 1;
+  const c0 = (cols - 1) / 2;
+  const r0 = (rows - 1) / 2;
+  const inGap = (c: number, r: number) => Math.abs(c - c0) <= 1 && r >= r0 - 1;
+  const photos: Array<[number, number]> = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (!inGap(c, r)) photos.push([(c - c0) * 0.2, (r0 - r) * 0.24 + 0.03]);
+  return { cols, rows, inGap, photos, centre: [0, 0.03] as [number, number] };
 }
 
 function thing(B: Build, t: RoomThing, i: number) {
@@ -2186,6 +2205,81 @@ function thing(B: Build, t: RoomThing, i: number) {
       const [w, h] = t.size ?? [0.297, 0.21];
       pinUp(B, x, y, zz, rot, w, h, z, mix(INKS.card, 0xffffff, 0.4));
       card(B, key, [x, y, zz], rot, w - 0.002, h - 0.002, z, crayonArt(t.text ?? []), 1800);
+      return;
+    }
+    case 'polaroidwall': {
+      // Odile's wall for the party: rows of her Polaroids pinned up, each with Lila's small card
+      // under it (the back's words copied out), a little crooked as hands pin them; in the middle
+      // a gap where the others were moved aside, down to the bottom row (a lamp may hang there), and
+      // alone in it the one photo the room looks at:
+      // with `text`, the burnt one (her kitchen at night, the caption `text[0]` on its foot in a
+      // shaky hand). `at` the wall's face at the wall's centre, facing local +z; `size` [width,
+      // height]; a photo every 0.2 m across and 0.24 m down, an odd number each way.
+      const { cols, rows, inGap } = polaroidWall(t.size ?? [2.6, 1.2]);
+      const frame = zoned(mix(INKS.card, INKS.paper, 0.2), z);
+      const slip = zoned(mix(INKS.card, INKS.ochre, 0.1), z);
+      const hand = zoned(mix(mix(INKS.ochre, INKS.vermilion, 0.2), INKS.ink, 0.42), z);
+      const pin = zoned(INKS.vermilion, z, { wet: 0.7 });
+      // the pictures: a ground and what is in it, darker or lighter (faces, the zinc, a dog, a street)
+      const grounds = [mix(INKS.ochre, INKS.ink, 0.25), mix(INKS.green, INKS.ink, 0.35), mix(INKS.cobalt, INKS.ink, 0.3), mix(INKS.vermilion, INKS.ink, 0.4), mix(INKS.sunflower, INKS.ochre, 0.4), mix(INKS.card, INKS.cobalt, 0.3)].map((c) => zoned(c, z));
+      const subjects = [mix(INKS.card, INKS.vermilion, 0.2), mix(INKS.card, INKS.ochre, 0.3), mix(INKS.ink, INKS.ochre, 0.3), mix(INKS.card, 0xffffff, 0.4)].map((c) => zoned(c, z));
+      const R = { v: 9157 + i * 53 };
+      const rand = () => {
+        R.v = (R.v * 16807) % 2147483647;
+        return R.v / 2147483647;
+      };
+      const c0 = (cols - 1) / 2;
+      const r0 = (rows - 1) / 2;
+      D.at(x, y, zz, rot, () => {
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const gap = inGap(c, r);
+            const tilt = (rand() - 0.5) * 0.1;
+            const ground = grounds[Math.floor(rand() * grounds.length)];
+            const subject = subjects[Math.floor(rand() * subjects.length)];
+            const su = (rand() - 0.5) * 0.024;
+            const sw = 0.03 + rand() * 0.016;
+            const scene = Math.floor(rand() * 5);
+            const lines = 1 + Math.floor(rand() * 2);
+            if (gap) continue;
+            const u = (c - c0) * 0.2 + (rand() - 0.5) * 0.02;
+            const v = (r0 - r) * 0.24 + 0.03;
+            D.push(new Matrix4().makeTranslation(u, v, 0).multiply(new Matrix4().makeRotationZ(tilt)));
+            // the photo: its white frame wider at the foot, the picture, what is in it
+            D.box(0, 0, 0.005, 0.088, 0.107, 0.002, frame);
+            D.box(0, 0.0085, 0.0062, 0.078, 0.078, 0.001, ground);
+            // who or what: one face and shoulders, two side by side, a street (a pale sky over it),
+            // a dog asleep on a chair
+            const person = (pu: number, k: number) => {
+              D.ball(pu, -0.03, 0.0068, sw * 0.62 * k, 0.022 * k, 0.001, subject, 0);
+              D.ball(pu, 0.006 + 0.004 * (1 - k), 0.0072, 0.013 * k, 0.016 * k, 0.001, subject, 0);
+            };
+            if (scene <= 1) person(su, 1);
+            else if (scene === 2) {
+              person(-0.018, 0.85);
+              person(0.019, 0.9);
+            } else if (scene === 3) {
+              D.box(0, 0.032, 0.0068, 0.078, 0.034, 0.001, subjects[3]);
+              D.box(su, -0.004, 0.0072, 0.03, 0.05, 0.001, subject);
+            } else {
+              D.ball(su, -0.012, 0.0068, 0.026, 0.011, 0.001, subject, 0);
+              D.ball(su + 0.022, -0.004, 0.0072, 0.009, 0.008, 0.001, subject, 0);
+            }
+            D.ball(0, 0.049, 0.02, 0.009, 0.009, 0.007, pin, 1);
+            D.pop();
+            // Lila's card under it, pinned straight, the words in her ochre hand
+            D.push(new Matrix4().makeTranslation(u + (rand() - 0.5) * 0.01, v - 0.09, 0));
+            D.box(0, 0, 0.005, 0.078, 0.036, 0.002, slip);
+            for (let k = 0; k < lines; k++) D.box(-0.004 + (k ? -0.008 : 0), 0.007 - k * 0.012, 0.0062, k ? 0.046 : 0.058, 0.0035, 0.001, hand);
+            D.pop();
+          }
+        }
+      });
+      if (t.text?.length) {
+        // the burnt one, alone in the gap: its frame browned, pinned straight
+        pinUp(B, x, y + 0.03, zz, rot, 0.088, 0.107, z, mix(mix(INKS.card, INKS.ochre, 0.35), INKS.ink, 0.12), 0.004);
+        card(B, key, [x, y + 0.03, zz], rot, 0.086, 0.105, z, burntArt(t.text[0]), 3600);
+      }
       return;
     }
     case 'snapshot': {
@@ -3589,6 +3683,101 @@ function snapshotArt(caption = '') {
       ctx.fillText(caption, 0, 0);
       ctx.restore();
     }
+  };
+}
+
+/**
+ * The burnt Polaroid: Odile's kitchen at night, a pan on the ring and black smoke under the ceiling
+ * in an orange light; through the window, from above and behind, the café's red neon, its letters
+ * reversed; the frame browned and curled, the caption on its foot in a shaky hand.
+ */
+function burntArt(caption: string) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(mix(INKS.card, INKS.ochre, 0.35), INKS.ink, 0.1));
+    ctx.fillRect(0, 0, w, h);
+    // the browned edge, darker at the corners where it curled
+    const edge = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.75);
+    edge.addColorStop(0, 'rgba(0,0,0,0)');
+    edge.addColorStop(1, css(mix(INKS.ochre, INKS.ink, 0.3)));
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, w, h);
+    const m = w * 0.07;
+    const ph = w - 2 * m;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(m, m, ph, ph);
+    ctx.clip();
+    // the kitchen in the dark, lit orange from the ring
+    const bg = ctx.createRadialGradient(m + ph * 0.38, m + ph * 0.72, ph * 0.05, m + ph * 0.38, m + ph * 0.72, ph * 0.8);
+    bg.addColorStop(0, css(mix(INKS.sunflower, INKS.vermilion, 0.35)));
+    bg.addColorStop(0.45, css(mix(INKS.vermilion, INKS.ink, 0.45)));
+    bg.addColorStop(1, css(mix(INKS.ink, INKS.cobalt, 0.15)));
+    ctx.fillStyle = bg;
+    ctx.fillRect(m, m, ph, ph);
+    // the black smoke under the ceiling
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.08));
+    for (const [u, v, r] of [[0.15, 0.08, 0.2], [0.42, 0.05, 0.24], [0.7, 0.1, 0.2], [0.3, 0.2, 0.14], [0.55, 0.22, 0.12]]) {
+      ctx.beginPath();
+      ctx.ellipse(m + ph * u, m + ph * v, ph * r, ph * r * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // the cooker's edge, the ring's flame and the pan on it
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.3));
+    ctx.fillRect(m, m + ph * 0.8, ph * 0.7, ph * 0.2);
+    ctx.fillStyle = css(mix(INKS.sunflower, INKS.card, 0.3));
+    ctx.beginPath();
+    ctx.ellipse(m + ph * 0.38, m + ph * 0.79, ph * 0.12, ph * 0.03, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = css(INKS.ink);
+    ctx.fillRect(m + ph * 0.24, m + ph * 0.7, ph * 0.28, ph * 0.07);
+    ctx.fillRect(m + ph * 0.52, m + ph * 0.72, ph * 0.16, ph * 0.025);
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.sunflower, 0.4));
+    for (const u of [0.3, 0.38, 0.46]) {
+      ctx.beginPath();
+      ctx.moveTo(m + ph * (u - 0.03), m + ph * 0.7);
+      ctx.lineTo(m + ph * u, m + ph * 0.56);
+      ctx.lineTo(m + ph * (u + 0.03), m + ph * 0.7);
+      ctx.fill();
+    }
+    // the window, and down through it the neon's blade, its letters reversed (seen from behind)
+    const wx = m + ph * 0.66;
+    const wy = m + ph * 0.3;
+    const ww = ph * 0.3;
+    const wh = ph * 0.42;
+    ctx.fillStyle = css(mix(INKS.ink, INKS.cobalt, 0.35));
+    ctx.fillRect(wx, wy, ww, wh);
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.ink, 0.1));
+    ctx.save();
+    ctx.translate(wx + ww / 2, wy + wh * 0.62);
+    ctx.scale(-1, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.max(4, Math.round(ww * 0.2))}px Georgia, serif`;
+    ctx.shadowColor = css(INKS.vermilion);
+    ctx.shadowBlur = ww * 0.12;
+    ctx.fillText('MISTRAL', 0, 0, ww * 0.94);
+    ctx.restore();
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.ochre, 0.2));
+    ctx.lineWidth = Math.max(1, ph * 0.02);
+    ctx.strokeRect(wx, wy, ww, wh);
+    ctx.beginPath();
+    ctx.moveTo(wx + ww / 2, wy);
+    ctx.lineTo(wx + ww / 2, wy + wh);
+    ctx.stroke();
+    ctx.restore();
+    // the caption, shaky, on the foot
+    ctx.fillStyle = css(mix(INKS.ink, INKS.cobalt, 0.25));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const foot = h - (m + ph);
+    let size = Math.round(foot * 0.42);
+    ctx.font = SERIF(size, 500);
+    while (size > 5 && ctx.measureText(caption).width > w * 0.9) ctx.font = SERIF(--size, 500);
+    ctx.save();
+    ctx.translate(w / 2, m + ph + foot * 0.5);
+    ctx.rotate(0.03);
+    ctx.fillText(caption, 0, 0);
+    ctx.restore();
   };
 }
 
