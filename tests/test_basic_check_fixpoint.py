@@ -518,7 +518,7 @@ _ACCENT_WORDS = re.compile(r"grave|gravis|accent|akzent", re.IGNORECASE)
 
 
 @pytest.mark.parametrize("line", A_LE_LINES)
-def test_a_le_is_explained_as_a_contraction(line):
+def test_a_le_note(line):
     """#1047 done-when: «a le» -> «au» is a contraction, whether the «à» settling in place
     (``_settle``) or the line read again (``_fold_into_source``) found it. «au» has no
     grave accent, and the note never says it has."""
@@ -534,7 +534,7 @@ def test_a_le_is_explained_as_a_contraction(line):
 
 
 @pytest.mark.parametrize("line", A_LE_LINES)
-def test_a_le_through_the_courrier_verdict(line):
+def test_a_le_courrier(line):
     """#1047 done-when, the way the Courrier prints it: the stored row of a check with no
     model, read back as the Courrier's verdict, names «au» as a contraction."""
     from app.services import verdicts
@@ -562,7 +562,7 @@ def test_a_le_through_the_courrier_verdict(line):
     ],
     ids=["a-la-marche", "a-la-bureau", "a-la-bureau-fatigue", "de-la-bureau", "sors-de-la-bureau"],
 )
-def test_a_gender_fix_keeps_its_rule_when_contracted(line, span, right, noun):
+def test_gender_kept(line, span, right, noun):
     """Verify of #1054: «à la bureau» -> «au bureau» is a gender slip. The learner wrote
     «la»; the contraction follows from the gender, so the gender rule names the fix, with
     its label, its kind and the note that says the noun is masculine."""
@@ -584,7 +584,7 @@ _COMPOSED_KINDS = {
 }
 
 
-def test_a_composed_fix_is_named_by_its_more_serious_slip(monkeypatch):
+def test_composed_lead(monkeypatch):
     """#1047's property, both ways a fix is composed. Whenever ``_settle`` grows a fix with
     the edits found inside it, or ``_fold_into_source`` folds a further reading's edit into
     the fixes it touches, the composed fix carries the rank of its most serious part (a

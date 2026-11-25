@@ -55,8 +55,8 @@ def _card(text: str, *corrections: dict) -> list[tuple[str, str]]:
     return [(c.span_fr, c.corrected_fr) for c in verdict.corrections]
 
 
-@pytest.mark.parametrize("tutor", [(), (TUTOR_J_AI,)], ids=["fake-tutor-none", "tutor-j-ai"])
-def test_day2_card_shows_the_hopital_and_one_j_ai(tutor):
+@pytest.mark.parametrize("tutor", [(), (TUTOR_J_AI,)], ids=["fake", "j-ai"])
+def test_day2_card(tutor):
     """#1068 done-when: the day-2 reply shows «à l'hôpital», and «j'ai» once."""
     shown = _card(DAY2_CAMILLE, *tutor)
 
@@ -66,7 +66,7 @@ def test_day2_card_shows_the_hopital_and_one_j_ai(tutor):
     assert len(apostrophes) == 1, f"one missing apostrophe takes {len(apostrophes)} places: {shown}"
 
 
-def test_day1_card_shows_au_notaire():
+def test_day1_card():
     """#1068 done-when: «a le notaire» -> «au» is among the three, ahead of the accents."""
     shown = _card(DAY1_MARGAUX)
 
@@ -76,7 +76,7 @@ def test_day1_card_shows_au_notaire():
     assert len(accents) == 1, f"one missing accent takes {len(accents)} places: {shown}"
 
 
-def test_one_place_per_kind_leaves_room_for_the_rest():
+def test_one_per_kind():
     """A slip written three times is one place; the other two go to other slips."""
     text = "J ai faim, j ai soif et j ai sommeil. Je suis tres fatigue."
     shown = _card(text)
