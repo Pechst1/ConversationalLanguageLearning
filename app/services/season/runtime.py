@@ -471,9 +471,14 @@ def authored_draft(today: Today, page: dict[str, Any], turns: list[dict[str, Any
         for line in ((first or {}).get("panel") or {}).get("lines") or []
         if line.get("kind") == "speech" and line.get("who") == (first or {}).get("to")
     ] or [line for line in ((first or {}).get("panel") or {}).get("lines") or [] if line.get("text_fr")]
-    opening_fr = " ".join(str(line.get("text_fr")) for line in opening).strip() or page["title_fr"]
+    # #1064: the opening line is words the addressee says (``character_id`` says it: the
+    # chat's first bubble, the grader's «character line», ``scene_items.scene_lines``).
+    # A question asked in silence (Toi's balloon, T6 / T7 day B) has none, so the page
+    # has no opening line. It used to take the page title, and «Dix heures», the panel
+    # header, became something Margaux said, in the chat and on the rule card.
+    opening_fr = " ".join(str(line.get("text_fr")) for line in opening).strip()
     opening_native = " ".join(str(line.get("text_native") or "") for line in opening).strip()
-    example = turn_example(first) or opening_fr
+    example = turn_example(first) or opening_fr or page["title_fr"]
     captions = [
         line for panel in scene for line in panel.get("lines") or [] if line.get("kind") == "caption"
     ]

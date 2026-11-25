@@ -7247,7 +7247,9 @@ def _require_plannable(scenario: ScenarioBrief) -> str:
     if not (scenario.objective_native or "").strip():
         raise PlanUnavailable("scene_has_no_objective")
     task = scenario.response_task
-    if not (task.opening_line_fr or "").strip():
+    # #1064: an authored season page may ask its question in silence (Toi's balloon):
+    # its turns carry the question, and it has no opening line rather than its title.
+    if not (task.opening_line_fr or "").strip() and not _authored_page(scenario):
         raise PlanUnavailable("response_task_has_no_opening_line")
     if not (task.objective_native or "").strip():
         raise PlanUnavailable("response_task_has_no_objective")
