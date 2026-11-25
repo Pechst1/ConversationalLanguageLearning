@@ -812,11 +812,18 @@ def _accepted_correction(
 
 def _with_basic_check(kept: list[TutorCorrection], text: str, *, language: str | None) -> list[TutorCorrection]:
     """The model's corrections, then the model-free edits that touch none of their words,
-    the most serious first, up to :data:`TUTOR_MAX_CORRECTIONS` in all (#919).
+    the most serious first, one per kind of slip, up to :data:`TUTOR_MAX_CORRECTIONS` in
+    all (#919, #1068).
 
     ``max_corrections`` caps what the tutor is asked to find (one below B1); the basic
     check is the app's own reading of the sentence and is never cut to the model's
-    budget: a learner whose reply had three slips sees three (live walk 19 Nov, A1)."""
+    budget: a learner whose reply had three slips sees three (live walk 19 Nov, A1).
+
+    #1068 (walk 25 Nov): the places went to the first three apostrophes, «j'ai» twice,
+    and «au hopital» -> «à l'hôpital» was never shown. A grammar edit now comes before a
+    spelling one (:func:`correction_contract.edit_rank`, which a fold no longer lowers,
+    #1047), and a slip the card already shows, by the model or by the check, does not
+    take a second place: the learner reads the rule once and the room goes to another."""
 
     folded = text.casefold()
     taken: list[tuple[int, int]] = []
@@ -824,14 +831,18 @@ def _with_basic_check(kept: list[TutorCorrection], text: str, *, language: str |
         at = folded.find(item.span_fr.casefold())
         if at >= 0:
             taken.append((at, at + len(item.span_fr)))
+    edits = correction_contract.deterministic_edits(text)
+    # The kinds of slip the model's corrections already show, read off the check's own
+    # edits on their words («j ai» -> «j'ai» is a missing apostrophe).
+    shown = {edit.rule_id for edit in edits if any(edit.start < end and start < edit.end for start, end in taken)}
     out = list(kept)
-    edits = sorted(correction_contract.deterministic_edits(text), key=lambda e: (-e.severity, e.start))
-    for edit in edits:
+    for edit in sorted(edits, key=correction_contract.edit_rank):
         if len(out) >= TUTOR_MAX_CORRECTIONS:
             break
-        if any(edit.start < end and start < edit.end for start, end in taken):
+        if edit.rule_id in shown or any(edit.start < end and start < edit.end for start, end in taken):
             continue
         taken.append((edit.start, edit.end))
+        shown.add(edit.rule_id)
         out.append(TutorCorrection(span_fr=edit.span, corrected_fr=edit.replacement, note_native=edit.note_for(language)))
     return out
 

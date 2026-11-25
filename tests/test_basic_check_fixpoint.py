@@ -495,3 +495,156 @@ def test_journal_foreground_is_one_of_its_fixes():
         "errata": [{"span_fr": "a", "corrected_fr": "à"}],
     }
     assert verdicts.from_journal(payload, text=A_TWICE_LINE).corrected == "Je vais à Paris et il a faim."
+
+
+# ---------------------------------------------------------------------------
+# #1047: a fix composed of two rules is named, and ranked, by the rule of the
+# more serious slip: a contraction over an accent, a gender fix over its contraction
+# ---------------------------------------------------------------------------
+
+#: #1047 (walk 24 Nov, a1-de-fresh): the Courrier reply of day 1 and the scene reply of day 3.
+A_LE_LINES = [
+    pytest.param("D abord je vais a le notaire demain.", id="courrier-d1"),
+    pytest.param("Mais demain je suis a le notaire avec Camille.", id="scene-d3"),
+    pytest.param("Je vais a le cafe.", id="996d"),
+]
+_CONTRACTION_LABEL = {"en": "Contraction", "de": "Verschmelzung", "fr": "Contraction"}
+_CONTRACTION_NOTE = {
+    "en": "« à le » contracts to « au ».",
+    "de": "« à le » verschmilzt zu « au ».",
+    "fr": "« à le » se contracte en « au ».",
+}
+_ACCENT_WORDS = re.compile(r"grave|gravis|accent|akzent", re.IGNORECASE)
+
+
+@pytest.mark.parametrize("line", A_LE_LINES)
+def test_a_le_is_explained_as_a_contraction(line):
+    """#1047 done-when: «a le» -> «au» is a contraction, whether the «à» settling in place
+    (``_settle``) or the line read again (``_fold_into_source``) found it. «au» has no
+    grave accent, and the note never says it has."""
+
+    [au] = [e for e in cc.deterministic_edits(line) if e.replacement == "au"]
+    assert (au.rule_id, au.span) == ("FR_CONTRACTION", "a le"), au
+    assert au.label == _CONTRACTION_LABEL, au.label
+    assert au.note == _CONTRACTION_NOTE, au.note
+    assert au.task_error_type == "articles", au.task_error_type
+    assert au.severity == 2, "a contraction is grammar, not spelling (#1068)"
+    for language in ("en", "de", "fr"):
+        assert not _ACCENT_WORDS.search(au.note_for(language)), au.note_for(language)
+
+
+@pytest.mark.parametrize("line", A_LE_LINES)
+def test_a_le_through_the_courrier_verdict(line):
+    """#1047 done-when, the way the Courrier prints it: the stored row of a check with no
+    model, read back as the Courrier's verdict, names «au» as a contraction."""
+    from app.services import verdicts
+
+    errata = cc.deterministic_errata(line, language="de")
+    [row] = [item for item in errata if item["corrected_target"] == "au"]
+    assert (row["external_id"], row["display_label"]) == ("FR_CONTRACTION", "Verschmelzung"), row
+    assert row["why_wrong"] == _CONTRACTION_NOTE["de"], row["why_wrong"]
+    payload = {"errata": errata, "verdict": "unassessed", "correction_debug": {"fallback_used": True, "failure": "no_model"}}
+    verdict = verdicts.from_courrier(payload, text=line)
+    assert " au " in (verdict.corrected or ""), verdict.corrected
+    [listed] = [edit for edit in verdict.edits if edit.replacement == "au"]
+    assert not _ACCENT_WORDS.search(listed.note), listed.note
+    assert listed.note == _CONTRACTION_NOTE["de"], listed.note
+
+
+@pytest.mark.parametrize(
+    ("line", "span", "right", "noun"),
+    [
+        ("Je vais à la marché.", "à la", "au", "marché"),
+        ("Demain je dois passer à la bureau.", "à la", "au", "bureau"),
+        ("Je vais à la bureau et je suis fatigue.", "à la", "au", "bureau"),
+        ("Je parle de la bureau.", "de la", "du", "bureau"),
+        ("Je sors de la bureau.", "de la", "du", "bureau"),
+    ],
+    ids=["a-la-marche", "a-la-bureau", "a-la-bureau-fatigue", "de-la-bureau", "sors-de-la-bureau"],
+)
+def test_a_gender_fix_keeps_its_rule_when_contracted(line, span, right, noun):
+    """Verify of #1054: «à la bureau» -> «au bureau» is a gender slip. The learner wrote
+    «la»; the contraction follows from the gender, so the gender rule names the fix, with
+    its label, its kind and the note that says the noun is masculine."""
+
+    [edit] = [e for e in cc.deterministic_edits(line) if e.replacement == right]
+    assert edit.span == span, edit
+    assert edit.rule_id == "FR_GENDER_DET", edit
+    assert edit.label["de"] == "Genus" and edit.label["en"] == "Gender", edit.label
+    assert edit.task_error_type == "gender_agreement", edit.task_error_type
+    assert edit.note["de"] == f"« {noun} » ist maskulin: « le {noun} », nicht « la {noun} ».", edit.note
+    assert edit.note["en"].startswith(f"« {noun} » is masculine"), edit.note
+
+
+#: Fixes composed of two rules that the corpora below must hold, and the rule each is named by.
+_COMPOSED_KINDS = {
+    "FR_A_GRAVE+FR_CONTRACTION": "FR_CONTRACTION",  # #1047: the accent is gone from «au»
+    "FR_GENDER_DET+FR_CONTRACTION": "FR_GENDER_DET",  # verify of #1054: the gender stays
+    "FR_ACCENT+FR_ELIDED_ARTICLE": "FR_ELIDED_ARTICLE",  # #1068: «au hopital» -> «à l'hôpital»
+}
+
+
+def test_a_composed_fix_is_named_by_its_more_serious_slip(monkeypatch):
+    """#1047's property, both ways a fix is composed. Whenever ``_settle`` grows a fix with
+    the edits found inside it, or ``_fold_into_source`` folds a further reading's edit into
+    the fixes it touches, the composed fix carries the rank of its most serious part (a
+    grammar slip is never ranked as spelling, #1068) and a rule of that rank names it. A
+    first fix no part outranks keeps its name: «à la bureau» stays a gender slip, «ne pas
+    aime» -> «n'aime pas» a negation."""
+
+    seen: dict[str, set[str]] = {}
+    wrong: list[str] = []
+    settle, fold = cc._settle, cc._fold_into_source
+
+    def check(where: str, source: str, composed, parts: list) -> None:
+        top = max(part.severity for part in parts)
+        named = "+".join(part.rule_id for part in parts)
+        seen.setdefault(named, set()).add(composed.rule_id)
+        if composed.severity != top:
+            wrong.append(f"{where} {source!r}: {named} ranked {composed.severity}, its parts reach {top}")
+        if composed.rule_id not in {part.rule_id for part in parts if part.severity == top}:
+            wrong.append(f"{where} {source!r}: {named} named {composed.rule_id}")
+        if parts[0].severity == top and composed.rule_id != parts[0].rule_id:
+            wrong.append(f"{where} {source!r}: {named} took the name away from {parts[0].rule_id}")
+
+    def spy_settle(source, edit, cast, depth=0):
+        result = settle(source, edit, cast, depth)
+        if result is None or result == edit:
+            return result
+        context = source[: edit.start] + edit.replacement + source[edit.end :]
+        region = (edit.start, edit.start + len(edit.replacement))
+        inner = [e for e in cc._raw_edits(context, cast) if e.start < region[1] and region[0] < e.end]
+        if inner:
+            check("settle", source, result, [edit, *inner])
+        return result
+
+    def spy_fold(source, first, further):
+        result = fold(source, first, further)
+        regions, shift = [], 0
+        for edit in sorted(first, key=lambda e: e.start):
+            regions.append((edit.start + shift, edit.start + shift + len(edit.replacement), edit))
+            shift += len(edit.replacement) - (edit.end - edit.start)
+        for out in result:
+            if out in first:
+                continue
+            inside = [(s, t, e) for s, t, e in regions if out.start <= e.start and e.end <= out.end]
+            moves = [f for f in further if any(cc._spans_touch((f.start, f.end), (s, t)) for s, t, _e in inside)]
+            if inside and moves:
+                check("fold", source, out, [*(e for _s, _t, e in inside), *moves])
+        return result
+
+    monkeypatch.setattr(cc, "_settle", spy_settle)
+    monkeypatch.setattr(cc, "_fold_into_source", spy_fold)
+    lines = [
+        *_floor_sentences(),
+        *TWICE,
+        *(param.values[0] for param in A_LE_LINES),
+        "Je vais à la marché.",
+        "Je parle de la bureau.",
+        "Ce matin je suis allé au hopital pour ma soeur.",
+    ]
+    for line in lines:
+        cc.deterministic_edits(line)
+    for kind, rule in _COMPOSED_KINDS.items():
+        assert seen.get(kind) == {rule}, f"{kind}: named {seen.get(kind)}, want {rule}"
+    assert not wrong, wrong

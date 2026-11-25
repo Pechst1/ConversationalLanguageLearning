@@ -2845,9 +2845,9 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
 
     A further edit in words no fix touched is moved back to the learner's offsets. One
     that touches a fix («à le» over the «à» of «a» -> «à») becomes one edit over both,
-    from the learner's words to the twice-fixed ones, with the further edit's rule and
-    note: «a le» -> «au», «« à le » contracts to « au »». A fold that gives back the
-    learner's own words is dropped with the fixes in it.
+    from the learner's words to the twice-fixed ones, named by :func:`_lead` as
+    :func:`_settle` names its own: «a le» -> «au», «« à le » contracts to « au »». A fold
+    that gives back the learner's own words is dropped with the fixes in it.
     """
 
     # Where each fix sits in the fixed line, and how far it moves what follows it.
@@ -2894,9 +2894,38 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
         span = source[start:end]
         if _norm(span) == _norm(piece) or is_variant_edit(span, piece):
             continue
-        out.append(replace(moves[0], span=span, replacement=piece, start=start, end=end))
+        fixes = [edit for _s, _e, kind, edit in group if kind == "first"]
+        out.append(_composed([*fixes, *moves], span=span, replacement=piece, start=start, end=end))
     out.sort(key=lambda e: e.start)
     return out
+
+
+def _lead(parts: list[Edit]) -> Edit:
+    """The fix that names, and ranks, a fix composed of ``parts`` (#1047, #1068).
+
+    ``parts`` come in the order they were made: the learner's own slips first, then what
+    was found in the line they make. The most serious one leads, the first of those on a
+    tie. A grammar slip outranks a spelling one, so «a» -> «à» grown into «a le» -> «au»
+    is a contraction (an accent note would teach that «au» carries a grave accent), and
+    «au hopital» -> «à l'hôpital» an elided article, not the «ô». A first fix no part
+    outranks keeps its name: «à la bureau» -> «au bureau» stays a gender slip, whose note
+    («« bureau » is masculine») is still what the learner got wrong, and «ne pas aime» ->
+    «n'aime pas» a negation. The one rule both :func:`_settle` and
+    :func:`_fold_into_source` compose by, so the rank a scene card sorts by is never
+    lowered by a fold."""
+
+    top = max(part.severity for part in parts)
+    return next(part for part in parts if part.severity == top)
+
+
+def _composed(parts: list[Edit], *, span: str, replacement: str, start: int, end: int) -> Edit:
+    """The fix composed of ``parts`` over ``span`` -> ``replacement``: the rule, label,
+    kind, rank and hint of their :func:`_lead`, its note quoting the whole replacement
+    where it quoted its own."""
+
+    lead = _lead(parts)
+    note = {lang: _requote(text, lead.replacement, replacement) for lang, text in lead.note.items()}
+    return replace(lead, span=span, replacement=replacement, start=start, end=end, note=note)
 
 
 def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
@@ -2968,7 +2997,8 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
 
     The replacement is spliced into the sentence and the raw rules run again; an edit
     they find inside (or across the edge of) the replaced region is folded into this
-    one. Two rounds at most: a fix that still does not settle is not shown."""
+    one, named by :func:`_lead` («a» -> «à» in «a le» settles as «au», a contraction,
+    #1047). Two rounds at most: a fix that still does not settle is not shown."""
 
     region_start, region_end = edit.start, edit.start + len(edit.replacement)
     context = source[: edit.start] + edit.replacement + source[edit.end :]
@@ -2991,8 +3021,8 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
     span = source[low:end]
     if _norm(span) == _norm(replacement):
         return None
-    note = {lang: _requote(text, edit.replacement, replacement) for lang, text in edit.note.items()}
-    composed = replace(edit, span=span, replacement=replacement, start=low, end=end, note=note)
+    parts = [edit, *sorted(inner, key=lambda e: e.start)]
+    composed = _composed(parts, span=span, replacement=replacement, start=low, end=end)
     return _settle(source, composed, cast, depth + 1)
 
 
@@ -3937,9 +3967,17 @@ def best_deterministic_edit(
     """The most serious model-free edit (grammar before spelling, then reading order)."""
     edits = deterministic_edits(text, people=people)
     if edits:
-        best = min(edits, key=lambda e: (-e.severity, e.start))
+        best = min(edits, key=edit_rank)
         return best.span, best.replacement, best.note_for(language)
     return None, None, None
+
+
+def edit_rank(edit: Edit) -> tuple[int, int]:
+    """Sort key of what matters among model-free edits: grammar before spelling, then
+    reading order. A composed fix carries the rank of its most serious part (:func:`_lead`),
+    so «a le» -> «au» ranks as the contraction it is, not as the «à» accent (#1068)."""
+
+    return -edit.severity, edit.start
 
 
 #: P3 (walk 17 Nov): «La forme correcte est « je veux que quelqu'un me dise ».» explains
