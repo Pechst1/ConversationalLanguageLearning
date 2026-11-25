@@ -44,7 +44,7 @@ def _draft(tentpole: str, letter: str, band: str = "A2.1", language: str = "en")
 
 @pytest.mark.parametrize(("tentpole", "letter"), SILENT_QUESTION_PAGES)
 @pytest.mark.parametrize("band", ["A1.1", "A2.1", "B1.1"])
-def test_a_silent_question_has_no_opening_line_in_the_title(tentpole, letter, band):
+def test_silent_question(tentpole, letter, band):
     draft, page = _draft(tentpole, letter, band)
     title = page["title_fr"]
 
@@ -61,7 +61,7 @@ def test_a_silent_question_has_no_opening_line_in_the_title(tentpole, letter, ba
     AuthoredSceneDraft.model_validate({key: value for key, value in draft.items() if key != "_ending"})
 
 
-def test_the_walks_page_produces_no_margaux_line_dix_heures():
+def test_no_margaux_dix_heures():
     """The issue's guard: T6 day B produces no ``speaker: Margaux, text: Dix heures`` line."""
 
     draft, page = _draft("t6", "b", band="A1.1")
@@ -72,7 +72,7 @@ def test_the_walks_page_produces_no_margaux_line_dix_heures():
     assert validated.opening_line_fr != "Dix heures"
 
 
-def test_a_question_with_its_own_words_keeps_them():
+def test_said_question_kept():
     """A page whose question is said (T6 day A: Margaux's own line) keeps that line."""
 
     draft, page = _draft("t6", "a")
@@ -80,7 +80,7 @@ def test_a_question_with_its_own_words_keeps_them():
     assert fold(draft["opening_line_fr"]) != fold(page["title_fr"])
 
 
-def test_the_chat_does_not_open_on_a_margaux_bubble_dix_heures():
+def test_chat_bubble():
     """The bubble the walk saw: the respond step's ``character_line_fr`` (the chat's
     line from the addressee) and the brief's opening are never the page title."""
 
