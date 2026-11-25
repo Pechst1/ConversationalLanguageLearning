@@ -17,7 +17,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
 const { BACK_TABLES, MARKS, ROOM, ZINC } = require('./mistral.ts');
-const { buildRoom } = require('./room.ts');
+const { buildRoom, polaroidWall } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
 const DIR = path.join(__dirname, 'world', 'details');
@@ -393,4 +393,46 @@ test("the learner's coat, on the hook under Odile's Polaroid in the corner by th
   assert.ok(Math.abs(photo.at[0] - coat.at[0]) < 0.02, 'the photo over the hook');
   assert.ok(photoBox.y0 > coatBox.y1 && photoBox.y0 - coatBox.y1 < 0.15, 'just above it');
   assert.ok(photoBox.x0 > -35.9 + 0.26 || photoBox.y1 < 3.05 - 0.26, 'clear of the clock');
+});
+
+test("Odile's wall: rows of her Polaroids above the booth, Lila's card under each, the burnt one alone in a gap: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'mur_odile').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: "le mur d'Odile", location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "Le mur d'Odile", location_id: 'le_mistral' }]), ['mur_odile']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "le mur d'Odile", location_id: 'odile_flat' }]), []);
+  assert.equal(spec.things.length, 1);
+  const wall = spec.things[0];
+  assert.equal(wall.kind, 'polaroidwall');
+  // the burnt Polaroid's own words (04-la-photographie.md, P6)
+  assert.deepEqual(wall.text, ["14 mars. 23 h. J'ai oublié. Encore."]);
+  const { photos, centre } = polaroidWall(wall.size);
+  // about sixty of them (the canon's «sixty»), round the one in the gap
+  assert.ok(photos.length + 1 >= 55 && photos.length + 1 <= 70, `${photos.length + 1} photos`);
+  // on the north wall's face, facing the room
+  assert.equal(wall.rot, 0);
+  assert.ok(wall.at[2] - ROOM.z0 > 0 && wall.at[2] - ROOM.z0 < 0.03, "on the wall's face");
+  // each photo (8.8 by 10.7 cm, a hand's shift and tilt aside) and Lila's card under it
+  const reach = { u: 0.044 + 0.015, top: 0.0535 + 0.01, low: 0.09 + 0.018 + 0.006 };
+  const boxes = [...photos, centre].map(([u, v]) => ({ x0: wall.at[0] + u - reach.u, x1: wall.at[0] + u + reach.u, y0: wall.at[1] + v - reach.low, y1: wall.at[1] + v + reach.top }));
+  const overlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+  // the booth's back (its rail at 1.54 m) under them, the ceiling over them
+  for (const b of boxes) assert.ok(b.y0 > ROOM.floor + 1.45 && b.y1 < ROOM.ceiling - 0.3, 'above the booth, under the ceiling');
+  // between the two old posters (x -32.15 and -28.3, 0.78 by 1.06, centred at 2.5 m: mistral.ts)
+  const posters = [-32.15, -28.3].map((x) => ({ x0: x - 0.39, x1: x + 0.39, y0: 2.5 - 0.53, y1: 2.5 + 0.53 }));
+  for (const b of boxes) for (const p of posters) assert.ok(!overlap(b, p), 'clear of the posters');
+  // the booth's sconce (x -30.2, its bowl from 2.08 to 2.28 m) hangs in the gap, under the burnt one
+  const sconce = { x0: -30.2 - 0.13, x1: -30.2 + 0.13, y0: 2.06, y1: 2.3 };
+  for (const b of boxes) assert.ok(!overlap(b, sconce), 'clear of the sconce');
+  const burnt = boxes[boxes.length - 1];
+  assert.ok(Math.abs(wall.at[0] + centre[0] - -30.2) < 0.05 && burnt.y0 > sconce.y1, 'the burnt one over the sconce, at the very centre');
+  // and clear of what other pages leave on that wall: Odile's name card, her Polaroid, the drawing
+  for (const id of ['carte_nom_odile', 'dessin_maitresse']) {
+    for (const t of details.find(({ spec: d }) => d.id === id).spec.things) {
+      const [w, h] = t.kind === 'snapshot' ? [0.088, 0.107] : t.size;
+      const tb = { x0: t.at[0] - w / 2, x1: t.at[0] + w / 2, y0: t.at[1] - h / 2, y1: t.at[1] + h / 2 };
+      for (const b of boxes) assert.ok(!overlap(b, tb), `clear of ${id}'s ${t.kind}`);
+    }
+  }
 });
