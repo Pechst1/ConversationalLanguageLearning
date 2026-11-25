@@ -20,8 +20,8 @@
  */
 
 import { dayMarkState, type DayMarkState } from '@/components/atelier-v2/journey/day-mark';
-import { WORK_STEPS, type DayWorkKind } from '@/lib/day-order';
-import { daySessionCopy, sessionMarkState, sessionStep, withScenePlayed } from '@/lib/day-session';
+import { dayStepOf as dayWorkOfPlayerStep, WORK_STEPS, type DayWorkKind } from '@/lib/day-order';
+import { daySessionCopy, sessionMarkState, sessionRows, sessionStep, withScenePlayed } from '@/lib/day-session';
 import type { ControlLanguage, DaySession, DaySessionStepKind, JourneySnapshot } from '@/types/daily-journey';
 
 /** The day's order lives in `day-order.ts` (one place, checked against the server's). */
@@ -93,6 +93,36 @@ export function dayStepOf(
   const steps = plan?.steps ?? [];
   const index = steps.findIndex((step) => step.kind === kind);
   return index < 0 ? null : { position: index + 1, total: steps.length };
+}
+
+/**
+ * The plan step a screen of the journey player counts as, for its number in the
+ * day. The player deals more than the story: the day's rule card, the drills on
+ * today's rule and a folded La Forge are the plan's grammar step, which Home lists
+ * second and the header names («Regel», «La Forge»); counting them as the scene
+ * read «Regel · Schritt 1 von 4» while Home called the grammar step 2 (walk of
+ * 25 Nov). Everything else the player deals is the scene's: its pages and
+ * replies, a rule to review, the learner's own slip, and a word drill (a warm-up
+ * of the scene; the plan's words step is the day's deck, which the player never
+ * deals). The same mapping names the screen (`day-order.ts`, `stepBlockName`),
+ * so the header's name and number can no longer disagree.
+ */
+export function planStepOfScreen(
+  step: { kind?: unknown; prompt?: unknown } | null | undefined,
+): 'scene' | 'grammar' {
+  return dayWorkOfPlayerStep(step) === 'grammar' ? 'grammar' : 'scene';
+}
+
+/**
+ * The day as Home's programme lists it (Szene, Grammatik, 15 Wörter, Fertig): the
+ * plan's steps, one label each, in the plan's order. Any other screen that lists
+ * the day (the onboarding's «Dein erster Tag») takes this list, so its count is
+ * the one the session header and the mark count. `null` without a plan: the
+ * caller keeps its own list (an older server).
+ */
+export function dayProgramme(plan: DaySession | null | undefined, language: ControlLanguage): string[] | null {
+  if (!plan?.steps?.length) return null;
+  return sessionRows(plan, language).map((row) => row.label);
 }
 
 /**

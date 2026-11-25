@@ -86,6 +86,12 @@ async function playTheDay(native) {
   // so no screen of it reads «N von N» with La Forge and the words still ahead.
   const daysCount = counts.length > 0 && counts.every(([n, m]) => m === before.length && n < m);
   findings.check('scene-count-is-the-days', daysCount, `captions: ${walk.stepCaptions.join(' > ') || 'none'}; Home lists ${before.length} steps`, where('recap'));
+  // #143 (walk 25 Nov): the rule card is the day's grammar step. Its header reads the
+  // number Home gives the grammar row («Rule · Step 2 of 4»), never the scene's 1.
+  const grammarRow = before.findIndex((row) => row.startsWith('grammar:')) + 1;
+  const ruleCaptions = walk.stepCaptions.filter((caption) => /^(Rule|Regel|Règle|La Forge)\b/.test(caption));
+  const ruleIsGrammar = ruleCaptions.every((caption) => Number((caption.match(/\d+/) || [])[0]) === grammarRow);
+  findings.check('rule-card-is-the-grammar-step', grammarRow > 0 && ruleIsGrammar, `rule captions: ${ruleCaptions.join(' > ') || 'none'}; Home lists grammar as step ${grammarRow}`, where('recap'));
   await sleep(1500);
   await walk.shoot('scene-ending');
   const handOn = page.locator('.journey-recap .av2-btn--primary, .av2-reward .av2-btn--primary').first();

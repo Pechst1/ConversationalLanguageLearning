@@ -40,7 +40,7 @@ import type {
   TodayEnvelope,
   DaySession,
 } from '@/types/daily-journey';
-import { dayStepOf } from '@/lib/day-plan';
+import { dayStepOf, planStepOfScreen } from '@/lib/day-plan';
 
 // ---------------------------------------------------------------------------
 // Phase
@@ -492,6 +492,10 @@ export function stepPositionOnScreen(journey: JourneySnapshot | null): number | 
  * «7 von 7 · Szene beendet» with La Forge and the words still ahead. Progress
  * inside the scene is the rail's tokens. The scene's own count stands only when
  * no plan came (an older server).
+ *
+ * The number is the plan step of the screen on show (`planStepOfScreen`): the
+ * rule card and the drills on today's rule are the day's grammar, so they read
+ * «Regel · Schritt 2 von 4», the grammar's row on Home, never the scene's 1.
  */
 export function journeyHeaderCaption(
   journey: JourneySnapshot | null,
@@ -500,7 +504,8 @@ export function journeyHeaderCaption(
   plan?: DaySession | null,
 ): string | undefined {
   if (!journey || journey.steps.length === 0) return undefined;
-  const inDay = dayStepOf(plan, 'scene');
+  const stepOnScreen = journey.steps.find((step) => step.id === journey.current_step_id) ?? null;
+  const inDay = dayStepOf(plan, planStepOfScreen(stepOnScreen)) ?? dayStepOf(plan, 'scene');
   if (inDay) {
     const label = stepOf(inDay.position, inDay.total);
     return part ? `${part} · ${label}` : label;

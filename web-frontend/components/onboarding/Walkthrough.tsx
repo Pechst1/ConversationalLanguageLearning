@@ -11,16 +11,35 @@
  * The situation and the characters follow on the next screen (`CastIntro`),
  * so they are not repeated here. Shown once per device; «Überspringen» counts
  * as seen.
+ *
+ * #143: the day on the second card is the plan's (`dayProgramme`: Szene,
+ * Grammatik, 15 Wörter, Fertig), the list Home shows and the session header
+ * counts. The device route («Die Geschichte, La Forge, Deine Wörter») listed
+ * three steps under a header that read «Schritt 1 von 4». It stands only when no
+ * plan came (an older server).
  */
 
 import React from 'react';
 
 import { Action, ArrowRightIcon, AtelierMark } from '@/components/atelier-v2/ui';
+import { normalizeControlLanguage } from '@/lib/atelier-v2-copy';
+import { dayProgramme } from '@/lib/day-plan';
 import { firstStepsCopy, ROUTE_STAGES } from '@/lib/first-steps';
+import type { DaySession } from '@/types/daily-journey';
 
-export function Walkthrough({ language, onDone }: { language: string; onDone: () => void }) {
+export function Walkthrough({
+  language,
+  plan,
+  onDone,
+}: {
+  language: string;
+  /** The day's plan (`TodayEnvelope.session`); its steps are the day this card lists. */
+  plan?: DaySession | null;
+  onDone: () => void;
+}) {
   const copy = firstStepsCopy(language).walkthrough;
   const route = firstStepsCopy(language).route;
+  const day = dayProgramme(plan, normalizeControlLanguage(language)) ?? ROUTE_STAGES.map((stage) => route[stage]);
   const [index, setIndex] = React.useState(0);
   const cards = 2;
   const last = index === cards - 1;
@@ -45,10 +64,10 @@ export function Walkthrough({ language, onDone }: { language: string; onDone: ()
         <div className="walkthrough__card">
           <h2 className="av2-headline av2-headline--title">{copy.day_title}</h2>
           <ol className="walkthrough__route">
-            {ROUTE_STAGES.map((stage, position) => (
-              <li key={stage}>
+            {day.map((label, position) => (
+              <li key={position}>
                 <span className="walkthrough__num">{position + 1}</span>
-                <span>{route[stage]}</span>
+                <span>{label}</span>
               </li>
             ))}
           </ol>

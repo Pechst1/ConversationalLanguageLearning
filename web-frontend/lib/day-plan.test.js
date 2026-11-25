@@ -276,7 +276,8 @@ test('#143: every screen of the scene says «step 1 of 4», the plan’s count, 
   const { journeyHeaderCaption } = require('../components/atelier-v2/journey/journey-state.ts');
   const stepOf = (n, total) => `Schritt ${n} von ${total}`;
   const during = plan(START.scene);
-  const order = ['s-read', 's-scene', 's-mistake', 's-review', 's-mistake-again', 's-rule', 's-end'];
+  // The rule card is the day's grammar, not the scene: its own test follows.
+  const order = ['s-read', 's-scene', 's-mistake', 's-review', 's-mistake-again', 's-end'];
   const captions = order.map((id) => journeyHeaderCaption(dayTwoJourney(id), stepOf, 'Szene', during));
   for (const [index, caption] of captions.entries()) {
     assert.equal(
@@ -297,12 +298,92 @@ test('#143: the header’s count is the same number Home’s programme and mark 
   const { journeyHeaderCaption } = require('../components/atelier-v2/journey/journey-state.ts');
   const { sessionMarkState, sessionRows } = require('./day-session.ts');
   const p = plan(START.scene);
-  const caption = journeyHeaderCaption(dayTwoJourney('s-rule'), (n, total) => `${n}/${total}`, undefined, p);
-  const [position, total] = caption.split('/').map(Number);
-  assert.equal(total, sessionRows(p, 'de').length, `the header read «${caption}»; Home lists ${sessionRows(p, 'de').length} steps`);
-  assert.equal(total, sessionMarkState(p, 'de').total);
-  assert.equal(p.steps[position - 1].kind, 'scene', 'the header names the plan step the scene is');
-  assert.ok(position < total, 'never «N of N» while the plan has steps after this one');
+  for (const [id, kind] of [['s-scene', 'scene'], ['s-rule', 'grammar']]) {
+    const caption = journeyHeaderCaption(dayTwoJourney(id), (n, total) => `${n}/${total}`, undefined, p);
+    const [position, total] = caption.split('/').map(Number);
+    assert.equal(total, sessionRows(p, 'de').length, `the header read «${caption}»; Home lists ${sessionRows(p, 'de').length} steps`);
+    assert.equal(total, sessionMarkState(p, 'de').total);
+    assert.equal(p.steps[position - 1].kind, kind, `on ${id} the header names the plan step «${p.steps[position - 1].kind}»`);
+    assert.ok(position < total, 'never «N of N» while the plan has steps after this one');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The rule card is the day's grammar step, in the header as on Home.
+//
+// Walk 25 Nov (a2-en, after #1051): the rule card read «Rule · Step 1 of 4»
+// while Home lists grammar as step 2 (Scene, Grammar, 15 words, Done). The
+// header named the block from the step («Rule») but counted every screen of the
+// journey player as the plan's scene step, so name and number disagreed. The
+// number now comes from the plan step the screen belongs to, the same mapping
+// that names it (`day-order.ts`: a rule card, a drill on today's rule and a
+// folded La Forge are the grammar).
+// ---------------------------------------------------------------------------
+
+function withSteps(journey, prompts) {
+  return { ...journey, steps: journey.steps.map((step) => ({ ...step, prompt: { ...step.prompt, ...(prompts[step.id] || {}) } })) };
+}
+
+test('#143: the rule card and the drills on today’s rule read Home’s grammar step, not the scene’s', () => {
+  const { journeyHeaderCaption } = require('../components/atelier-v2/journey/journey-state.ts');
+  const { sessionRows } = require('./day-session.ts');
+  const stepOf = (n, total) => `Schritt ${n} von ${total}`;
+  const p = plan(START.scene);
+  const grammarRow = sessionRows(p, 'de').findIndex((row) => row.kind === 'grammar') + 1;
+  assert.equal(grammarRow, 2, 'Home lists the grammar second');
+  const rule = journeyHeaderCaption(dayTwoJourney('s-rule'), stepOf, 'Regel', p);
+  assert.equal(rule, `Regel · Schritt ${grammarRow} von 4`, `the rule card read «${rule}» while Home calls grammar step ${grammarRow}`);
+  // A drill on the day's rule is the rule in use (`drillRoleOf` → day_rule): the grammar too.
+  const ruleDrill = withSteps(dayTwoJourney('s-review'), { 's-review': { role: 'day_rule', target: { kind: 'grammar' } } });
+  assert.equal(journeyHeaderCaption(ruleDrill, stepOf, 'Regel', p), `Regel · Schritt ${grammarRow} von 4`);
+  // A rule to review and the learner's own slip stay the scene's (the review around it).
+  const review = withSteps(dayTwoJourney('s-review'), { 's-review': { role: 'review', target: { kind: 'grammar' } } });
+  assert.equal(journeyHeaderCaption(review, stepOf, 'Wiederholung', p), 'Wiederholung · Schritt 1 von 4');
+  const slip = withSteps(dayTwoJourney('s-mistake'), { 's-mistake': { role: 'mistake', target: { kind: 'error' } } });
+  assert.equal(journeyHeaderCaption(slip, stepOf, 'Aus deinen Fehlern', p), 'Aus deinen Fehlern · Schritt 1 von 4');
+  // Without a plan, the scene's own count stands, as before.
+  assert.equal(journeyHeaderCaption(dayTwoJourney('s-rule'), stepOf, 'Regel'), 'Regel · Schritt 5 von 6');
+});
+
+// ---------------------------------------------------------------------------
+// The onboarding's «Your first day» lists the plan's steps, the ones the header counts.
+//
+// Walk 25 Nov: the walkthrough listed three steps («The story, La Forge, Your
+// words», the device route) over a header that read «Step 1 of 4» (the plan's
+// four: Scene, Grammar, 15 words, Done). Two lists of the day on one screen.
+// ---------------------------------------------------------------------------
+
+test('#143: the walkthrough’s day lists the same steps Home lists and the header counts', () => {
+  require(path.join(WEB_ROOT, 'node_modules/sucrase/register/tsx'));
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const { Walkthrough } = require('../components/onboarding/Walkthrough.tsx');
+  const { sessionRows } = require('./day-session.ts');
+  const p = plan(START.scene);
+  for (const language of ['en', 'de', 'fr']) {
+    // The second card («Your first day»), rendered as the learner sees it after «Next».
+    const realUseState = React.useState;
+    let first = true;
+    React.useState = (initial) => {
+      if (first) {
+        first = false;
+        return [1, () => {}];
+      }
+      return realUseState(initial);
+    };
+    let html;
+    try {
+      html = renderToStaticMarkup(React.createElement(Walkthrough, { language, plan: p, onDone: () => {} }));
+    } finally {
+      React.useState = realUseState;
+    }
+    const route = (html.match(/<ol class="walkthrough__route"[^>]*>([\s\S]*?)<\/ol>/) || [])[1] || '';
+    const listed = [...route.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+    const home = sessionRows(p, language).map((row) => row.label);
+    const total = dp.dayStepOf(p, 'scene').total;
+    assert.equal(listed.length, total, `${language}: the walkthrough lists ${listed.length} steps («${listed.join(', ')}») under a header that counts ${total}`);
+    assert.deepEqual(listed, home.map((label, i) => `${i + 1} ${label}`), `${language}: the walkthrough's day is not Home's`);
+  }
 });
 
 test('#143: the session header’s mark is the plan’s mark — no «day done» from the scene’s ending', () => {

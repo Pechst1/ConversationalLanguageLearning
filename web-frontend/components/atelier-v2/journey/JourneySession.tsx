@@ -511,6 +511,8 @@ export function JourneySession({
               {showWalkthrough && (
                 <Walkthrough
                   language={chromeLanguage}
+                  // #143: the card lists the plan's steps, the ones the header counts.
+                  plan={controller.envelope?.session}
                   onDone={() => {
                     rememberWalkthrough(deviceStore());
                     setWalkthroughDone(true);
