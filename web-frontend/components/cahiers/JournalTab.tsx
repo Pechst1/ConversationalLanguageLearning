@@ -47,6 +47,7 @@ import {
 } from '@/components/atelier-v2/ui';
 import { castDisplayName } from '@/lib/cast-faces';
 import api, {
+  type JournalContentRecall,
   type JournalCorrectionItem,
   type JournalEntryView,
   type JournalEnvelope,
@@ -108,6 +109,23 @@ export function recallLine(entry: JournalEntryView | null | undefined, t: Journa
   const total = recall.facts_total || 0;
   if (total === 0) return null;
   return recallSentence(found, total, t);
+}
+
+/** Every line the recall check held the retell to, found ones first (#1063).
+ *
+ *  Only the missed lines were listed, so a «1/1» named nothing, and the scene's
+ *  opening line under «The scene as it was» read as the line the check had used. The
+ *  count and the lines it counts are now on the same card. */
+export function keptLines(
+  entry: JournalEntryView | null | undefined,
+): Array<{ key: string; text_fr: string; found: boolean }> {
+  const recall = entry?.content_recall;
+  if (!recall || recall.status !== 'scored') return [];
+  const rows = (facts: JournalContentRecall['matched'] | undefined, found: boolean, from: number) =>
+    (facts || [])
+      .map((fact, index) => ({ key: `${fact.key || from + index}`, text_fr: (fact.text_fr || '').trim(), found }))
+      .filter((fact) => fact.text_fr);
+  return [...rows(recall.matched, true, 0), ...rows(recall.missed, false, (recall.matched || []).length)];
 }
 
 /** The one line that answers the week-later question (#337). An answered
@@ -610,10 +628,10 @@ export default function JournalTab() {
           <Surface as="section" tone="paper" shape="card" className="jn-card">
             <p className="av2-label">{t.recall_label}</p>
             <p className="jn-verdict">{recallLine(entry, t) || t.recall_empty}</p>
-            {(entry.content_recall?.missed?.length || 0) > 0 && (
+            {keptLines(entry).length > 0 && (
               <ul className="jn-list jn-list--facts">
-                {(entry.content_recall?.missed || []).map((fact, index) => (
-                  <li key={`${fact.key || index}`} lang="fr">
+                {keptLines(entry).map((fact) => (
+                  <li key={fact.key} lang="fr" className={fact.found ? 'jn-fact--found' : undefined}>
                     {fact.text_fr}
                   </li>
                 ))}
@@ -742,6 +760,7 @@ export function JournalStyles() {
         color: var(--av2-ink-2);
         overflow-wrap: anywhere;
       }
+      .av2 .jn-list--facts li.jn-fact--found { border-left-color: var(--av2-ink); color: var(--av2-ink); }
     `}</style>
   );
 }

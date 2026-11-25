@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
@@ -240,7 +241,7 @@ class SceneFact:
 
     @property
     def needed_cues(self) -> int:
-        return 2 if len(self.cues) > CUE_THRESHOLD_WIDTH else 1
+        return 2 if len(recall_cues(self.cues)) > CUE_THRESHOLD_WIDTH else 1
 
 
 # ROOT CAUSE #145/#539/#597: what counts as a closing caption or an exit stub (and not
@@ -580,6 +581,54 @@ def invented_clauses(
     return invented
 
 
+def recall_cues(cues: Iterable[str]) -> list[str]:
+    """The cues of a kept line a retell can be credited with (#1063).
+
+    The words that only frame a memory (:data:`_FRAME_WORDS`) prove none: a retell says
+    «Marchand a dit» in its own way, so it never recalls «… ne vous a rien dit» with
+    «dit». :func:`invented_clauses` already holds them out of what makes a clause made
+    up; the score holds them out of what makes a line recalled. A line with nothing
+    else keeps them, or it could never be recalled at all.
+    """
+    cues = list(cues)
+    content = [cue for cue in cues if cue not in _FRAME_WORDS]
+    return content or cues
+
+
+def _written_words(text: str) -> list[set[str]]:
+    """The retell's words, each as the folded tokens it is written with: «grand-mère»
+    is one word of two tokens, «n'est» one word of two."""
+    words = [set(_tokens(word)) for word in str(text or "").split()]
+    return [word for word in words if word]
+
+
+def evidenced_cues(cues: list[str], words: list[set[str]]) -> list[str]:
+    """The cues the retell evidences, each by a word of its own (#1063).
+
+    One written word is one memory. «ma grand-mère» folds to «grand» and «mere», and
+    counting both let a single word meet the two cues a long line needs: the walk's
+    retell recalled «Votre grand-mère ne vous a rien dit» with it. A maximum matching
+    of cues to the words that back them, so a word that could back two cues is spent
+    where it leaves the most cues backed."""
+
+    owner: dict[int, str] = {}
+
+    def place(cue: str, tried: set[int]) -> bool:
+        for index, word in enumerate(words):
+            if index in tried or not any(cue_matches(cue, token) for token in word):
+                continue
+            tried.add(index)
+            if index not in owner or place(owner[index], tried):
+                owner[index] = cue
+                return True
+        return False
+
+    for cue in cues:
+        place(cue, set())
+    backed = set(owner.values())
+    return [cue for cue in cues if cue in backed]
+
+
 def score_content_recall(
     text: str,
     facts: list[dict[str, Any]],
@@ -606,18 +655,16 @@ def score_content_recall(
     kept = text or ""
     for clause in invented:
         kept = kept.replace(clause, " ")
-    written = set(_tokens(kept))
+    words = _written_words(kept)
     matched: list[dict[str, Any]] = []
     missed: list[dict[str, Any]] = []
     for raw in facts or []:
-        cues = [str(cue) for cue in (raw.get("cues") or []) if cue]
+        cues = recall_cues(str(cue) for cue in (raw.get("cues") or []) if cue)
         # Entries offered before #336 may hold an English instruction as a «fact».
         if not cues or not french_only(raw.get("text_fr")):
             continue
         needed = 2 if len(cues) > CUE_THRESHOLD_WIDTH else 1
-        hits = [
-            cue for cue in cues if any(cue_matches(cue, token) for token in written)
-        ]
+        hits = evidenced_cues(cues, words)
         entry = {
             "key": raw.get("key"),
             "kind": raw.get("kind"),
@@ -626,7 +673,10 @@ def score_content_recall(
         }
         anchor = anchor_cue(cues)
         # The fact's own word is evidence enough; otherwise the usual cue count.
-        recalled = len(hits) >= needed or (anchor is not None and anchor in hits)
+        anchored = anchor is not None and any(
+            cue_matches(anchor, token) for word in words for token in word
+        )
+        recalled = len(hits) >= needed or anchored
         (matched if recalled else missed).append(entry)
 
     total = len(matched) + len(missed)
@@ -1519,7 +1569,9 @@ __all__ = [
     "character_reaction",
     "content_cues",
     "cue_matches",
+    "evidenced_cues",
     "followup_prompt",
+    "recall_cues",
     "record_journal_cost",
     "scene_cue",
     "is_closing_filler",
