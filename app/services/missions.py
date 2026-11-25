@@ -35,7 +35,7 @@ from app.services import (
     verdicts,
 )
 from app.services import story_correspondence as courrier
-from app.services.address import address_instruction, known_register
+from app.services.address import address_instruction, known_register, relation_register
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
@@ -140,10 +140,12 @@ LETTER_STRETCH = 1
 COMPLETED_REQUEST_DAYS = 7
 #: A canned letter's exact text is not reprinted within this many days.
 CANNED_REUSE_DAYS = 28
-#: #777: and a situation (a letter's request: the shop, the size problem) is not served
-#: again within this many days, whoever writes it. The model is handed the situation's
-#: title, contact and opening, so its letter on a played situation is that letter again.
-SITUATION_REUSE_DAYS = CANNED_REUSE_DAYS
+#: #777 / #994: a situation (a letter's request: the shop, the size problem) the learner
+#: has had is not served again, whoever writes it, while one they have not had is in
+#: reach; then the one served longest ago. The model is handed the situation's title,
+#: contact and opening, so its letter on a played situation is that letter again. A
+#: 28-day window used to end this: on day 35 «Trois jours sans internet» counted as
+#: never played and came back under its own title (#994).
 #: #777: words of general use fit any letter; a topical word (food, clothes, a place)
 #: fits only a situation of its own topic.
 GENERAL_WORD_CATEGORIES = frozenset(
@@ -293,8 +295,8 @@ def word_fits_situation(word_categories: set[str], situation: set[str]) -> bool:
 
 
 def least_recently_served(catalogue: list[dict[str, Any]], served: dict[str, datetime]) -> list[dict[str, Any]]:
-    """#777: the catalogue without a situation served in the reuse window; when every one
-    was, those served longest ago, never a recent one."""
+    """#777 / #994: the catalogue without a situation the learner has had; when every one
+    was served, those served longest ago, never a recent one."""
 
     if not served or not catalogue:
         return catalogue
@@ -2677,9 +2679,9 @@ class MissionGenerator:
                 lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
             ):
                 catalogue = [item for item in catalogue if keep(item)] or catalogue
-            # #777: a situation the learner played this month is not served again, by
-            # the model or the canned text, until every other one has been.
-            catalogue = least_recently_served(catalogue, rotation.get("served_recent") or {})
+            # #777 / #994: a situation the learner has had is not served again, by the
+            # model or the canned text, until every other one has been.
+            catalogue = least_recently_served(catalogue, rotation.get("served") or {})
         pool: list[dict[str, Any]] = []
         if forced_domain:
             pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
@@ -6070,8 +6072,8 @@ class MissionScheduler:
         ``band`` (see :meth:`MissionGenerator._letter_band`), ``completed_recent``
         (requests answered in the last ``COMPLETED_REQUEST_DAYS``),
         ``canned_recent`` (canned letters printed in the last
-        ``CANNED_REUSE_DAYS``), ``served_recent`` (each request served in the last
-        ``SITUATION_REUSE_DAYS`` by any writer, and when: #777), ``season_active``
+        ``CANNED_REUSE_DAYS``), ``served`` (each request served in the learner's
+        recent letters by any writer, and when it last was: #777, #994), ``season_active``
         and ``model_available``. Dates
         are the app's own clock (``completed_at`` and the stamped ``served_at``),
         never the database's ``created_at`` default.
@@ -6088,7 +6090,7 @@ class MissionScheduler:
         completed_recent: set[str] = set()
         canned_recent: set[str] = set()
         canned_ever: set[str] = set()
-        served_recent: dict[str, datetime] = {}
+        served_at: dict[str, datetime] = {}
         for row in rows:
             prompt = row.prompt_payload or {}
             fit = prompt.get(LETTER_FIT_KEY) if isinstance(prompt.get(LETTER_FIT_KEY), dict) else {}
@@ -6103,9 +6105,11 @@ class MissionScheduler:
             if row.status == "completed" and done and now - done < timedelta(days=COMPLETED_REQUEST_DAYS):
                 completed_recent.add(str(key))
             served = _parse_moment(fit.get("served_at")) if fit else None
-            if served and now - served < timedelta(days=SITUATION_REUSE_DAYS):
-                # #777: whoever wrote it, the latest time this situation was served.
-                served_recent[str(key)] = max(served, served_recent.get(str(key), served))
+            if served:
+                # #777 / #994: whoever wrote it, and however long ago, the latest time
+                # this situation was served. No window: an old letter is still a letter
+                # the learner has had, and its title is still in «Your previous letters».
+                served_at[str(key)] = max(served, served_at.get(str(key), served))
             if fit.get("source") == "canned":
                 canned_ever.add(str(key))
                 if served and now - served < timedelta(days=CANNED_REUSE_DAYS):
@@ -6115,7 +6119,7 @@ class MissionScheduler:
             "completed_recent": completed_recent,
             "canned_recent": canned_recent,
             "canned_ever": canned_ever,
-            "served_recent": served_recent,
+            "served": served_at,
             "season_active": self._season_active(user),
             # Read from the switch, not by building a client: asking is not free.
             "model_available": bool(settings.ATELIER_LLM_ENABLED),
@@ -6949,12 +6953,12 @@ def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
         thread = courrier.active_thread(db, SimpleNamespace(id=user_id))
     except Exception:  # noqa: BLE001 - a reply never fails on a register read
         return None
-    if thread is not None:
-        return courrier.learner_register(thread, cast_id)
-    # No thread yet: the cast's own register answers when it has one (a season row, the
-    # always-«vous» landlord), as in the scene. ``known_register``, not the resolver's
-    # «vous» default: with nothing known the letter's own register decides (#506).
-    return known_register(None, cast_id)
+    # The cast's own register answers when it has one (the relationship map, a season row,
+    # the always-«vous» landlord), as in the scene. ``known_register``, not the resolver's
+    # «vous» default: with nothing known the letter's own register decides (#506), with a
+    # thread as without one (#920: the default outranked a friend's «tu» letter).
+    state = thread.state if thread is not None and isinstance(thread.state, dict) else None
+    return known_register(state, cast_id)
 
 
 def correspondent_register(mission: Any, *, register_now: str | None = None) -> str | None:
@@ -6962,7 +6966,8 @@ def correspondent_register(mission: Any, *, register_now: str | None = None) -> 
 
     The story's register for a cast member today (``register_now``) first; then the
     address form of the correspondent's own letter, which the learner has already read;
-    only then the register the letter was stored with. A letter written from a domain
+    then who they are to the learner (a friend says «tu», #920); only then the register
+    the letter was stored with. A letter written from a domain
     stores a description, not a form («natural French; formal only when the scenario
     requires it»): the reply's actor read that, wrote «Avez-vous une idée ?» to a
     colleague whose letter said «Tu as la commande ?», and its guard, holding the reply
@@ -6973,6 +6978,10 @@ def correspondent_register(mission: Any, *, register_now: str | None = None) -> 
     return (
         register_now
         or address_register(thread_opening(mission))
+        # #920 (root cause #147): who they are to the learner. A friend whose letter named
+        # no form («Salut ! On se retrouve à midi ?») was held to nothing, and asked
+        # «Quel endroit préférez-vous ?».
+        or relation_register(messenger.get("contact_role"))
         or register_word(messenger.get("target_register") or messenger.get("register") or payload.get("target_register"))
     )
 

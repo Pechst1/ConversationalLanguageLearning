@@ -1342,6 +1342,33 @@ _ASKS = re.compile(
 )
 
 
+#: #1043: the service-desk frame. Lila's letter was about a name on a card, and her reply
+#: offered «un remboursement» for three turns: a refund, a delivery or an order is a
+#: shop's script, never a friend's, unless the thread already holds it. «commande» alone
+#: is a waiter's word too («Voici ta commande, un café»), so it counts only beside the
+#: rest of the frame or in a frame of its own (an order placed, cancelled, on its way).
+_REFUND = re.compile(r"\brembours\w*")
+#: Folded text: «livré» reads «livre» (a book), so only the forms no book shares.
+_DELIVERY = re.compile(r"\blivraisons?\b|\blivr(?:er|eur|euse|ons|ez|ait|era|erai|erons|eront)\b")
+_ORDER_WORD = re.compile(r"\bcommandes?\b")
+_ORDER_FRAME = re.compile(
+    r"\b(?:passer|passe|passee?|annul\w*|suivi\s+de|en\s+ligne)\b(?:\s+\w+){0,3}?\s+commandes?\b"
+    r"|\bcommandes?\s+(?:en\s+ligne|annulee?s?|expediee?s?|en\s+route|en\s+cours\s+de\s+livraison)\b"
+)
+_SERVICE_STEMS = {"refund": "rembours", "delivery": "livr", "order": "command"}
+
+
+def service_frames(folded: str) -> list[tuple[str, str]]:
+    """``(kind, stem)`` for each part of a shop's script in a folded reply (refund,
+    delivery, order); the order only beside a refund or a delivery, or as an order of
+    its own («passer une commande»)."""
+
+    found = [kind for kind, pattern in (("refund", _REFUND), ("delivery", _DELIVERY)) if pattern.search(folded)]
+    if _ORDER_WORD.search(folded) and (found or _ORDER_FRAME.search(folded)):
+        found.append("order")
+    return [(kind, _SERVICE_STEMS[kind]) for kind in found]
+
+
 def _folded_sentences(text: object) -> list[str]:
     return [part for part in (_plain_fold(p) for p in re.split(r"(?<=[.!?…])\s+|\n+", str(text or ""))) if part]
 
@@ -1361,8 +1388,9 @@ def personal_requests(text: object) -> set[str]:
 
 def invented_logistics(reply: object, *, grounded: Iterable[object], authored: Iterable[object] = ()) -> list[str]:
     """What ``reply`` invents: an order / tracking / reference number the thread never
-    held, a long digit string the thread never held, or a request for the learner's
-    personal data the authored opening did not make. Empty when the reply is clean.
+    held, a long digit string the thread never held, a refund, a delivery or an order
+    the thread never held (#1043), or a request for the learner's personal data the
+    authored opening did not make. Empty when the reply is clean.
 
     ``grounded`` is every text the thread already holds (scene, authored opening,
     earlier lines, the learner's own words); ``authored`` is only what the scene's
@@ -1381,6 +1409,9 @@ def invented_logistics(reply: object, *, grounded: Iterable[object], authored: I
         digits = match.group(0)
         if digits not in held:
             problems.append(f"the number {digits}, which nobody gave")
+    for kind, stem in service_frames(said):
+        if not re.search(rf"\b{stem}", held):
+            problems.append(f"a {kind} the scene never mentioned")
     asked = personal_requests(reply)
     if asked:
         allowed: set[str] = set()
@@ -1393,7 +1424,7 @@ def invented_logistics(reply: object, *, grounded: Iterable[object], authored: I
 def invented_logistics_hint(problems: list[str]) -> str:
     return (
         "Your reply brings in " + "; ".join(problems[:2]) + ". Nothing in the scene or in what the other "
-        "person wrote mentions an order, a parcel, a tracking or reference number or a home address, "
-        "so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
+        "person wrote mentions an order, a parcel, a refund, a delivery, a tracking or reference number or a "
+        "home address, so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
         "such as their decision or the animal they named), then ask one question about it."
     )
