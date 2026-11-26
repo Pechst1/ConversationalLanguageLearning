@@ -242,7 +242,9 @@ test('a correction in the forge does not name the rule the head already names', 
   assert.equal(P.correctionAnchor('', title), undefined);
   assert.match(SESSION, /ruleShown=\{forge \? activeConceptTitle : null\}/);
   // Owner 2026-11-13: the reason (rule reference stripped) is the card's one line.
-  assert.match(PAGE, /display\(printableWhy\(withoutRuleReference\(issue\.why_wrong \|\| feedback\.why \|\| '', ruleShown\)\)\)/);
+  // #1087: what the cut leaves empty falls back to the server's next reason (forge-miss-reason-1087).
+  assert.match(PAGE, /const cut = \(text: string\) => display\(printableWhy\(withoutRuleReference\(text, ruleShown\)\)\);/);
+  assert.match(PAGE, /const whyText = shownReason\(\[issue\.why_wrong \|\| feedback\.why, serverHint\], cut\);/);
   assert.match(PAGE, /why=\{explained\(reason\) \|\| undefined\}/);
 });
 
