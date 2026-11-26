@@ -1452,10 +1452,15 @@ def _with_grammar_briefs(
 
 
 def _lexicon_label(word: Any) -> str:
-    """A noun is taught with its article, so its gender can be asked about."""
+    """A noun is taught with its article, so its gender can be asked about; a
+    month or a day of the week is taught bare («janvier», #1083)."""
+
+    from app.services.lexicon_grammar import takes_article
 
     lemma = str(word.lemma)
     if str(word.part_of_speech or "").lower() not in {"noun", "nom", "n"} or not word.gender:
+        return lemma
+    if not takes_article(lemma):
         return lemma
     if lemma[:1].lower() in "aeiouyhàâéèêëîïôûœ":
         return ("une " if word.gender == "f" else "un ") + lemma

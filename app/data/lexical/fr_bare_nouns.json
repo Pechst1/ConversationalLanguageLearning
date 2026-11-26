@@ -1,0 +1,24 @@
+{
+  "description": "French nouns a learner meets without an article: the months («en janvier»; «le 8 janvier» only with a date) and the days of the week («dimanche» is Sunday; «le dimanche» means on Sundays). Their card shows the bare word: the server sends them no gender, which is what a client draws le / la from. Curated by hand (#1083). Read by app/services/lexicon_grammar.py.",
+  "lemmas": [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+    "lundi",
+    "mardi",
+    "mercredi",
+    "jeudi",
+    "vendredi",
+    "samedi",
+    "dimanche"
+  ]
+}

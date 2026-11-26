@@ -25,6 +25,9 @@ POS_PATH = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_core_p
 #: Nouns used in the plural only (``les gens``, ``les vacances``): the one list,
 #: sent to every client as the noun's ``number`` (owner request, 1 Nov).
 PLURALIA_PATH = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_pluralia_tantum.json"
+#: Nouns cited without an article (the months, the days of the week): their card
+#: shows the bare word, so no gender is sent for them (#1083: «le janvier»).
+BARE_NOUNS_PATH = Path(__file__).resolve().parents[1] / "data" / "lexical" / "fr_bare_nouns.json"
 NOUN_TAGS = frozenset({"noun", "nom", "n"})
 
 _ARTICLES = ("le ", "la ", "les ", "un ", "une ", "des ", "l'", "l’", "du ", "de la ", "de l'")
@@ -92,9 +95,29 @@ def lexicon_gender(surface: Any) -> str | None:
     return gender if gender in {"m", "f"} else None
 
 
+@lru_cache(maxsize=1)
+def bare_nouns() -> frozenset[str]:
+    """The lemmas of the nouns cited without an article (folded)."""
+
+    try:
+        payload = json.loads(BARE_NOUNS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # pragma: no cover - a missing file marks nothing
+        return frozenset()
+    return frozenset(_fold(lemma) for lemma in payload.get("lemmas") or [])
+
+
+def takes_article(surface: Any) -> bool:
+    """Whether a French noun is shown with its article: every one but a month or a
+    day of the week («janvier», «dimanche»), which is cited bare (#1083)."""
+
+    return lemma_key(surface) not in bare_nouns()
+
+
 def word_grammar(word: Any) -> tuple[str | None, str | None]:
     """``(part_of_speech, gender)`` for a card: stored values first, then the
-    lexicon for a French card. The gender is only given to a noun."""
+    lexicon for a French card. The gender is only given to a noun, and only to
+    one shown with its article: a client draws le / la from it, so a month or a
+    day of the week (:func:`takes_article`) gets none, whatever the row stored."""
 
     pos = getattr(word, "part_of_speech", None) or None
     gender = getattr(word, "gender", None) or None
@@ -106,6 +129,8 @@ def word_grammar(word: Any) -> tuple[str | None, str | None]:
         pos = lexicon_pos(surface) or None
     if not gender and str(pos or "").lower() in NOUN_TAGS:
         gender = lexicon_gender(surface)
+    if gender and not takes_article(surface):
+        gender = None
     return pos, gender
 
 
@@ -138,13 +163,16 @@ def word_number(word: Any) -> str | None:
 
 
 __all__ = [
+    "BARE_NOUNS_PATH",
     "PLURALIA_PATH",
+    "bare_nouns",
     "lemma_key",
     "lexicon_entry",
     "lexicon_gender",
     "lexicon_grammar_table",
     "lexicon_pos",
     "pluralia_tantum",
+    "takes_article",
     "word_grammar",
     "word_number",
 ]
