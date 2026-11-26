@@ -9,6 +9,8 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { pollUntil, waitForDevServer } from '../../scripts/dev-server-ready.mjs';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const WEB_ROOT = path.resolve(here, '../..');
 export const REPO_ROOT = path.resolve(WEB_ROOT, '..');
@@ -63,19 +65,18 @@ function pgAdmin(adminUrl, sql) {
 }
 
 async function waitFor(url, { timeoutMs = 120000, ok = (r) => r.status < 500 } = {}) {
-  const t0 = Date.now();
-  let last = '';
-  while (Date.now() - t0 < timeoutMs) {
-    try {
-      const r = await fetch(url);
-      if (ok(r)) return;
-      last = `HTTP ${r.status}`;
-    } catch (e) {
-      last = String(e.message || e);
-    }
-    await sleep(500);
+  const r = await pollUntil(url, { budgetMs: timeoutMs, ok });
+  if (!r.ready) throw new Error(`timed out waiting for ${url}: ${r.last}`);
+}
+
+/** The last lines of a log the stack writes, for an error that would otherwise say only «404». */
+function logTail(file, lines = 40) {
+  try {
+    const tail = readFileSync(file, 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
+    return tail ? `--- last lines of ${path.basename(file)} ---\n${tail}` : '';
+  } catch {
+    return '';
   }
-  throw new Error(`timed out waiting for ${url}: ${last}`);
 }
 
 /** The pages the walk opens (its web.log's «Compiling …» lines), compiled before it plays. */
@@ -273,7 +274,9 @@ export async function startStack({ logDir, secret, live = false, tokenMinutes = 
     next.stdout.pipe(webLog);
     next.stderr.pipe(webLog);
     children.push(next);
-    await waitFor(`${web}/api/auth/csrf`, { timeoutMs: 120000, ok: (r) => r.ok });
+    // #1041: the server's own readiness (a page answering 200 once compiled) on a cold-compile
+    // budget, then the csrf probe, retried once (scripts/dev-server-ready.mjs).
+    stack.webReady = await waitForDevServer(web, { context: () => logTail(path.join(logDir, 'web.log')) });
     // The dev server compiles a page the first time it is asked for, and a request in
     // flight while it writes its manifests can fail: main's 7-day walk (run 43027305551,
     // A1 day 2) got a 500 on GET /api/auth/session («SyntaxError: Unexpected end of JSON
