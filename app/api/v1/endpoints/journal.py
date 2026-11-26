@@ -34,6 +34,7 @@ from app.services.journal import (
     MIN_ENTRY_WORDS,
     RECALL_OFFSET_DAYS,
     JournalService,
+    reveal_view,
 )
 
 router = APIRouter(prefix="/journal", tags=["journal"])
@@ -58,6 +59,10 @@ class JournalRevealView(BaseModel):
     title_fr: str | None = None
     setup_fr: str | None = None
     character_line_fr: str | None = None
+    #: Who says the opening line (#1081).
+    character_line_speaker: str | None = None
+    #: What the scene said after it, in order, once each: ``{"speaker_name", "text_fr"}`` (#1081).
+    lines: list[dict] = Field(default_factory=list)
     callback_fr: str | None = None
 
 
@@ -192,7 +197,7 @@ def _entry_view(entry: JournalEntry, today: date) -> JournalEntryView:
         ),
         content_recall=dict(entry.content_recall or {}) or None if written else None,
         reaction_fr=entry.reaction_fr if written else None,
-        reveal=JournalRevealView(**dict(entry.scene_reveal or {})) if written else None,
+        reveal=JournalRevealView(**reveal_view(entry.scene_reveal)) if written else None,
         vocabulary_credit=dict(entry.vocabulary_credit or {}) or None if written else None,
         errata_recorded=len(entry.errata_ids or []) if written else 0,
     )

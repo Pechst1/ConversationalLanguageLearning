@@ -47,7 +47,7 @@ def test_an_unread_sentence_with_no_model_keeps_both_sides_of_its_basic_check(cl
         assert all(spans.values()), f"an unread answer with no chance to come served fixes with nothing after «→»: {spans}"
     for correction in (body["correction"], read["correction"]):
         assert correction["solution"]["state"] == "shown", "the payload says the solution is on it"
-        assert [erratum["corrected_target"] for erratum in correction["errata"]] == ["J'ai", "dernière"]
+        assert [erratum["corrected_target"] for erratum in correction["errata"]] == ["J'ai", "cuisiné", "dernière"]
 
 
 def test_asking_again_after_a_whole_unread_answer_never_reopens_a_chance(client: TestClient, db_session, no_model):  # noqa: F811

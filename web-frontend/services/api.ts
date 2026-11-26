@@ -293,10 +293,19 @@ export interface JournalCue {
   days_ago?: number | null;
 }
 
+export interface JournalRevealLine {
+  speaker_name?: string | null;
+  text_fr: string;
+}
+
 export interface JournalReveal {
   title_fr?: string | null;
   setup_fr?: string | null;
   character_line_fr?: string | null;
+  /** #1081: who says the opening line. */
+  character_line_speaker?: string | null;
+  /** #1081: what the scene said after it, in order, each line once with its own speaker. */
+  lines?: JournalRevealLine[] | null;
   callback_fr?: string | null;
 }
 
@@ -337,8 +346,9 @@ export interface JournalContentRecall {
   /** 'scored' | 'no_facts' — a scene with nothing stored scores null, not zero. */
   status: string;
   score: number | null;
-  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
-  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  /** `speaker_name`: who said a line of the scene (#1081). */
+  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[]; speaker_name?: string | null }>;
+  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[]; speaker_name?: string | null }>;
   facts_total: number;
 }
 

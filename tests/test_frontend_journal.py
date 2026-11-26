@@ -74,8 +74,12 @@ def test_the_writing_branch_renders_the_cue_and_nothing_from_the_reveal(tab: str
 
 def test_the_reveal_is_rendered_only_under_the_written_branch(tab: str):
     after = tab.split("{entry && written && (")[1]
-    assert "entry.reveal.setup_fr" in after
-    assert "entry.reveal.character_line_fr" in after
+    # #1081: the written branch hands `entry.reveal` to the one component that prints it.
+    assert "{entry.reveal && <SceneReveal reveal={entry.reveal}" in after
+    assert tab.count("<SceneReveal") == 1
+    printer = tab.split("export function SceneReveal")[1]
+    assert "reveal.setup_fr" in printer
+    assert "reveal.character_line_fr" in printer
     # And the cue line has no access to the scene at all.
     cue_fn = tab.split("export function cueLine")[1].split("}\n")[0]
     assert "setup" not in cue_fn and "title" not in cue_fn

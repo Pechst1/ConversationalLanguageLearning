@@ -887,6 +887,8 @@ _ACCENTS = {
     "cheminee": "cheminée",
     "etudiant": "étudiant", "etudiante": "étudiante", "arrivee": "arrivée", "journee": "journée",
     "soiree": "soirée", "idee": "idée", "annee": "année", "equipe": "équipe", "eglise": "église",
+    # #1062: the story's own words the core lexicon is too short to hold (M. Marchand's office)
+    "gerance": "gérance", "gerant": "gérant", "gerante": "gérante",
 }
 #: Night-shift review of #259: a noun that is right with either gender, so its
 #: determiner is never «corrected». Homographs whose meaning sets the gender («le
@@ -2924,6 +2926,15 @@ def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
                 start = -1
                 break
         if start < 0:
+            # #1062: the free word it needed is the fix in front of it («m a donne la cle»
+            # after «avec la cle»): the two are listed as one fix, which their words find.
+            if named:
+                last = named[-1]
+                span = source[last.start : edit.end]
+                found = span_pattern(span).search(source)
+                if found is not None and found.start() == last.start:
+                    right = last.replacement + source[last.end : edit.start] + edit.replacement
+                    named[-1] = replace(last, span=span, replacement=right, end=edit.end)
             continue
         if (start, end) != (edit.start, edit.end):
             right = source[start : edit.start] + edit.replacement + source[edit.end : end]
@@ -3446,6 +3457,8 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
     _tense_edits(source, tokens, cast, add)
     _known_slip_edit(source, add)
     _avoir_state_edits(source, tokens, add)
+    _avoir_participle_edits(source, tokens, add)
+    _glued_object_edits(source, tokens, add)
     found.sort(key=lambda e: e.start)
     return found
 
@@ -3534,6 +3547,103 @@ def _avoir_state_edits(source: str, tokens: list[Tok], add) -> None:
             continue
         written = source[tok.start : tok.end]
         add(_edit("FR_AVOIR_STATE_NOUN", source, tok.start, tok.end, _case(written, right), right=right))
+
+
+#: Nouns avoir takes with no article («avoir envie, hâte, affaire, marre»), and words that
+#: follow avoir as they are («il a contre lui»): the «-er» verb they look like is not meant.
+_AVOIR_BARE_WORDS = frozenset(
+    {"envie", "hâte", "hate", "affaire", "marre", "peine", "honte", "confiance", "tendance", "coutume",
+     "horreur", "classe", "contre", "juste", "presque", "même", "meme", "personne", "chose", "quelque",
+     "autre", "rendez", "cause", "cote", "table"}
+)
+#: What may stand between avoir and its participle: «n'a pas regarde», «a déjà mange».
+_BEFORE_PARTICIPLE = frozenset(
+    {"pas", "plus", "jamais", "rien", "déjà", "deja", "bien", "beaucoup", "trop", "toujours", "souvent",
+     "encore", "aussi", "vraiment", "enfin", "tout"}
+)
+#: The subjects that make a bare «a» the verb avoir and not «à» typed without its accent.
+_A_SUBJECTS = frozenset({"il", "elle", "on", "qui", "ça", "cela", "m", "t", "l", "lui"})
+
+
+@lru_cache(maxsize=1)
+def _er_verbs_by_fold() -> Mapping[str, str]:  # pragma: no cover - thin cache
+    """Unaccented «-er» infinitive -> the infinitive («rever» -> «rêver»), when only one."""
+    found: dict[str, set[str]] = {}
+    for word, entry in _lexicon().lemmas.items():
+        if entry.get("pos") == "verb" and word.endswith("er"):
+            found.setdefault(_strip_marks(word), set()).add(word)
+    return {bare: next(iter(words)) for bare, words in found.items() if len(words) == 1}
+
+
+def _avoir_participle_edits(source: str, tokens: list[Tok], add) -> None:
+    """«Nous avons visite la gérance» -> «visité» (#1062): after avoir, an «-er» verb
+    written like its present is its participle with the accent missing.
+
+    Closed on every side: the word follows a form of avoir in its clause (only a negation
+    or an adverb between), it is written in lower case, it is no function word and no noun
+    avoir takes bare («j'ai envie», «il a hâte»), and its «-er» verb is in the lexicon. A
+    bare «a» counts only after a subject («il a», «Marchand a»): «c'est a cause» is «à».
+    «il y a classe» and «l'as» are left as written."""
+
+    for i, tok in enumerate(tokens):
+        written = source[tok.start : tok.end]
+        low = tok.low
+        if written != low or len(low) < 4 or not low.endswith("e") or low[-2] in "éèêe":
+            continue
+        if low in _AVOIR_BARE_WORDS or _pos(low) in {"function", "adverb", "number"}:
+            continue
+        infinitive = _er_verbs_by_fold().get(_strip_marks(low[:-1] + "er"))
+        if infinitive is None:
+            continue
+        j = i - 1
+        while j >= 0 and i - j <= 3 and tokens[j].low in _BEFORE_PARTICIPLE:
+            j -= 1
+        if j < 1 or tokens[j].low not in _AVOIR_FORMS:
+            continue
+        aux, before = tokens[j], tokens[j - 1]
+        if any(
+            not _joined(source, a, b) or not _same_clause(source, a, b)
+            for a, b in zip(tokens[j - 1 : i], tokens[j : i + 1], strict=True)
+        ):
+            continue
+        if before.low == "y" or before.low in _DETERMINERS:
+            continue
+        if aux.low == "a":
+            subject = tokens[j - 2] if before.low in {"n", "ne"} and j >= 2 else before
+            # a name («Marchand a signe»), never a capitalised function word or adverb
+            named = source[subject.start : subject.end][:1].isupper() and _pos(subject.low) not in {
+                "function", "adverb", "number"
+            }
+            if subject.low not in _A_SUBJECTS and not named:
+                continue
+        right = infinitive[:-2] + "é"
+        add(_edit("FR_ACCENT", source, tok.start, tok.end, right, right=right))
+
+
+#: «ma» and «ta» typed for «m'a» and «t'a», the apostrophe dropped and the letters run together.
+_GLUED_OBJECT_A = {"ma": "m", "ta": "t"}
+#: The subjects in front of «il ma dit»: a possessive never follows them directly.
+_GLUED_OBJECT_SUBJECTS = frozenset({"il", "elle", "on", "qui", "ça", "cela"})
+
+
+def _glued_object_edits(source: str, tokens: list[Tok], add) -> None:
+    """«ne ma rien dit» -> «ne m'a rien dit», «il ma dit» -> «il m'a dit» (#1062).
+
+    Only where the possessive cannot stand: between «ne» and the word that closes the
+    negation, or between a subject pronoun and a participle. «C'est ma maison», «il ne
+    pense pas à ma mère» are left as written."""
+
+    for i in range(1, len(tokens) - 1):
+        tok, prev, nxt = tokens[i], tokens[i - 1], tokens[i + 1]
+        clitic = _GLUED_OBJECT_A.get(tok.low)
+        if clitic is None or not (_space(source, prev, tok) and _space(source, tok, nxt)):
+            continue
+        negated = prev.low == "ne" and nxt.low in _NEGATION_WORDS | _CLOSES_A_NEGATION
+        told = prev.low in _GLUED_OBJECT_SUBJECTS and _participle(nxt.low)
+        if not (negated or told):
+            continue
+        right = _case(source[tok.start : tok.end], clitic) + _apostrophe(source) + "a"
+        add(_edit("FR_SPELLING", source, tok.start, tok.end, right, right=right))
 
 
 def _first_sentence_end(text: str, tokens: list[Tok]) -> int:

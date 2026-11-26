@@ -61,7 +61,7 @@ from app.services.atelier import AtelierCorrectionService
 from app.services.atelier_correction_cost import bound_learner_answer
 from app.services.chrome_language import user_mother_tongue
 from app.services.closing_filler import is_closing_filler, is_stock_exit_reply, scene_fact
-from app.services.daily_journey import local_date_for
+from app.services.daily_journey import asked_line, local_date_for
 from app.services.error_memory import ErrorMemoryService
 from app.services.journey_contracts import Correction, JourneyStatus, StepKind
 from app.services.journey_learning import (
@@ -229,14 +229,19 @@ class SceneFact:
     kind: str
     text_fr: str
     cues: tuple[str, ...]
+    #: Who said it on screen, for a line of the scene (#1081); ``None`` for anything else.
+    speaker_name: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "key": self.key,
             "kind": self.kind,
             "text_fr": self.text_fr,
             "cues": list(self.cues),
         }
+        if self.speaker_name:
+            out["speaker_name"] = self.speaker_name
+        return out
 
     @property
     def needed_cues(self) -> int:
@@ -252,8 +257,8 @@ _SAID_FACTS = 2
 _SCENE_LINES = 2
 
 
-def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
-    """What was said on screen: ``(key, kind, text)``, the learner's facts first.
+def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str, str | None]]:
+    """What was said on screen: ``(key, kind, text, speaker)``, the learner's facts first.
 
     #622: ``callback_fr`` is the hook, the line that opens tomorrow, and on the 9 Nov walk
     it said «L'appartement est un souvenir de ta grand-mère» on a day at the notary's.
@@ -264,10 +269,18 @@ def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
     (:func:`_their_sentence`), never as they typed it: «Je pense elle est une femme très
     fort…» was listed as a detail to remember, and a retell that repeated the learner's
     own replies scored «everything the scene kept».
+
+    #1081: a scene detail is one sentence one person said (``scene_ledger.spoken_lines``),
+    never a turn's words run together. A reply of five voices was held to as «Tu as peur de
+    Marchand. Merci. Merci. Et Marchand signe à dix heures. Oui.», and quoted as one
+    thing the cue's character said. A sentence too thin to be remembered («Merci.»,
+    «Oui.») is no detail, and a sentence said twice is one.
     """
 
-    said: list[tuple[str, str, str]] = []
-    lines: list[tuple[str, str, str]] = []
+    character = str((journey.scenario_snapshot or {}).get("character_name") or "").strip() or None
+    said: list[tuple[str, str, str, str | None]] = []
+    lines: list[tuple[str, str, str, str | None]] = []
+    seen: set[str] = set()
     for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
         shown = scene_ledger.on_screen(step)
         for fact in shown["established"]:
@@ -275,16 +288,34 @@ def _said_in_scene(journey: DailyJourney) -> list[tuple[str, str, str]]:
             turn = shown["turns"][at] if isinstance(at, int) and 0 <= at < len(shown["turns"]) else {}
             line = _their_sentence(turn)
             if line:
-                said.append((f"said:{fact.get('key') or at}", "said", line))
+                said.append((f"said:{fact.get('key') or at}", "said", line, None))
         for index, turn in enumerate(shown["turns"]):
             if turn["stock_exit"] or is_stock_exit_reply(turn["character"]):
                 continue
-            statement = " ".join(
-                sentence for sentence in scene_ledger.sentences(turn["character"]) if not sentence.endswith("?")
-            )
-            if statement and not is_closing_filler(statement):
-                lines.append((f"scene:{step.ordinal}:{index}", "scene", statement))
+            count = 0
+            for spoken in turn["lines"]:
+                for sentence in scene_ledger.sentences(spoken["text_fr"]):
+                    folded = _fold_line(sentence)
+                    if (
+                        sentence.endswith("?")
+                        or folded in seen
+                        or not reads_as_sentence(sentence)
+                        or is_closing_filler(sentence)
+                    ):
+                        continue
+                    seen.add(folded)
+                    lines.append(
+                        (f"scene:{step.ordinal}:{index}:{count}", "scene", sentence, spoken["speaker_name"] or character)
+                    )
+                    count += 1
     return said[-_SAID_FACTS:] + lines[-_SCENE_LINES:]
+
+
+def _fold_line(text: Any) -> str:
+    """A line as it reads aloud: no case, no accents, no punctuation («Dix heures» and
+    «« Dix heures »» are one line)."""
+
+    return " ".join(_tokens(str(text or "")))
 
 
 def _their_sentence(turn: dict[str, Any]) -> str:
@@ -362,11 +393,11 @@ def scene_facts_for(
 
     facts: list[SceneFact] = []
 
-    for key, kind, line in _said_in_scene(journey) if scene_record.enabled() else []:
+    for key, kind, line, speaker in _said_in_scene(journey) if scene_record.enabled() else []:
         text_fr = french_only(line)
         cues = tuple(content_cues(text_fr, given=given))
         if cues and all(fact.text_fr != text_fr for fact in facts):
-            facts.append(SceneFact(key=key, kind=kind, text_fr=text_fr, cues=cues))
+            facts.append(SceneFact(key=key, kind=kind, text_fr=text_fr, cues=cues, speaker_name=speaker))
 
     outcome = recap.get("story_outcome") or {}
     callback = french_only(outcome.get("callback_fr"))
@@ -415,7 +446,8 @@ def scene_facts_for(
                 premise = french_only((step.public_prompt or {}).get("setup_fr"))
                 break
         cues = tuple(content_cues(premise, given=given))
-        if cues:
+        # #1081: a page planned before #1074 has its title for a setup; a heading is no event.
+        if cues and _fold_line(premise) != _fold_line(scenario.get("title_fr")):
             facts.append(SceneFact(key="setup", kind="setup", text_fr=premise, cues=cues))
 
     return facts
@@ -439,23 +471,87 @@ def scene_cue(journey: DailyJourney, *, today: date) -> dict[str, Any]:
 
 
 def scene_reveal(journey: DailyJourney) -> dict[str, Any]:
-    """The scene as it was, shown only after the learner has written."""
+    """The scene as it was, shown only after the learner has written.
+
+    #1081: its opening line with who says it, then every line the scene said after it, each
+    with its own speaker (``scene_ledger.spoken_lines``), once (:func:`reveal_view`)."""
     scenario = dict(journey.scenario_snapshot or {})
     recap = dict(journey.recap_snapshot or {})
+    character = str(scenario.get("character_name") or "").strip() or None
     setup_fr = ""
     character_line_fr = ""
-    for step in sorted(journey.steps or [], key=lambda item: item.ordinal):
+    opener: dict[str, Any] = {}
+    steps = sorted(journey.steps or [], key=lambda item: item.ordinal)
+    for step in steps:
         if StepKind(step.kind) is not StepKind.SCENE:
             continue
         prompt = dict(step.public_prompt or {})
         setup_fr = french_only(prompt.get("setup_fr"))
         character_line_fr = french_only(prompt.get("character_line_fr"))
+        opener = asked_line(prompt) or {}
         break
+    lines: list[dict[str, Any]] = []
+    for step in steps:
+        for turn in scene_ledger.on_screen(step)["turns"]:
+            if turn["stock_exit"] or is_stock_exit_reply(turn["character"]):
+                continue
+            for spoken in turn["lines"]:
+                text = french_only(spoken["text_fr"])
+                if text:
+                    lines.append({"speaker_name": spoken["speaker_name"] or character, "text_fr": text})
+    return reveal_view(
+        {
+            "title_fr": french_only(scenario.get("title_fr")) or None,
+            "setup_fr": setup_fr or None,
+            "character_line_fr": character_line_fr or None,
+            "character_line_speaker": (opener.get("speaker_name") or character) if character_line_fr else None,
+            "lines": lines,
+            "callback_fr": french_only(scene_fact((recap.get("story_outcome") or {}).get("callback_fr"))) or None,
+        }
+    )
+
+
+#: How many of the scene's lines «The scene as it was» prints, at most.
+_REVEAL_LINES = 16
+
+
+def reveal_view(stored: dict[str, Any] | None) -> dict[str, Any]:
+    """«The scene as it was» as the learner reads it: the title as its heading only, and
+    every other line once, in the order the screen prints them (#1081).
+
+    An authored page planned before #1074 had its title for its setup and its opening
+    line, and the Journal printed «Dix heures», «Dix heures», «« Dix heures »». Read on
+    every view, so a reveal stored before this reads the same."""
+
+    stored = dict(stored or {})
+    title = french_only(stored.get("title_fr")) or None
+    seen: set[str] = {_fold_line(title)} if title else set()
+
+    def once(text: Any) -> str | None:
+        line = str(text or "").strip()
+        folded = _fold_line(line)
+        if not folded or folded in seen:
+            return None
+        seen.add(folded)
+        return line
+
+    setup = once(stored.get("setup_fr"))
+    character_line = once(stored.get("character_line_fr"))
+    lines: list[dict[str, Any]] = []
+    for raw in stored.get("lines") or []:
+        if not isinstance(raw, dict) or len(lines) >= _REVEAL_LINES:
+            continue
+        text = once(raw.get("text_fr"))
+        if text:
+            lines.append({"speaker_name": str(raw.get("speaker_name") or "").strip() or None, "text_fr": text})
+    speaker = str(stored.get("character_line_speaker") or "").strip() or None
     return {
-        "title_fr": french_only(scenario.get("title_fr")) or None,
-        "setup_fr": setup_fr or None,
-        "character_line_fr": character_line_fr or None,
-        "callback_fr": french_only(scene_fact((recap.get("story_outcome") or {}).get("callback_fr"))) or None,
+        "title_fr": title,
+        "setup_fr": setup,
+        "character_line_fr": character_line,
+        "character_line_speaker": speaker if character_line else None,
+        "lines": lines,
+        "callback_fr": once(scene_fact(stored.get("callback_fr"))),
     }
 
 
@@ -624,6 +720,8 @@ def score_content_recall(
             "text_fr": raw.get("text_fr"),
             "cues_hit": hits,
         }
+        if raw.get("speaker_name"):
+            entry["speaker_name"] = raw["speaker_name"]
         anchor = anchor_cue(cues)
         # The fact's own word is evidence enough; otherwise the usual cue count.
         recalled = len(hits) >= needed or (anchor is not None and anchor in hits)
@@ -720,10 +818,12 @@ def character_reaction(
     if matched and not missed and vouches:
         return f"{name} sourit. « Oui, c’est bien comme ça que ça s’est passé. »"
     if missed:
-        return (
-            f"{name} {forms['looks']}. « Il manque quelque chose : "
-            f"{short(missed[0])}. »"
-        )
+        detail = short(missed[0])
+        # #1081: a line someone else said is theirs, not the character's own words.
+        speaker = str(missed[0].get("speaker_name") or "").strip()
+        if speaker and speaker.casefold() not in name.casefold() and name.casefold() not in speaker.casefold():
+            detail = f"ce que {speaker} a dit, “{detail}”"
+        return f"{name} {forms['looks']}. « Il manque quelque chose : {detail}. »"
     return None
 
 
@@ -1097,6 +1197,15 @@ class JournalService:
         status) and the two cannot drift apart.
         """
         correction, corrector = self._correct(user, entry, written, truncated=truncated)
+        paid_calls = int(getattr(corrector, "paid_calls", 0))
+        if correction.get("assessment_status") != "checked" and self._failure_reason(
+            user, entry, corrector
+        ) not in _NOT_RETRYABLE:
+            # #1062: one failed call is not the learner's result. The provider is called
+            # with its own retries off, so the full check is asked once more before the
+            # rules' partial list is shown.
+            correction, corrector = self._correct(user, entry, written, truncated=truncated)
+            paid_calls += int(getattr(corrector, "paid_calls", 0))
         by_model = correction.get("assessment_status") == "checked"
         if by_model:
             correction = {**correction, "checker": "model"}
@@ -1123,7 +1232,7 @@ class JournalService:
         previous_calls = int((entry.correction or {}).get("paid_calls") or 0)
         entry.correction = {
             **correction,
-            "paid_calls": previous_calls + int(getattr(corrector, "paid_calls", 0)),
+            "paid_calls": previous_calls + paid_calls,
         }
         verdicts.note_failure(
             self.db, surface="journal", verdict=verdicts.from_journal(entry.correction, text=written), user_id=user.id
