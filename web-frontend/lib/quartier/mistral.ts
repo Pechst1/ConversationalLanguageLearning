@@ -79,6 +79,13 @@ export interface MistralParts {
 export const ZINC = { front: -34.8, north: -17.4, south: -11.5, top: ROOM.floor + 1.1, back: -35.6 };
 
 /**
+ * The till at the far end of the zinc: its body's centre across (`x`) and along (`z`) the zinc, its
+ * front face toward the room (`front`), its half-length along the zinc (`half`). The old photograph
+ * of the bar is tucked behind it.
+ */
+export const TILL = { x: ZINC.front - 0.42, z: ZINC.north + 0.55, front: ZINC.front - 0.21, half: 0.18 };
+
+/**
  * The two marble tables in front of the booth, at the back of the room: their centres along the
  * booth, their top's size and height, and where Marin's bowl of soup stands on the left one.
  */
@@ -309,9 +316,9 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   }
   // the till at the far end of the zinc (clear of Margaux), a photograph tucked behind it
   {
-    const z = zN + 0.55;
+    const z = TILL.z;
     const till: Paint = indoor({ color: mix(INKS.ink, INKS.cobalt, 0.2), id: nextId() });
-    D.box(zx - 0.42, R.floor + 1.2, z, 0.42, 0.26, 0.36, till);
+    D.box(TILL.x, R.floor + 1.2, z, 0.42, 0.26, 0.36, till);
     D.box(zx - 0.48, R.floor + 1.38, z, 0.3, 0.12, 0.32, indoor({ color: mix(INKS.card, INKS.ochre, 0.2), id: nextId() }));
     B.signs.push({ key: 'till-photo', center: new Vector3(zx - 0.64, R.floor + 1.42, z), normal: new Vector3(1, 0, 0), width: 0.12, height: 0.16, density: 900, tilt: -0.15, draw: oldPhotoArt, indoor: true });
   }

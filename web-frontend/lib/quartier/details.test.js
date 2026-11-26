@@ -16,7 +16,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
-const { BACK_TABLES, MARKS, ROOM, ZINC } = require('./mistral.ts');
+const { BACK_TABLES, MARKS, ROOM, TILL, ZINC } = require('./mistral.ts');
 const { buildRoom, polaroidWall } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
@@ -434,5 +434,29 @@ test("Odile's wall: rows of her Polaroids above the booth, Lila's card under eac
       const tb = { x0: t.at[0] - w / 2, x1: t.at[0] + w / 2, y0: t.at[1] - h / 2, y1: t.at[1] + h / 2 };
       for (const b of boxes) assert.ok(!overlap(b, tb), `clear of ${id}'s ${t.kind}`);
     }
+  }
+});
+
+test("M. Marchand's reply, «J'y serai. M.», propped against the till: laid once the learner had him invited", () => {
+  const spec = details.find(({ spec }) => spec.id === 'carte_marchand').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.equal(spec.flag.key, 's1.marchand_invited');
+  // a flag that is only true: laid when he was invited, not before, not when he was not
+  assert.deepEqual(setBy([spec], { flags: { 's1.marchand_invited': true } }).map((d) => d.spec.id), ['carte_marchand']);
+  assert.deepEqual(setBy([spec], { flags: { 's1.marchand_invited': false } }), []);
+  assert.deepEqual(setBy([spec], { flags: {} }), []);
+  const card = spec.things.find((t) => t.kind === 'replycard');
+  assert.ok(card && spec.things.length === 1, 'one card');
+  // his words, as the gap gives them: «J'y serai. M.»
+  assert.deepEqual(card.text, ["J'y serai.", 'M.']);
+  // standing on the zinc's top, its words to the room, leaned back against the till's front
+  assert.ok(Math.abs(card.at[1] - ZINC.top) < 0.01, 'on the zinc');
+  assert.ok(Math.abs(card.rot - Math.PI / 2) < 0.01, 'facing the room');
+  assert.ok(card.at[0] > TILL.front && card.at[0] - TILL.front < 0.03, "at the till's front");
+  assert.ok(card.at[0] < ZINC.front, 'on the counter, not over its edge');
+  assert.ok(Math.abs(card.at[2] - TILL.z) + 0.07 < TILL.half, "within the till's length");
+  // clear of the other things left on the zinc: the usual cup, Odile's card and the lease letter
+  for (const id of ['tasse_habituelle', 'carte_odile']) {
+    for (const t of details.find(({ spec: d }) => d.id === id).spec.things) assert.ok(Math.abs(t.at[2] - card.at[2]) > 0.5, `clear of ${id}`);
   }
 });
