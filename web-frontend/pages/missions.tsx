@@ -55,6 +55,7 @@ import {
   crMoodValue,
   crOutcomeLabel,
   crOutcomeSentence,
+  crTodoOpen,
 } from '@/components/courrier/Correspondance';
 import { courrierCopy, crFill, useCrCopy, type CourrierCopy } from '@/components/courrier/courrier-copy';
 import { courrierTarget } from '@/components/courrier/courrier-waiting';
@@ -945,7 +946,10 @@ export default function MissionsPage() {
   // French. No credit rows, no debrief rows, no objectives, no last message.
   // #590: a letter finished on a message nobody answered carries no verdict, mood or token.
   const letterHeld = { unanswered: Boolean(measured?.reply_pending), unchecked: Boolean(measured?.unchecked) };
-  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, letterHeld);
+  const outcomeSentence = crOutcomeSentence(letterOutcome, correspondent?.name, chromeLang, {
+    ...letterHeld,
+    open: crTodoOpen(measured, chromeLang),
+  });
   const sealVerdict = crOutcomeLabel(letterOutcome, chromeLang, letterHeld) || (isSerialAct ? t.seal_act_done : t.seal_resolved);
   const sealNumbers = crSealNumbers(measured, { turns: recapTurns, errata: recapErrata, saved: recapSaved }, chromeLang);
   // The correspondent's face on the seal, in the mood the letter left

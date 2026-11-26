@@ -466,7 +466,7 @@ def outcome_from_objectives(
     # communicative verdict. Using it does not lift a letter, leaving it out does
     # not lower one — so two otherwise equal letters get the same word here.
     communicative = [item for item in objectives if not _is_vocabulary_objective(item)]
-    scored = [item for item in objectives if item.get("required")] or communicative or objectives
+    scored = scored_objectives(objectives)
     if not scored:
         return "partial"
     # WP-74 — the grader was down: nothing was measured, so the letter moves the
@@ -491,6 +491,22 @@ def outcome_from_objectives(
     if met or optional_met:
         return "partial"
     return "missed"
+
+
+def scored_objectives(objectives: Sequence[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """The objectives a letter's word and its «goals met» count are read from.
+
+    One rule, read by `outcome_from_objectives` and by the debrief's count (#1080):
+    the required objectives, else the communicative ones. A suggested word is never
+    among them: it is not named in the To do, so it can neither lift a letter nor
+    hold one at «Partly», and it is never printed as «goals met 0/1». The debrief
+    used to fall back to *every* objective, word chips included, and this function
+    to the word chips when nothing else was left.
+    """
+
+    items = [item for item in (objectives or []) if isinstance(item, dict)]
+    required = [item for item in items if item.get("required")]
+    return required or [item for item in items if not _is_vocabulary_objective(item)]
 
 
 def _is_vocabulary_objective(objective: dict[str, Any]) -> bool:
@@ -569,6 +585,212 @@ def _promise_overlap(left: str, right: str) -> float:
     if not left_words or not right_words:
         return 0.0
     return len(left_words & right_words) / float(min(len(left_words), len(right_words)))
+
+
+# ---------------------------------------------------------------------------
+# The To do, read off the thread (#1080, #922)
+# ---------------------------------------------------------------------------
+#
+# The corrector reads one learner message at a time and says whether the To do
+# was met. It never sees the correspondent's lines, so an agent who confirmed
+# «demain matin» and «une place près de la fenêtre» left the letter at «Partly»
+# (#1080); and it took «Non, je n’ai pas la serviette» for a letter that did what
+# «Zoé sait que tu as la serviette» asked (#922). This reading is deterministic and
+# runs on the whole thread: an item of the To do is *established* when the learner
+# said it and the correspondent confirmed it in a statement of its own, and
+# *contradicted* when the learner's last word on a stated fact negates it.
+
+#: «L'agent sait que …», «Zoé knows …», «Nadia weiß, dass …»: the lead before the items.
+_TODO_LEAD = re.compile(
+    r"^.*?\b(?:sait|savent|saura|conna[iî]t|comprend|comprennent|knows|know|understands|"
+    r"wei[ßs]|wissen|versteht|kennt)\b,?\s+(?:that\s+|dass\s+)?",
+    re.IGNORECASE,
+)
+_TODO_ITEM_SPLIT = re.compile(r"\s*(?:,\s*(?:et|and|und)\b|\bet\b|\band\b|\bund\b|[,;])\s*", re.IGNORECASE)
+#: An item that opens on one of these asks a question («si tu pars samedi», «quand tu
+#: passes», «ce que tu en penses»): any answer settles it, a «non» included.
+_TODO_QUESTION_OPENERS = frozenset(
+    {"si", "s", "quand", "ou", "quel", "quelle", "quels", "quelles", "ce", "comment", "pourquoi",
+     "combien", "de", "d", "qui", "quoi"}
+)
+_TODO_STOPWORDS = frozenset(
+    {"sait", "savent", "saura", "connait", "comprend", "pour", "avec", "dans", "sans", "chez", "elle",
+     "elles", "nous", "vous", "leur", "leurs", "veux", "veut", "voulez", "voulons", "vouloir", "avoir",
+     "etre", "sont", "etait", "cela", "ceci", "cette", "celui", "celle", "aussi", "bien", "tres",
+     "plus", "moins", "fait", "faire", "fais", "peut", "peux", "pouvez", "pouvoir", "tout", "tous",
+     "toute", "toutes", "votre", "notre", "autre", "ensuite", "apres", "avant", "quelque", "chose",
+     "alors", "donc", "mais", "encore", "comme", "quel", "quelle", "quels", "quelles", "quand",
+     "comment", "pourquoi", "combien", "quoi"}
+)
+_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*")
+_CLAUSE_SPLIT = re.compile(r"[,;:]|\bmais\b", re.IGNORECASE)
+
+
+def _todo_split(text: str) -> list[str]:
+    body = _TODO_LEAD.sub("", " ".join(str(text or "").split()), count=1)
+    return [part.strip(" .!?…") for part in _TODO_ITEM_SPLIT.split(body) if part.strip(" .!?…")]
+
+
+def _tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z]+", _folded(text))
+
+
+def _stems(tokens: Sequence[str]) -> set[str]:
+    return {word[:5] for word in tokens if len(word) >= 4 and word not in _TODO_STOPWORDS}
+
+
+def _negated(tokens: Sequence[str]) -> bool:
+    words = set(tokens)
+    if words & {"pas", "jamais", "aucun", "aucune"}:
+        return True
+    return bool(words & {"ne", "n"}) and bool(words & {"plus", "rien", "personne"})
+
+
+def _clauses(lines: Sequence[str]) -> list[tuple[bool, bool, set[str]]]:
+    """(in a question, negated, stems) for every clause of every line, in order."""
+
+    rows: list[tuple[bool, bool, set[str]]] = []
+    for line in lines:
+        for sentence in _SENTENCE.findall(str(line or "")):
+            question = sentence.rstrip().endswith("?")
+            for clause in _CLAUSE_SPLIT.split(sentence):
+                tokens = _tokens(clause)
+                if tokens:
+                    rows.append((question, _negated(tokens), _stems(tokens)))
+    return rows
+
+
+def todo_items(todo_fr: str) -> list[dict[str, Any]]:
+    """The French To do as items: their text, whether each states a fact, their stems."""
+
+    items: list[dict[str, Any]] = []
+    lead_fact: bool | None = None
+    for part in _todo_split(todo_fr):
+        tokens = _tokens(part)
+        if not tokens:
+            continue
+        if tokens[0] in {"que", "qu"}:
+            fact = True
+        elif tokens[0] in _TODO_QUESTION_OPENERS:
+            fact = False
+        else:
+            fact = bool(lead_fact)
+        if lead_fact is None:
+            lead_fact = fact
+        items.append({"text": part, "fact": fact, "stems": _stems(tokens)})
+    return items
+
+
+def read_todo_in_thread(
+    todo_fr: str,
+    *,
+    learner_lines: Sequence[str],
+    correspondent_lines: Sequence[str],
+) -> dict[str, Any]:
+    """Which items of the To do the thread established or contradicted.
+
+    * **established**: the learner said it (their last word on it is not a «non»)
+      and the correspondent confirmed it in a statement, not a question, carrying
+      at least half of the item's own words, none of them negated;
+    * **contradicted**: the item states a fact («que tu as la serviette») and the
+      learner's last word on it negates it («je n’ai pas la serviette»). An item
+      that asks («si tu pars samedi») is never contradicted by an answer.
+    """
+
+    items = todo_items(todo_fr)
+    learner = _clauses(learner_lines)
+    correspondent = _clauses(correspondent_lines)
+    established: list[int] = []
+    contradicted: list[int] = []
+    for index, item in enumerate(items):
+        stems: set[str] = item["stems"]
+        if not stems:
+            continue
+        last_negated: bool | None = None
+        for _question, negated, clause in learner:
+            if stems & clause:
+                last_negated = negated
+        if item["fact"] and last_negated is True:
+            contradicted.append(index)
+            continue
+        if last_negated is not False:
+            continue
+        need = max(1, (len(stems) + 1) // 2)
+        if any(
+            not question and not negated and len(stems & clause) >= need
+            for question, negated, clause in correspondent
+        ):
+            established.append(index)
+    return {
+        "items": [item["text"] for item in items],
+        "established": established,
+        "contradicted": contradicted,
+        "all_established": bool(items) and len(established) == len(items),
+    }
+
+
+def _todo_item_shown(todo_by_language: dict[str, str], index: int, count: int) -> dict[str, str]:
+    """Item ``index`` of the To do in every language whose text splits the same way."""
+
+    shown: dict[str, str] = {}
+    for language, text in (todo_by_language or {}).items():
+        parts = _todo_split(text)
+        if len(parts) == count and parts[index]:
+            shown[str(language)] = parts[index]
+    return shown
+
+
+def progress_read_with_thread(
+    *,
+    objectives: Sequence[dict[str, Any]] | None,
+    progress_by_id: dict[str, dict[str, Any]],
+    todo_by_language: dict[str, str] | None,
+    learner_lines: Sequence[str],
+    correspondent_lines: Sequence[str],
+    language: Any = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, str] | None]:
+    """The corrector's per-objective flags, with the To do read off the whole thread.
+
+    Returns the flags and, when the learner contradicted part of the To do, that
+    part in every language it is shown in (the seal's «still open» line). Only the
+    To do objective (``real_world_task``) moves: a contradiction makes it *partly*
+    met whatever one message's grade said (#922); a thread that established every
+    item makes it met though no single message did (#1080).
+    """
+
+    todo = next(
+        (
+            item
+            for item in objectives or []
+            if isinstance(item, dict) and item.get("required") and str(item.get("id")) == "real_world_task"
+        ),
+        None,
+    )
+    todo_fr = str((todo_by_language or {}).get("fr") or "").strip()
+    if todo is None or not todo_fr:
+        return progress_by_id, None
+    reading = read_todo_in_thread(todo_fr, learner_lines=learner_lines, correspondent_lines=correspondent_lines)
+    key = str(todo["id"])
+    current = dict(progress_by_id.get(key) or {"id": key, "label": todo.get("label")})
+    if reading["contradicted"]:
+        from app.services.learner_copy import copy_language
+
+        index = reading["contradicted"][0]
+        shown = {"fr": reading["items"][index]}
+        shown.update(_todo_item_shown(todo_by_language or {}, index, len(reading["items"])))
+        item = shown.get(copy_language(language)) or shown["fr"]
+        current.update(
+            met=False,
+            partly=True,
+            assessed=True,
+            note=learner_note_with("mission.todo_contradicted", language, item=item),
+        )
+        return {**progress_by_id, key: current}, shown
+    if reading["all_established"] and not current.get("met"):
+        current.update(met=True, assessed=True, note=learner_note("mission.todo_confirmed", language))
+        current.pop("partly", None)
+        return {**progress_by_id, key: current}, None
+    return progress_by_id, None
 
 
 # ---------------------------------------------------------------------------
@@ -1739,8 +1961,11 @@ __all__ = [
     "outcome_from_objectives",
     "pending_chain_step",
     "plan_chain",
+    "progress_read_with_thread",
     "promises_in",
+    "read_todo_in_thread",
     "record_letter",
+    "scored_objectives",
     "seeded_order",
     "slug",
     "story_letter_candidate",
@@ -1748,5 +1973,6 @@ __all__ = [
     "learner_register",
     "summarise_letter",
     "thread_history",
+    "todo_items",
     "weighted_pick",
 ]
