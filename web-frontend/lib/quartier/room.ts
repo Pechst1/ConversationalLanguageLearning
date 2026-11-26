@@ -216,7 +216,8 @@ export type ThingKind =
   | 'pinned'
   | 'drawing'
   | 'snapshot'
-  | 'polaroidwall';
+  | 'polaroidwall'
+  | 'replycard';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2282,6 +2283,24 @@ function thing(B: Build, t: RoomThing, i: number) {
       }
       return;
     }
+    case 'replycard': {
+      // a small correspondence card stood on its long edge and leaned back against something (a
+      // till's front), its words to the room: `text` the lines in a neat ink hand, the last one the
+      // signature (`at` the card's foot on the counter, facing (sin rot, cos rot); 14 by 9 cm)
+      const [w, h] = t.size ?? [0.14, 0.09];
+      const lean = 0.22;
+      const paper = zoned(mix(INKS.card, 0xffffff, 0.35), z);
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(-lean));
+        D.box(0, h / 2, -0.001, w, h, 0.002, paper);
+        D.pop();
+      });
+      const up = new Vector3(-Math.sin(rot) * Math.sin(lean), Math.cos(lean), -Math.cos(rot) * Math.sin(lean));
+      const n = new Vector3(Math.sin(rot) * Math.cos(lean), Math.sin(lean), Math.cos(rot) * Math.cos(lean));
+      const center = new Vector3(x, y, zz).addScaledVector(up, h / 2).addScaledVector(n, 0.0015);
+      B.signs.push({ key, center, normal: n, width: w - 0.002, height: h - 0.002, density: 3200, draw: replyCardArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
     case 'snapshot': {
       // an instant photo pinned to a wall, its white frame wider at the foot: Odile at the zinc,
       // her short white hair and moss-green cardigan, laughing at something out of the frame; with
@@ -3778,6 +3797,45 @@ function burntArt(caption: string) {
     ctx.rotate(0.03);
     ctx.fillText(caption, 0, 0);
     ctx.restore();
+  };
+}
+
+/**
+ * A reply on a correspondence card: thick white stock with a thin grey rule round it, the words in
+ * a neat upright hand in blue-black ink, the signature lower right with a short stroke under it.
+ */
+function replyCardArt(lines: string[]) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.35));
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = css(mix(INKS.ink, INKS.paper, 0.6));
+    ctx.lineWidth = Math.max(1, h * 0.012);
+    ctx.strokeRect(w * 0.04, h * 0.06, w * 0.92, h * 0.88);
+    const ink = css(mix(INKS.ink, INKS.cobalt, 0.4));
+    ctx.fillStyle = ink;
+    ctx.textBaseline = 'alphabetic';
+    const body = lines.slice(0, -1);
+    const sign = lines.length > 1 ? lines[lines.length - 1] : '';
+    let s = Math.round(h * 0.34);
+    ctx.font = SERIF(s, 600);
+    while (s > 6 && body.some((l) => ctx.measureText(l).width > w * 0.8)) ctx.font = SERIF(--s, 600);
+    ctx.textAlign = 'left';
+    body.forEach((l, k) => ctx.fillText(l, w * 0.11, h * (0.46 + k * 0.28)));
+    if (sign) {
+      ctx.textAlign = 'right';
+      ctx.font = SERIF(Math.round(s * 0.95), 600);
+      const sx = w * 0.84;
+      const sy = h * 0.82;
+      ctx.fillText(sign, sx, sy);
+      const sw = ctx.measureText(sign).width;
+      ctx.strokeStyle = ink;
+      ctx.lineWidth = Math.max(1, h * 0.018);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw - w * 0.02, sy + h * 0.05);
+      ctx.quadraticCurveTo(sx - sw / 2, sy + h * 0.08, sx + w * 0.05, sy + h * 0.02);
+      ctx.stroke();
+    }
   };
 }
 

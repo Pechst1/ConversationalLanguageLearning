@@ -1,0 +1,20 @@
+{
+  "id": "carte_marchand",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "La réponse de M. Marchand", "en": "M. Marchand's reply", "de": "Herrn Marchands Antwort" },
+  "moment": "gap 3, day 22 «Les canapés»: if the learner had Marchand invited to the party (T3 B), his reply comes, a card: «J'y serai. M.»; it stays propped against the till",
+  "flag": { "key": "s1.marchand_invited", "example": "oui" },
+  "things": [
+    { "kind": "replycard", "at": [-34.988, 1.262, -16.8], "rot": 1.5708, "text": ["J'y serai.", "M."] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/09-entre-les-episodes.md",
+    "scenes": [
+      "gap 3 (09-entre-les-episodes.md): «Marchand's reply, if invited: a card, «J'y serai. M.»»; day 22 «Les canapés»: «If Marchand was invited, his reply card: «J'y serai. M.»»; small moment: «Marchand's handwriting on the reply card»",
+      "s1.marchand_invited (season.json): set in T3 B (Convaincre Gus), read in T4 B and T6 A; T4 P4: Marchand in the doorway, coat buttoned, a bottle in paper (variant)",
+      "the till at the zinc's far end, the old photograph of the bar tucked behind it (mistral.ts); T4 R3 «margaux»: what Margaux keeps goes to the till"
+    ]
+  }
+}
