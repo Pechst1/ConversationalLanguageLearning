@@ -12,6 +12,7 @@ import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
+import { waitForDevServer } from '../scripts/dev-server-ready.mjs';
 import { freePort, sleep, WEB_ROOT } from './lib/stack.mjs';
 
 const argv = process.argv.slice(2);
@@ -23,18 +24,6 @@ const outDir = path.resolve(arg('--out', path.join(WEB_ROOT, 'e2e', 'out', 'forg
 const root = path.resolve(arg('--root', WEB_ROOT));
 const cases = arg('--cases', 'item,withheld,shown').split(',');
 mkdirSync(outDir, { recursive: true });
-
-async function waitFor(url, timeoutMs) {
-  const end = Date.now() + timeoutMs;
-  while (Date.now() < end) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch { /* not up yet */ }
-    await sleep(1000);
-  }
-  throw new Error(`${url} did not answer in ${timeoutMs / 1000}s`);
-}
 
 const port = await freePort();
 const distDir = `.next-forge-reading-${port}`;
@@ -53,7 +42,7 @@ process.on('exit', stop);
 let browser;
 let failed = 0;
 try {
-  await waitFor(`http://localhost:${port}/api/auth/csrf`, 180000);
+  await waitForDevServer(`http://localhost:${port}`);
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   const shoot = async ({ lang, shot, scheme = 'light', textScale = 1, name }) => {
     const context = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: scheme });
