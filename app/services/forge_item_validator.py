@@ -132,6 +132,46 @@ def address_problems(prompt: object, address: object = None) -> list[Problem]:
 
 
 # --------------------------------------------------------------------------- #
+# A friend's own line: «tu» to one person (#920)
+# --------------------------------------------------------------------------- #
+
+#: The learner's own friend, sibling or cousin named as the one who speaks.
+_TU_SPEAKER = r"(?:ami|amie|copain|copine|frère|sœur|cousin|cousine)"
+#: «ton amie te demande : « Vous êtes … ? »»: the speaker, a few words (no sentence end
+#: between them), then their quoted line.
+_FRIEND_SAYS = re.compile(
+    rf"\b(?:ton|ta)\s+{_TU_SPEAKER}\b(?:\s+[\w'-]+){{0,5}}?\s*,?\s*:?\s*[«\"“]([^»\"”]*)[»\"”]",
+    re.IGNORECASE,
+)
+_VOUS_SAID = re.compile(r"\b(?:vous|votre|vos)\b|-vous\b", re.IGNORECASE)
+#: A «vous» to more than one person: «ton frère et toi», «tous les deux», «vous deux».
+_PLURAL_YOU = re.compile(
+    r"\b(?:tous|toutes)\s+les\s+(?:deux|trois|quatre)\b|\bvous\s+(?:deux|trois|tous|toutes)\b"
+    r"|\bet\s+toi\b|\btoi\s+et\b|\bvous\s+autres\b",
+    re.IGNORECASE,
+)
+
+
+def friend_register_problems(prompt: object) -> list[Problem]:
+    """ROOT CAUSE #147 (#920): a friend or a sibling says «tu» to the learner alone.
+
+    :func:`address_problems` reads only the app's own words and leaves every quoted line
+    to its speaker; :func:`register_problems` needs a badge, and a model-written set has
+    none yet. So «Au téléphone, ton amie te demande : « Vous êtes déjà au cinéma ? »»
+    passed both. When the prompt names the speaker as the learner's own friend and
+    their quoted line says «vous» to one person, the line is wrong; a «vous» to several
+    («ton frère et toi», «tous les deux») is right and stays.
+    """
+
+    text = french_of(prompt)
+    for match in _FRIEND_SAYS.finditer(text):
+        line = match.group(1)
+        if _VOUS_SAID.search(line) and not _PLURAL_YOU.search(line):
+            return [Problem("friend_vous", f"a friend says vous to the learner alone: {text}")]
+    return []
+
+
+# --------------------------------------------------------------------------- #
 # Roles: who asks whom
 # --------------------------------------------------------------------------- #
 
@@ -217,6 +257,7 @@ _ADVICE = {
     "doubled_ask": "gives the ask twice",
     "register": "addresses the learner in another register than the speaker's badge",
     "address": "says vous to the learner, but the app says tu (only a character's own line, inside « », may say vous)",
+    "friend_vous": "has the learner's friend or sibling say vous to the learner alone (a friend says tu)",
 }
 
 
@@ -229,7 +270,12 @@ def advice(problem: Problem) -> str:
 def situation_problems(prompt: object) -> list[Problem]:
     """Everything a situation prompt can get wrong on its own (no badge needed)."""
 
-    return [*role_problems(prompt), *price_basis_problems(prompt), *label_problems(prompt)]
+    return [
+        *role_problems(prompt),
+        *price_basis_problems(prompt),
+        *label_problems(prompt),
+        *friend_register_problems(prompt),
+    ]
 
 
 def scenario_problems(prompt: object) -> list[Problem]:
@@ -470,6 +516,7 @@ __all__ = [
     "advice",
     "cast_names",
     "french_of",
+    "friend_register_problems",
     "item_problems",
     "label_problems",
     "possessive_problems",

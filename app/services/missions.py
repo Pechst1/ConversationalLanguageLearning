@@ -35,7 +35,7 @@ from app.services import (
     verdicts,
 )
 from app.services import story_correspondence as courrier
-from app.services.address import address_instruction, known_register
+from app.services.address import address_instruction, known_register, relation_register
 from app.services.answer_acceptance import is_preference_swap
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService
@@ -140,10 +140,12 @@ LETTER_STRETCH = 1
 COMPLETED_REQUEST_DAYS = 7
 #: A canned letter's exact text is not reprinted within this many days.
 CANNED_REUSE_DAYS = 28
-#: #777: and a situation (a letter's request: the shop, the size problem) is not served
-#: again within this many days, whoever writes it. The model is handed the situation's
-#: title, contact and opening, so its letter on a played situation is that letter again.
-SITUATION_REUSE_DAYS = CANNED_REUSE_DAYS
+#: #777 / #994: a situation (a letter's request: the shop, the size problem) the learner
+#: has had is not served again, whoever writes it, while one they have not had is in
+#: reach; then the one served longest ago. The model is handed the situation's title,
+#: contact and opening, so its letter on a played situation is that letter again. A
+#: 28-day window used to end this: on day 35 «Trois jours sans internet» counted as
+#: never played and came back under its own title (#994).
 #: #777: words of general use fit any letter; a topical word (food, clothes, a place)
 #: fits only a situation of its own topic.
 GENERAL_WORD_CATEGORIES = frozenset(
@@ -293,8 +295,8 @@ def word_fits_situation(word_categories: set[str], situation: set[str]) -> bool:
 
 
 def least_recently_served(catalogue: list[dict[str, Any]], served: dict[str, datetime]) -> list[dict[str, Any]]:
-    """#777: the catalogue without a situation served in the reuse window; when every one
-    was, those served longest ago, never a recent one."""
+    """#777 / #994: the catalogue without a situation the learner has had; when every one
+    was served, those served longest ago, never a recent one."""
 
     if not served or not catalogue:
         return catalogue
@@ -2677,9 +2679,9 @@ class MissionGenerator:
                 lambda item: rotation.get("model_available", True) or canned_letter_credible(item, rotation),
             ):
                 catalogue = [item for item in catalogue if keep(item)] or catalogue
-            # #777: a situation the learner played this month is not served again, by
-            # the model or the canned text, until every other one has been.
-            catalogue = least_recently_served(catalogue, rotation.get("served_recent") or {})
+            # #777 / #994: a situation the learner has had is not served again, by the
+            # model or the canned text, until every other one has been.
+            catalogue = least_recently_served(catalogue, rotation.get("served") or {})
         pool: list[dict[str, Any]] = []
         if forced_domain:
             pool = [item for item in REAL_WORLD_MISSION_DOMAINS if str(item.get("domain")) == str(forced_domain)]
@@ -6070,8 +6072,8 @@ class MissionScheduler:
         ``band`` (see :meth:`MissionGenerator._letter_band`), ``completed_recent``
         (requests answered in the last ``COMPLETED_REQUEST_DAYS``),
         ``canned_recent`` (canned letters printed in the last
-        ``CANNED_REUSE_DAYS``), ``served_recent`` (each request served in the last
-        ``SITUATION_REUSE_DAYS`` by any writer, and when: #777), ``season_active``
+        ``CANNED_REUSE_DAYS``), ``served`` (each request served in the learner's
+        recent letters by any writer, and when it last was: #777, #994), ``season_active``
         and ``model_available``. Dates
         are the app's own clock (``completed_at`` and the stamped ``served_at``),
         never the database's ``created_at`` default.
@@ -6088,7 +6090,7 @@ class MissionScheduler:
         completed_recent: set[str] = set()
         canned_recent: set[str] = set()
         canned_ever: set[str] = set()
-        served_recent: dict[str, datetime] = {}
+        served_at: dict[str, datetime] = {}
         for row in rows:
             prompt = row.prompt_payload or {}
             fit = prompt.get(LETTER_FIT_KEY) if isinstance(prompt.get(LETTER_FIT_KEY), dict) else {}
@@ -6103,9 +6105,11 @@ class MissionScheduler:
             if row.status == "completed" and done and now - done < timedelta(days=COMPLETED_REQUEST_DAYS):
                 completed_recent.add(str(key))
             served = _parse_moment(fit.get("served_at")) if fit else None
-            if served and now - served < timedelta(days=SITUATION_REUSE_DAYS):
-                # #777: whoever wrote it, the latest time this situation was served.
-                served_recent[str(key)] = max(served, served_recent.get(str(key), served))
+            if served:
+                # #777 / #994: whoever wrote it, and however long ago, the latest time
+                # this situation was served. No window: an old letter is still a letter
+                # the learner has had, and its title is still in «Your previous letters».
+                served_at[str(key)] = max(served, served_at.get(str(key), served))
             if fit.get("source") == "canned":
                 canned_ever.add(str(key))
                 if served and now - served < timedelta(days=CANNED_REUSE_DAYS):
@@ -6115,7 +6119,7 @@ class MissionScheduler:
             "completed_recent": completed_recent,
             "canned_recent": canned_recent,
             "canned_ever": canned_ever,
-            "served_recent": served_recent,
+            "served": served_at,
             "season_active": self._season_active(user),
             # Read from the switch, not by building a client: asking is not free.
             "model_available": bool(settings.ATELIER_LLM_ENABLED),
@@ -6932,6 +6936,27 @@ def cast_correspondent(mission: Any) -> str | None:
     return cast_registry.resolve_id(raw) or (cast_registry.people_named(name) or [None])[0]
 
 
+#: #1043: the relations (``cast_registry`` kinds) of a person of the story who is not a
+#: trade: a friend, family, a neighbour, a fellow regular. Margaux (``host``, the café),
+#: the landlord and a lawyer keep the words of their trade.
+PERSONAL_RELATIONS = frozenset({"friend", "family", "neighbour", "regular"})
+
+
+def personal_correspondent(mission: Any) -> bool:
+    """#1043 (root cause #147): is the letter's writer the learner's friend or a person of
+    the story who is not a trade? Then a refund, a delivery or an order is not theirs to
+    bring in (Lila, whose card letter came back with «un remboursement»). A shop, a parcel
+    service or a clerk (``contact_role`` «vendeuse», «service client») is not."""
+
+    payload = getattr(mission, "prompt_payload", None) or {}
+    messenger = payload.get("messenger") or {}
+    if relation_register(messenger.get("contact_role")) == "tu":
+        return True
+    cast_id = cast_correspondent(mission)
+    found = cast_registry.person(cast_id, None) if cast_id else None
+    return bool(found and found.relation and found.relation.kind in PERSONAL_RELATIONS)
+
+
 def live_register(db: Session | None, user: Any, mission: Any) -> str | None:
     """How the letter's correspondent addresses the learner *today*, when they are in the
     cast: «tu» or «vous» from the one resolver the scene reads (#147 / #350).
@@ -6962,11 +6987,12 @@ def correspondent_register(mission: Any, *, register_now: str | None = None) -> 
 
     The story's register for a cast member today (``register_now``) first; then the
     address form of the correspondent's own letter, which the learner has already read;
-    only then the register the letter was stored with. A letter written from a domain
-    stores a description, not a form («natural French; formal only when the scenario
-    requires it»): the reply's actor read that, wrote «Avez-vous une idée ?» to a
-    colleague whose letter said «Tu as la commande ?», and its guard, holding the reply
-    to no register at all, let it through. ``None`` only when nothing settles it."""
+    then the form the letter was stored with («tu …» / «vous …»); only then who they are
+    to the learner (a friend says «tu», #920). A letter written from a domain stores a
+    description, not a form («natural French; formal only when the scenario requires
+    it»): the reply's actor read that, wrote «Avez-vous une idée ?» to a colleague whose
+    letter said «Tu as la commande ?», and its guard, holding the reply to no register at
+    all, let it through. ``None`` only when nothing settles it."""
 
     payload = getattr(mission, "prompt_payload", None) or {}
     messenger = payload.get("messenger") or {}
@@ -6974,6 +7000,11 @@ def correspondent_register(mission: Any, *, register_now: str | None = None) -> 
         register_now
         or address_register(thread_opening(mission))
         or register_word(messenger.get("target_register") or messenger.get("register") or payload.get("target_register"))
+        # #920 (root cause #147): who they are to the learner, when the letter stored a
+        # description and no form. A friend whose letter named no form («Salut ! On se
+        # retrouve à midi ?») was held to nothing, and asked «Quel endroit préférez-vous ?».
+        # A form stored on purpose («vous / registre poli») keeps its rank (#257).
+        or relation_register(messenger.get("contact_role"))
     )
 
 
@@ -7519,7 +7550,8 @@ class MissionConversationService:
     def _logistics_problems(self, reply: str, *, mission: RealWorldMission, user_text: str) -> list[str]:
         """#114 (root cause #145): the reply may not bring in an order, a tracking or
         reference number, or a request for the learner's address that the thread never
-        held. Returned as the rewrite hint, so it rides the same retry as the voice check."""
+        held; from a friend or a person of the story, no refund, delivery or order either
+        (#1043). Returned as the rewrite hint, so it rides the same retry as the voice check."""
 
         from app.services import lane_guards  # late: lane_guards imports the story engine
 
@@ -7541,7 +7573,9 @@ class MissionConversationService:
             user_text,
             *[turn.text for turn in turns],
         ]
-        found = lane_guards.invented_logistics(reply, grounded=grounded, authored=authored)
+        found = lane_guards.invented_logistics(
+            reply, grounded=grounded, authored=authored, personal=personal_correspondent(mission)
+        )
         if found:
             logger.info("Courrier reply invents logistics", problems=found)
             return [lane_guards.invented_logistics_hint(found)]
