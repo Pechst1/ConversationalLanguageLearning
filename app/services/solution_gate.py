@@ -365,19 +365,73 @@ def leak_terms(correction: dict[str, Any], learner: Any, context: Any = "") -> t
     return phrases, tokens
 
 
-def _leaks(clause: str, phrases: list[str], tokens: set[str]) -> bool:
+#: #1086: words of the learner's own language that may also be French forms («es»:
+#: German «es», French «tu es»; «as»: English «as», French «tu as»; «du», «des», «on»,
+#: «an»). In a hint written in that language such a word is the learner's language, not
+#: the answer, unless the hint quotes it as French («es»). Closed-class words only: an
+#: unquoted French form that is no word of the language («sommes») leaks as before.
+_LEARNER_WORDS: dict[str, frozenset[str]] = {
+    "de": frozenset(
+        {
+            "es", "er", "sie", "wir", "ihr", "du", "ich", "man", "der", "die", "das", "den", "dem", "des",
+            "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "an", "am", "in", "im", "um",
+            "auf", "aus", "bei", "mit", "von", "vor", "zu", "für", "nach", "ist", "sind", "bin", "bist",
+            "hat", "hast", "habe", "haben", "wer", "wie", "was", "wo", "so", "nur", "auch", "noch", "nicht",
+        }
+    ),
+    "en": frozenset(
+        {
+            "as", "on", "or", "me", "an", "a", "the", "and", "but", "for", "to", "of", "in", "at", "it", "is",
+            "are", "was", "he", "she", "we", "you", "they", "his", "her", "its", "with", "not", "who", "what",
+            "so", "only", "also", "here", "that", "this",
+        }
+    ),
+}
+
+#: A stretch quoted as French: «…», “…”, „…“, "…", ‹…›. A quote left open runs to the
+#: clause's end (the strict reading).
+_QUOTED = re.compile(r'«[^»]*(?:»|$)|“[^”]*(?:”|$)|„[^“”]*(?:[“”]|$)|"[^"]*(?:"|$)|‹[^›]*(?:›|$)')
+
+
+def _learner_words(language: str | None) -> frozenset[str]:
+    return _LEARNER_WORDS.get(str(language or "").strip().lower()[:2], frozenset())
+
+
+def _leaks(clause: str, phrases: list[str], tokens: set[str], language: str | None = None) -> bool:
+    """Whether ``clause`` names the answer: one of its ``tokens`` or ``phrases``.
+
+    #1086: a hint is written in the learner's ``language``, and only its French names
+    the answer. A word of that language («es» in «Schau, wer es tut») is the answer only
+    where the hint quotes it as French («Mit «tu» heißt «être» «es»»). Without a
+    ``language`` (or in French) every word is read as French, as before."""
+
     folded = _fold(clause)
-    if _tokens(folded) & tokens:
-        return True
+    own = _learner_words(language)
+    quoted = [match.span() for match in _QUOTED.finditer(folded)] if own else []
+
+    def names(start: int, end: int, words: list[str]) -> bool:
+        if not words or not set(words) <= own:
+            return True
+        return any(left <= start and end <= right for left, right in quoted)
+
+    for match in _WORD.finditer(folded):
+        if match.group() in tokens and names(match.start(), match.end(), [match.group()]):
+            return True
     for phrase in phrases:
         needle = _fold(phrase).strip(" .!?")
-        if needle and re.search(rf"(?<![0-9a-zà-öø-ÿœ]){re.escape(needle)}(?![0-9a-zà-öø-ÿœ])", folded):
-            return True
+        if not needle:
+            continue
+        for match in re.finditer(rf"(?<![0-9a-zà-öø-ÿœ]){re.escape(needle)}(?![0-9a-zà-öø-ÿœ])", folded):
+            if names(match.start(), match.end(), _WORD.findall(needle)):
+                return True
     return False
 
 
-def scrub_hint(text: Any, phrases: list[str], tokens: set[str]) -> str:
-    """``text`` without every clause that names the answer. May return ``""``."""
+def scrub_hint(text: Any, phrases: list[str], tokens: set[str], language: str | None = None) -> str:
+    """``text`` without every clause that names the answer. May return ``""``.
+
+    ``language`` is the language the hint is written in (:func:`_leaks`): a word of it
+    that is also a French form counts only where the hint quotes it as French."""
 
     raw = str(text or "").strip()
     if not raw:
@@ -388,7 +442,7 @@ def scrub_hint(text: Any, phrases: list[str], tokens: set[str]) -> str:
     for index in range(0, len(pieces), 2):
         clause = pieces[index]
         separator = pieces[index + 1] if index + 1 < len(pieces) else ""
-        if not clause.strip() or _leaks(clause, phrases, tokens):
+        if not clause.strip() or _leaks(clause, phrases, tokens, language):
             dropped = dropped or bool(clause.strip())
             continue
         clause = clause.strip()
@@ -531,11 +585,11 @@ def learner_view(
         mark = marks_for(line, [erratum]) if line and not task else []
         hint = ""
         for source in (erratum.get("hint"), erratum.get("why_wrong"), erratum.get("repair_hint")):
-            hint = scrub_hint(source, phrases, tokens)
+            hint = scrub_hint(source, phrases, tokens, language)
             if hint:
                 break
         if not hint and task and str(erratum.get("display_label") or "").strip() and not _leaks(
-            str(erratum.get("display_label")), phrases, tokens
+            str(erratum.get("display_label")), phrases, tokens, language
         ):
             # R2 (walk of 17 Nov): «Relis la consigne : qu'est-ce qu'elle te demande
             # d'utiliser ?» said nothing; what is missing is the card's rule, by name and in words.
@@ -546,7 +600,7 @@ def learner_view(
             key = "forge.second_chance.task_hint" if task else "forge.second_chance.hint" if mark else "forge.second_chance.choice_hint"
             hint = _fallback(key, language)
         label = str(erratum.get("display_label") or "")
-        if label and _leaks(label, phrases, tokens):
+        if label and _leaks(label, phrases, tokens, language):
             label = ""
         errata_out.append(
             {

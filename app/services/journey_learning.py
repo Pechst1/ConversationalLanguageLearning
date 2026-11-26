@@ -2317,7 +2317,7 @@ def withheld_recall_note(task: RecallTask, correction: Correction, *, language: 
         # A build is made of the answer's own words: naming one of them says where the
         # order goes wrong, not what it is. Only the whole sentence gives it away.
         tokens = set()
-    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens)
+    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens, language)
     if note:
         return note
     from app.services.learner_copy import learner_text
@@ -2765,13 +2765,13 @@ def evaluate_recall(
 
         slip_note = case_slip_note(learner_text, task.solution_fr, str(user_correction_language(user)))
         slip_kind = "case" if slip_note else None
-    elif is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+    elif is_correct and typed is not None and typed.correct and (typed.forgiven_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
         from app.services.chrome_language import user_correction_language
 
         slip_note = feedback_note(typed, str(user_correction_language(user)))
-        slip_kind = "accent" if typed.accent_slip else "typo"
+        slip_kind = "accent" if typed.accent_slip else "apostrophe" if typed.apostrophe_slip else "typo"
     elif (
         is_correct
         and task.task_type == "short_answer"

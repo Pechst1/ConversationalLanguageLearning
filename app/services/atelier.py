@@ -1,6 +1,7 @@
 """Atelier grammar practice services."""
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import re
@@ -272,7 +273,8 @@ def _forgiven_accent(text: str, keys: list[str], unit: Any, language: str | None
     sentence with its accent and names it in one line, the way a keyed answer's forgiven
     accent is (QA-CLOSE, owner decision d) — also where the accent changes the word
     («fatigues» is a verb form). ``{}`` when the sentence is the key or more than an
-    accent away from it.
+    accent away from it. #1088: an apostrophe typed as a space («J ai») is forgiven and
+    named the same way (``Verdict.forgiven_slip``).
     """
 
     from dataclasses import replace
@@ -283,7 +285,7 @@ def _forgiven_accent(text: str, keys: list[str], unit: Any, language: str | None
         return {}
     verdict = judge(text, keys, accents=accent_policy(unit=unit))
     expected = str(verdict.expected or "").strip()
-    if verdict.exact or not verdict.accent_slip or not expected:
+    if verdict.exact or not verdict.forgiven_slip or not expected:
         return {}
     return {
         "corrected_answer": expected,
@@ -992,8 +994,19 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     the pronoun) is not what the rule is about, so a learner who changed it («la
     gare», «Nous préférons») did not slip on the rule, and reciting the rule's
     headline would blame the wrong thing. Without two distinct choices the item
-    gives no such evidence and this is False."""
+    gives no such evidence and this is False.
 
+    #1067: the item's declared ``target_span`` says what the rule's form is, and it is
+    read first. A change outside the span is outside the rule. Inside it, a slip of
+    form (another form of the same word, as the slip classifier names it: «a» for «as»,
+    «le» for «la») is the rule's own, whatever the choices share: «Tu as dit» / «Tu as
+    dire» both hold «as», which made «Tu a dit» look like another word. A different
+    word inside the span («gare» for «poste», «vous» for «tu») is still read from the
+    choices, as before."""
+
+    inside = _miss_inside_the_span(item, learner, target)
+    if inside is not None:
+        return not inside
     options = [str(option) for option in (item.get("choices") or item.get("options") or []) if isinstance(option, str)]
     forms = [_normalize(option).split() for option in dict.fromkeys([target, *options]) if _normalize(option)]
     if len(forms) < 2:
@@ -1001,6 +1014,35 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     fixed = set.intersection(*(set(form) for form in forms))
     learner_words = set(_normalize(learner).split())
     return bool(fixed) and not fixed <= learner_words
+
+
+def _miss_inside_the_span(item: dict[str, Any], learner: str, target: str) -> bool | None:
+    """#1067: whether a typed miss is a slip of the rule's form inside the item's
+    declared ``target_span``: True when every change is another form of the span's own
+    word, False when a change falls outside the span, ``None`` when the span says
+    nothing (no span, a span the key does not hold, or a different word inside it)."""
+
+    from app.services.forge_grading import slip_kind
+
+    span = _normalize(item.get("target_span")).split()
+    right = _normalize(target).split()
+    said = _normalize(learner).split()
+    if not span or not right or not said or said == right:
+        return None
+    first = next((at for at in range(len(right) - len(span) + 1) if right[at : at + len(span)] == span), -1)
+    if first < 0:
+        return None
+    last = first + len(span)
+    form_slips = True
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=said, b=right, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        if j1 < first or j2 > last or (j1 == j2 and not first < j1 < last):
+            return False  # a word changed, missing or added outside the rule's span
+        form_slips = form_slips and tag == "replace" and i2 - i1 == j2 - j1 and all(
+            slip_kind(said[i1 + at], right[j1 + at]) for at in range(i2 - i1)
+        )
+    return True if form_slips else None
 
 
 def _form_right_only_order_differs(
@@ -6584,10 +6626,11 @@ class AtelierCorrectionService:
                 correct_count += 1
                 if verdict.expected and mode != "classify":
                     corrected[item_id] = verdict.expected
-                if verdict.accent_slip:
+                if verdict.forgiven_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
                     # #562: right up to an accent, and the accent is named — the
-                    # one note the keyed rungs and the relecture give.
+                    # one note the keyed rungs and the relecture give. #1088: so is
+                    # an apostrophe typed as a space («J ai»).
                     accent_note = feedback_note(verdict, self.explanation_language)
                     if accent_note and accent_note not in accent_texts:
                         accent_texts.append(accent_note)
@@ -6843,7 +6886,7 @@ class AtelierCorrectionService:
         generic = {_copy("atelier.generic.why", language), _copy("atelier.generic.repair", language)}
         for candidate in candidates:
             text = str(candidate or "").strip()
-            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens):
+            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens, language):
                 erratum["hint"] = text
                 return
 
@@ -7438,7 +7481,7 @@ class AtelierCorrectionService:
             verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")], source=source)
             if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
-                if verdict.correct and verdict.accent_slip:
+                if verdict.correct and verdict.forgiven_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
             # A wrong part («verts») is filed as the sentence it stands for.
@@ -9000,7 +9043,9 @@ class AtelierSRSService:
                 key = str(item.get("expected_answer") or "")
             elif attempt.mode == "fill":
                 blank = _without_asides(str(item.get("prompt") or ""))
-                answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
+                answer = (cls._accepted_spelling(correction, item, learner) if right and learner else "") or str(
+                    item.get("correct_answer") or ""
+                )
                 if BLANK_RE.search(blank) and answer:
                     key = fill_blank(blank, answer)
             elif attempt.mode == "word_bank":
@@ -9012,6 +9057,25 @@ class AtelierSRSService:
         if len(text.split()) < 2:
             return None
         return text, not right
+
+    @staticmethod
+    def _accepted_spelling(correction: dict[str, Any], item: dict[str, Any], learner: str) -> str:
+        """#1088: a right gap's answer as the grader accepted it, not as it was typed.
+
+        The grader forgives typography («J ai» is «J'ai») and stores the accepted
+        answer it measured the learner against (``corrected_answer``, the learner's own
+        variant, #174). The end sheet prints that spelling when it is the learner's
+        answer read by the same contract; anything else stays the learner's words."""
+
+        from app.services.answer_acceptance import judge
+
+        stored = correction.get("corrected_answer")
+        if isinstance(stored, dict):
+            stored = stored.get(str(item.get("id") or ""))
+        stored = str(stored or "").strip() if isinstance(stored, str) else ""
+        if stored and judge(learner, [stored]).correct:
+            return stored
+        return learner
 
     def _forge_rule_progress(
         self,

@@ -91,6 +91,8 @@ export type ForgeCopy = {
   recap_rules_label: string;
   recap_change: string;
   recap_unchanged: string;
+  /** #1088: the label of a rule's proof lines (what today's answers showed), apart from its stage line. */
+  recap_proof_label: string;
   recap_held_today: string;
   recap_tested_out: string;
   recap_next_due: string;
@@ -157,6 +159,7 @@ const EN: ForgeCopy = {
   recap_rules_label: 'Your rules today',
   recap_change: '{from} → {to}',
   recap_unchanged: 'Still {stage}',
+  recap_proof_label: 'From today’s answers',
   recap_held_today: 'Held from today',
   recap_tested_out: 'Tested out: held',
   recap_next_due: 'Next review {date}',
@@ -235,6 +238,7 @@ const DE: ForgeCopy = {
   recap_rules_label: 'Deine Regeln heute',
   recap_change: '{from} → {to}',
   recap_unchanged: 'Weiterhin {stage}',
+  recap_proof_label: 'Aus deinen Antworten heute',
   recap_held_today: 'Ab heute gefestigt',
   recap_tested_out: 'Direkt geprüft: gefestigt',
   recap_next_due: 'Nächste Wiederholung {date}',
@@ -313,6 +317,7 @@ const FR: ForgeCopy = {
   recap_rules_label: 'Tes règles du jour',
   recap_change: '{from} → {to}',
   recap_unchanged: 'Toujours {stage}',
+  recap_proof_label: 'Tiré de tes réponses du jour',
   recap_held_today: 'Tenue dès aujourd’hui',
   recap_tested_out: 'Épreuve réussie : tenue',
   recap_next_due: 'Prochaine révision {date}',

@@ -201,18 +201,31 @@ class Verdict:
     carries ``read_as``, the whole sentence the part stands for (the source with
     the part put in), and ``expected_part``, the stretch of ``expected`` the part
     answers. Both are ``None`` for an answer read as a whole sentence.
+
+    #1088: ``apostrophe_slip`` is an answer accepted with an apostrophe typed as a space
+    («J ai» for «J'ai»): typography the grader forgives, and names like an accent.
     """
 
     correct: bool
     exact: bool = False
     accent_slip: bool = False
     typo: bool = False
+    apostrophe_slip: bool = False
     note: str | None = None
     expected: str | None = None
     learner_word: str | None = None
     expected_word: str | None = None
     read_as: str | None = None
     expected_part: str | None = None
+
+    @property
+    def forgiven_slip(self) -> bool:
+        """#1088: the answer's spelling slipped where the grader forgives it, and the
+        learner is told so: an accent (#562), an apostrophe typed as a space. What the
+        fold forgave is named on the hit and stored in the accepted spelling, never as
+        typed."""
+
+        return self.accent_slip or self.apostrophe_slip
 
 
 def _damerau_one(left: str, right: str) -> int | None:
@@ -462,7 +475,19 @@ def _compare(
         if spaced_learner.split() and len(spaced_learner.split()) == len(spaced_target.split()):
             spaced = _compare(spaced_learner, spaced_target, accents=accents, typo=typo)
             if spaced.correct:
-                return spaced
+                # #1088: right, and the apostrophe it lacked is named («J ai» → «j'ai»),
+                # unless an accent or a typo it also forgave is the note.
+                learner_words = learner.split()
+                missing = next((word for word in target.split() if "'" in word and word not in learner_words), None)
+                if spaced.note:
+                    return replace(spaced, apostrophe_slip=True)
+                return Verdict(
+                    correct=True,
+                    apostrophe_slip=True,
+                    note="apostrophe",
+                    learner_word=missing.replace("'", " ") if missing else None,
+                    expected_word=missing,
+                )
     learner_tokens = learner.split()
     target_tokens = target.split()
     if strip_accents(learner) == strip_accents(target) and len(learner_tokens) == len(target_tokens):
@@ -600,15 +625,22 @@ def _judge_candidates(
                     bare = Verdict(correct=False, note=miss_note)
                 verdicts.append(bare)
         for verdict in verdicts:
+            expected_word = verdict.expected_word
+            if verdict.note == "apostrophe" and expected_word:
+                # #1088: the apostrophe is named in the answer's own spelling («J'ai»).
+                expected_word = next(
+                    (word for word in candidate.split() if fold_typography(word) == expected_word), expected_word
+                )
             verdict = Verdict(
                 correct=verdict.correct,
                 exact=verdict.exact,
                 accent_slip=verdict.accent_slip,
                 typo=verdict.typo,
+                apostrophe_slip=verdict.apostrophe_slip,
                 note=verdict.note,
                 expected=candidate,
                 learner_word=verdict.learner_word,
-                expected_word=verdict.expected_word,
+                expected_word=expected_word,
             )
             distance = _word_distance(learner, target)
             if best is None or _rank(verdict) > _rank(best) or (_rank(verdict) == _rank(best) and distance < best_distance):
@@ -857,7 +889,7 @@ def _rank(verdict: Verdict) -> tuple[int, int, int, int]:
     away (#696: «Ils ont envoye» was told «Elles ont envoyé» because the key, a
     pronoun away, ranked above «Ils ont envoyé», an accent away)."""
 
-    slipped = verdict.accent_slip or verdict.typo
+    slipped = verdict.accent_slip or verdict.typo or verdict.apostrophe_slip
     return (
         int(verdict.correct),
         int(verdict.exact),
@@ -1671,6 +1703,12 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "de": "Richtig — achte auf den Artikel: «{expected_word}».",
         "fr": "Juste — attention à l'article : « {expected_word} ».",
     },
+    # #1088: an apostrophe typed as a space is forgiven, and named on the hit.
+    "apostrophe_ok": {
+        "en": "Right — with an apostrophe: «{expected_word}».",
+        "de": "Richtig — mit Apostroph: «{expected_word}».",
+        "fr": "Juste — avec une apostrophe : « {expected_word} ».",
+    },
     "elision_ok": {
         "en": "Right — before a vowel: «{expected_word}».",
         "de": "Richtig — vor einem Vokal: «{expected_word}».",
@@ -1703,7 +1741,7 @@ def feedback_note(verdict: Verdict, language: str | None) -> str | None:
     if verdict.note is None:
         return None
     key = verdict.note
-    if verdict.correct and key in {"accent", "typo"}:
+    if verdict.correct and key in {"accent", "typo", "apostrophe"}:
         key = f"{key}_ok"
     elif verdict.correct:
         return None
