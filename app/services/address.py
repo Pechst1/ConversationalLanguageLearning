@@ -25,6 +25,7 @@ the relationship map had not recorded yet therefore spoke «tu» in the scene an
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -78,6 +79,25 @@ def register_of(value: Any) -> Register | None:
     if not text:
         return None
     return "tu" if text.startswith("tu") else "vous"
+
+
+#: #920: the relations that settle the register by themselves. A friend, a sibling or a
+#: cousin says «tu» to the learner (owner rule: du / tu for friends), whatever a letter's
+#: domain stored. Only the learner's own relation counts: «l'amie de ton propriétaire»
+#: is a stranger to them.
+_TU_RELATION = re.compile(
+    r"(?<![\w'’-])(ami|amie|copain|copine|frère|frere|sœur|soeur|cousin|cousine)(?![\w'’-])"
+    r"(?!\s+(?:de|du|des)\b)",
+    re.IGNORECASE,
+)
+
+
+def relation_register(role: Any) -> Register | None:
+    """«tu» when ``role`` (who someone is to the learner: «amie», «une amie curieuse»,
+    «ton premier ami à Paris») is a relation that says «tu»; ``None`` when it settles
+    nothing (a clerk, a neighbour, «l'amie de ton propriétaire»)."""
+
+    return "tu" if _TU_RELATION.search(str(role or "")) else None
 
 
 def _same_person(left: str, right: str) -> bool:
@@ -235,6 +255,7 @@ __all__ = [
     "known_register",
     "learner_address",
     "register_of",
+    "relation_register",
     "relationship_register",
     "season_registers",
 ]

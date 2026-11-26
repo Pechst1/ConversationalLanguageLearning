@@ -1342,6 +1342,48 @@ _ASKS = re.compile(
 )
 
 
+#: #1043: a shop's script in a friend's mouth. Lila's letter was about a name on a card,
+#: and her reply offered «un remboursement» for three turns. A refund, a delivery or an
+#: order belongs to a shop, a parcel service or a waiter, who keep them (their letters are
+#: about exactly that, in words their text need not use: «Pas la bonne taille», «Le colis
+#: perdu»). A friend or a person of the story says them only when the thread already
+#: holds them. Folded text: «livré» reads «livre» (a book), so only the forms no book shares.
+_DELIVERY_WORD = re.compile(r"\blivraisons?\b|\blivr(?:er|eur|eurs|euse|ons|ez|ait|era|erai|erons|eront)\b")
+#: (what it is, the reply's word, what in the thread already holds it: «commander» holds
+#: an order, a book does not hold a delivery).
+_PERSONAL_SERVICE_WORDS = (
+    ("a refund", re.compile(r"\brembours\w*"), re.compile(r"\brembours")),
+    ("a delivery", _DELIVERY_WORD, _DELIVERY_WORD),
+    ("an order", re.compile(r"\bcommandes?\b"), re.compile(r"\bcommand")),
+)
+#: The waiter's «commande» (#114: «Voici ta commande, un café et un croissant.»): an order
+#: served at a table, named in the same sentence by what is on it. Lila's «Ta commande
+#: est prête.» names nothing served, and is a shop's.
+_SERVED = re.compile(
+    r"\b(?:voici|voila|cafes?|the|thes|chocolats?|croissants?|bieres?|verres?|vins?|sandwichs?|plats?|"
+    r"desserts?|menus?|addition|boissons?|jus|gateaux?|tartines?|crepes?|pain)\b"
+)
+
+
+def service_script(reply: object, held: str) -> list[str]:
+    """What ``reply`` brings in of a shop's script (a refund, a delivery, an order) when
+    the folded thread ``held`` has none of it. A thread that already holds one part (Lila
+    has ordered frames) is about a purchase, and its delivery is no invention; an order
+    served at a table is the waiter's. For a friend's or a cast member's reply only:
+    :func:`invented_logistics` asks for it with ``personal=True``."""
+
+    if any(holds.search(held) for _kind, _said, holds in _PERSONAL_SERVICE_WORDS):
+        return []
+    found: list[str] = []
+    for kind, said, _holds in _PERSONAL_SERVICE_WORDS:
+        if kind not in found and any(
+            said.search(sentence) and not (kind == "an order" and _SERVED.search(sentence))
+            for sentence in _folded_sentences(reply)
+        ):
+            found.append(kind)
+    return [f"{kind} the letter never mentioned" for kind in found]
+
+
 def _folded_sentences(text: object) -> list[str]:
     return [part for part in (_plain_fold(p) for p in re.split(r"(?<=[.!?…])\s+|\n+", str(text or ""))) if part]
 
@@ -1359,14 +1401,22 @@ def personal_requests(text: object) -> set[str]:
     return kinds
 
 
-def invented_logistics(reply: object, *, grounded: Iterable[object], authored: Iterable[object] = ()) -> list[str]:
+def invented_logistics(
+    reply: object,
+    *,
+    grounded: Iterable[object],
+    authored: Iterable[object] = (),
+    personal: bool = False,
+) -> list[str]:
     """What ``reply`` invents: an order / tracking / reference number the thread never
     held, a long digit string the thread never held, or a request for the learner's
     personal data the authored opening did not make. Empty when the reply is clean.
 
     ``grounded`` is every text the thread already holds (scene, authored opening,
     earlier lines, the learner's own words); ``authored`` is only what the scene's
-    author wrote, which alone may license a request."""
+    author wrote, which alone may license a request. ``personal`` (#1043): the speaker
+    is the learner's friend or a person of the story, not a shop or a service, so a
+    refund, a delivery or an order the thread never held is invented too."""
 
     problems: list[str] = []
     said = _plain_fold(reply).replace("?", " ")
@@ -1381,6 +1431,8 @@ def invented_logistics(reply: object, *, grounded: Iterable[object], authored: I
         digits = match.group(0)
         if digits not in held:
             problems.append(f"the number {digits}, which nobody gave")
+    if personal:
+        problems.extend(service_script(reply, held))
     asked = personal_requests(reply)
     if asked:
         allowed: set[str] = set()
@@ -1393,7 +1445,7 @@ def invented_logistics(reply: object, *, grounded: Iterable[object], authored: I
 def invented_logistics_hint(problems: list[str]) -> str:
     return (
         "Your reply brings in " + "; ".join(problems[:2]) + ". Nothing in the scene or in what the other "
-        "person wrote mentions an order, a parcel, a tracking or reference number or a home address, "
-        "so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
+        "person wrote mentions an order, a parcel, a refund, a delivery, a tracking or reference number or a "
+        "home address, so invent none and ask for none. Answer what they just wrote (take up one thing they said, "
         "such as their decision or the animal they named), then ask one question about it."
     )
