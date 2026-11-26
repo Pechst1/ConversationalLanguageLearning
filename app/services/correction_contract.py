@@ -2894,9 +2894,23 @@ def _fold_into_source(source: str, first: list[Edit], further: list[Edit]) -> li
         span = source[start:end]
         if _norm(span) == _norm(piece) or is_variant_edit(span, piece):
             continue
-        out.append(replace(moves[0], span=span, replacement=piece, start=start, end=end))
+        parts = [edit for _s, _e, _kind, edit in group]
+        out.append(
+            replace(moves[0], span=span, replacement=piece, start=start, end=end, severity=_rank_of(parts))
+        )
     out.sort(key=lambda e: e.start)
     return out
+
+
+def _rank_of(parts: Iterable[Edit]) -> int:
+    """The severity of a fix composed of ``parts``: that of its most serious part (#1068).
+
+    A fold made one edit of two and kept the first one's rank, so «a» -> «à» grown into
+    «a le» -> «au» ranked as an accent, and «hopital» -> «hôpital» grown into «au hopital»
+    -> «à l'hôpital» as one; a scene card sorting by rank then gave its places by position.
+    Which rule names the composed fix is #1047's; its rank is never lowered by a fold."""
+
+    return max(part.severity for part in parts)
 
 
 def _found_by_their_words(source: str, edits: list[Edit]) -> list[Edit]:
@@ -2992,7 +3006,9 @@ def _settle(source: str, edit: Edit, cast: Mapping[str, str], depth: int = 0) ->
     if _norm(span) == _norm(replacement):
         return None
     note = {lang: _requote(text, edit.replacement, replacement) for lang, text in edit.note.items()}
-    composed = replace(edit, span=span, replacement=replacement, start=low, end=end, note=note)
+    composed = replace(
+        edit, span=span, replacement=replacement, start=low, end=end, note=note, severity=_rank_of([edit, *inner])
+    )
     return _settle(source, composed, cast, depth + 1)
 
 
@@ -3937,9 +3953,17 @@ def best_deterministic_edit(
     """The most serious model-free edit (grammar before spelling, then reading order)."""
     edits = deterministic_edits(text, people=people)
     if edits:
-        best = min(edits, key=lambda e: (-e.severity, e.start))
+        best = min(edits, key=edit_rank)
         return best.span, best.replacement, best.note_for(language)
     return None, None, None
+
+
+def edit_rank(edit: Edit) -> tuple[int, int]:
+    """Sort key of what matters among model-free edits: grammar before spelling, then
+    reading order. A composed fix ranks as its most serious part (:func:`_rank_of`), so
+    «a le» -> «au» ranks as the contraction it is, not as the «à» accent (#1068)."""
+
+    return -edit.severity, edit.start
 
 
 #: P3 (walk 17 Nov): «La forme correcte est « je veux que quelqu'un me dise ».» explains

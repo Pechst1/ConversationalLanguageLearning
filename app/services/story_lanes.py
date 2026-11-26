@@ -812,11 +812,22 @@ def _accepted_correction(
 
 def _with_basic_check(kept: list[TutorCorrection], text: str, *, language: str | None) -> list[TutorCorrection]:
     """The model's corrections, then the model-free edits that touch none of their words,
-    the most serious first, up to :data:`TUTOR_MAX_CORRECTIONS` in all (#919).
+    up to :data:`TUTOR_MAX_CORRECTIONS` in all (#919).
 
     ``max_corrections`` caps what the tutor is asked to find (one below B1); the basic
     check is the app's own reading of the sentence and is never cut to the model's
-    budget: a learner whose reply had three slips sees three (live walk 19 Nov, A1)."""
+    budget: a learner whose reply had three slips sees three (live walk 19 Nov, A1).
+
+    #1068 (walk 25 Nov): the places went to the first three apostrophes, «j'ai» twice,
+    and «au hopital» -> «à l'hôpital» was never shown. Which edits take the places:
+
+    - grammar before spelling (:func:`correction_contract.edit_rank`; a composed fix
+      ranks as its most serious part, so «a le» -> «au» is a contraction, not an accent);
+    - a true repeat never: the same correction as one already on the card, by the model
+      or by the check («j'ai», «J'ai», «et j'ai») is the rule read once (:func:`_same_fix`);
+    - one place per kind of slip first, then the places still free go to the rest, so
+      three elisions in three words («le appartement de Odile … que il») are three
+      places, not one (#1073 review)."""
 
     folded = text.casefold()
     taken: list[tuple[int, int]] = []
@@ -825,15 +836,59 @@ def _with_basic_check(kept: list[TutorCorrection], text: str, *, language: str |
         if at >= 0:
             taken.append((at, at + len(item.span_fr)))
     out = list(kept)
-    edits = sorted(correction_contract.deterministic_edits(text), key=lambda e: (-e.severity, e.start))
+    free = TUTOR_MAX_CORRECTIONS - len(out)
+    if free <= 0:
+        return out
+    edits = sorted(correction_contract.deterministic_edits(text), key=correction_contract.edit_rank)
+
+    def touches_taken(edit: correction_contract.Edit) -> bool:
+        return any(edit.start < end and start < edit.end for start, end in taken)
+
+    # The kinds of slip the model's corrections already show, read off the check's own
+    # edits on their words («j ai» -> «j'ai» is a missing apostrophe).
+    kinds = {edit.rule_id for edit in edits if touches_taken(edit)}
+    on_card = {_same_fix(item.span_fr, item.corrected_fr) for item in kept}
+    candidates: list[correction_contract.Edit] = []
     for edit in edits:
-        if len(out) >= TUTOR_MAX_CORRECTIONS:
-            break
-        if any(edit.start < end and start < edit.end for start, end in taken):
+        fix = _same_fix(edit.span, edit.replacement)
+        if touches_taken(edit) or fix in on_card:
             continue
-        taken.append((edit.start, edit.end))
-        out.append(TutorCorrection(span_fr=edit.span, corrected_fr=edit.replacement, note_native=edit.note_for(language)))
+        on_card.add(fix)
+        candidates.append(edit)
+    chosen: list[correction_contract.Edit] = []
+    for edit in candidates:  # one place per kind of slip
+        if len(chosen) < free and edit.rule_id not in kinds:
+            kinds.add(edit.rule_id)
+            chosen.append(edit)
+    for edit in candidates:  # then the places still free
+        if len(chosen) < free and edit not in chosen:
+            chosen.append(edit)
+    chosen.sort(key=correction_contract.edit_rank)
+    out.extend(
+        TutorCorrection(span_fr=edit.span, corrected_fr=edit.replacement, note_native=edit.note_for(language))
+        for edit in chosen
+    )
     return out
+
+
+_FIX_EDGE = ".,;:!?…«»\"“”()"
+
+
+def _same_fix(span: str, fixed: str) -> tuple[str, str]:
+    """What a correction changes, so the same fix twice reads as one (#1068).
+
+    The words a span shares with its correction at either end are not the fix: a span the
+    check widens with a neighbouring word to be found by its words («et j ai» -> «et
+    j'ai») fixes what «j ai» -> «j'ai» fixes. Compared without case («J'ai») or the
+    punctuation at its edges; a fix that only removes words is told by what it removes."""
+
+    wrong, right = span.casefold().split(), fixed.casefold().split()
+    while wrong and right and wrong[0] == right[0]:
+        wrong, right = wrong[1:], right[1:]
+    while wrong and right and wrong[-1] == right[-1]:
+        wrong, right = wrong[:-1], right[:-1]
+    changed = " ".join(right).strip(_FIX_EDGE)
+    return (changed, "") if changed else ("", " ".join(wrong).strip(_FIX_EDGE))
 
 
 def _apart(corrections: list[TutorCorrection], text: str) -> list[TutorCorrection]:
