@@ -205,7 +205,7 @@ import { eclairHref, eclairPairLabel } from '@/lib/grammar-map';
 import { playComboTone } from '@/lib/sound';
 import { atelierErrorText, type AtelierErrorNotice } from '@/lib/atelier-errors';
 import { epreuveCopy, fill, wordCeilingText, wordRangeState, wordRangeText, type EpreuveCopy } from '@/components/epreuve/epreuve-copy';
-import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
+import { endsOnModelAnswer, markedLine, modelAnswer, retryOffered, shownReason, solutionState, solutionWithheld, withheldHints, withheldRepairParts } from '@/lib/solution-gate';
 import { promptParts } from '@/lib/prompt-parts';
 import { usableCard } from '@/lib/rule-card';
 import { ruleReadToday } from '@/lib/rule-read-today';
@@ -4597,7 +4597,11 @@ export function ExerciseFeedbackMoment({
         }
         // One short reason on the card; the repair hint, when it says more, waits behind «More».
         // (While a repair is still open, its hint is the next action and stays on the card.)
-        const whyText = display(printableWhy(withoutRuleReference(issue.why_wrong || feedback.why || '', ruleShown)));
+        // #1087: the rule the header names is cut from the reason; when nothing is left, the
+        // server's next reason (its `hint`, the rule in plain words) is the reason, never nothing.
+        const cut = (text: string) => display(printableWhy(withoutRuleReference(text, ruleShown)));
+        const serverHint = typeof issue.hint === 'string' ? issue.hint : '';
+        const whyText = shownReason([issue.why_wrong || feedback.why, serverHint], cut);
         const hintText = display(printableWhy(issue.repair_hint || (index === 0 ? feedback.repair : '')));
         // A whole line's card joins one note per issue: the task's note is said once, in
         // the task line below, never again on the card.
@@ -4619,7 +4623,12 @@ export function ExerciseFeedbackMoment({
               brief={declic
                 ? (
                   <DeclicWhy
-                    why={whyWithoutEcho(reason || '', learner, target)}
+                    // #1087: the sentence that only repeats the fix over the corrected line is
+                    // cut; when that was the whole reason, the next one the server sent stands.
+                    why={shownReason(
+                      [reason, serverHint, ...(solutionOnScreen ? rest : [])],
+                      (text) => whyWithoutEcho(cut(text), learner, target),
+                    )}
                     hint={repairHint || null}
                     label={RULE_CARD_COPY[language]?.why ?? RULE_CARD_COPY.en.why}
                     lang={noteLang}

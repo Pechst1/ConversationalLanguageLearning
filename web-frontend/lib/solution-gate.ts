@@ -116,3 +116,21 @@ export function withheldHints(correction: Correction): { reason: string; more: s
   const [reason = task[0] || '', ...more] = language;
   return { reason, more, task: language.length ? task[0] || '' : task.slice(1)[0] || '' };
 }
+
+/**
+ * #1087 (root cause #1085): the reason a miss gives once its solution is on screen. The card
+ * cuts what the screen already says (the rule its header names; in the grammar pilot the
+ * sentence that only repeats «you chose X, this needs Y» over the corrected line), so a
+ * reason can come out of those cuts empty. Then the next reason the server sent is read,
+ * never nothing: `why_wrong`, then its `hint` (the rule in plain words, which the withheld
+ * card reads first), then the repair example. Empty only when every candidate is.
+ */
+export function shownReason(candidates: ReadonlyArray<unknown>, cut: (text: string) => string): string {
+  for (const candidate of candidates) {
+    const text = typeof candidate === 'string' ? candidate.trim() : '';
+    if (!text) continue;
+    const kept = String(cut(text) ?? '').trim();
+    if (kept) return kept;
+  }
+  return '';
+}

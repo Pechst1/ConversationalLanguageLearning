@@ -173,6 +173,8 @@ export interface AtelierErratum {
   corrected_target?: string | null;
   why_wrong?: string | null;
   repair_hint?: string | null;
+  /** The rule in plain words, without the answer form (app/services/solution_gate.py). */
+  hint?: string | null;
   next_review_date?: string | null;
   last_review_date?: string | null;
   occurrences?: number;
