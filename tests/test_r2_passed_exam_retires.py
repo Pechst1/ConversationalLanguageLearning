@@ -56,18 +56,18 @@ def _passed_exam(db: Session, *, review_in: timedelta, with_other: bool = True):
     return user, etre, other
 
 
-def _anchor(db: Session, user, *, errata, due):
+def _anchor(db: Session, user, *, due):
+    # #1108: the errata no longer rank the anchor; a slip's rule is only among the due.
     rows = forge_picker._progress_rows(db, user, "fr")
     return forge_picker._anchor(
-        db, user, now=NOW, language="fr", rows=rows, preferred_concept_id=None,
-        errata_ids=list(errata), due_ids=list(due),
+        db, user, now=NOW, language="fr", rows=rows, preferred_concept_id=None, due_ids=list(due),
     )
 
 
 def test_due_slip_on_a_passed_rule_does_not_make_it_the_days_rule(db_session: Session) -> None:
     user, etre, il_y_a = _passed_exam(db_session, review_in=timedelta(days=2))
 
-    concept_id, reason, _new = _anchor(db_session, user, errata=[etre.id], due=[etre.id])
+    concept_id, reason, _new = _anchor(db_session, user, due=[etre.id])
 
     assert concept_id == il_y_a.id, f"the passed rule came back as the day's rule ({reason})"
 
@@ -75,7 +75,7 @@ def test_due_slip_on_a_passed_rule_does_not_make_it_the_days_rule(db_session: Se
 def test_passed_rule_returns_when_its_review_is_due(db_session: Session) -> None:
     user, etre, _other = _passed_exam(db_session, review_in=-timedelta(hours=1), with_other=False)
 
-    concept_id, _reason, _new = _anchor(db_session, user, errata=[], due=[etre.id])
+    concept_id, _reason, _new = _anchor(db_session, user, due=[etre.id])
 
     assert concept_id == etre.id
 
@@ -88,7 +88,7 @@ def test_nothing_else_qualifies_short_review(db_session: Session) -> None:
 
     user, etre, _other = _passed_exam(db_session, review_in=timedelta(days=2), with_other=False)
 
-    concept_id, reason, _new = _anchor(db_session, user, errata=[etre.id], due=[etre.id])
+    concept_id, reason, _new = _anchor(db_session, user, due=[etre.id])
 
     assert concept_id == etre.id and reason == forge_picker.REASON_KEEP_WARM
     assert forge_picker.short_review_anchor(db_session, user, etre.id)

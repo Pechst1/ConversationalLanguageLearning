@@ -2843,9 +2843,15 @@ def test_due_errata_pulls_linked_concept_into_atelier_selection(db_session):
     )
     db_session.commit()
 
-    selected = AtelierScheduler(db_session).select_today(user)
+    # #1108 (owner 7 Nov, «Nur als Extra»): the slip's rule joins the séance as a
+    # due rule to repair, never as today's rule.
+    from app.services.forge_picker import forge_plan
 
-    assert selected[0].concept.id == concept.id
+    plan = forge_plan(db_session, user)
+    assert (concept.id, "due") in plan.pairs()
+    assert plan.anchor.concept_id != concept.id
+    selected = AtelierScheduler(db_session).selections_for_plan(user, plan)
+    assert any(item.concept.id == concept.id and item.role == "fragile" for item in selected)
 
 
 def test_lexical_errata_are_persisted_as_vocabulary_errors(db_session):
@@ -3298,8 +3304,9 @@ def test_atelier_today_includes_due_errata_and_review_endpoint(client: TestClien
     assert today.status_code == 200
     payload = today.json()
     assert payload["due_errata"]
-    selected = next(item for item in payload["concepts"] if item["id"] == concept.id)
-    assert selected["due_errata"][0]["display_label"] == "Pronoun choice"
+    assert payload["due_errata"][0]["display_label"] == "Pronoun choice"
+    # #1108: the slip's rule is never today's rule (the first seat).
+    assert payload["concepts"][0]["id"] != concept.id
 
     task = client.get(f"/api/v1/atelier/errata/{erratum.id}/task", headers=headers)
     assert task.status_code == 200

@@ -15,20 +15,25 @@ journey and the séance can never disagree about what today is:
   2. the rule introduced today (``introduced_at`` today), not yet held, that
      the learner was taught (its Règle read, or La Forge worked it: #698, a
      scene slip this morning stamps ``introduced_at`` too and is not a lesson);
-  3. a rule a due erratum points at (repair first: the learner's own
-     mistake is the most urgent thing to forge);
-  4. today's new rule from the rhythm quota (:func:`concept_life.introduction_due`
+  3. today's new rule from the rhythm quota (:func:`concept_life.introduction_due`
      through the one new-concept picker, ``AtelierScheduler.next_new_concepts``
      — the same pick :func:`concept_life.introduction_for_today` makes for the
      journey), when nothing was introduced today;
-  5. the weakest rule in progress (introduced, not held; lowest stability,
+  4. the weakest rule in progress (introduced, not held; lowest stability,
      then score) that is not *resting* (:func:`resting_concept_ids`: at the top
      rung with a clean last séance — P6, a rule that is learned leaves);
-  6. the most urgent due rule (a scheduled rule the learner never formally
+  5. the most urgent due rule (a scheduled rule the learner never formally
      met, e.g. from an older surface, or a resting rule whose review is due);
-  7. a resting rule (earliest next review), then a held rule kept warm
+  6. a resting rule (earliest next review), then a held rule kept warm
      (earliest next review), so the forge is never empty for a learner who
      holds everything and has no quota left.
+
+  A due erratum never ranks the anchor (#1108; owner 7 Nov, «Nur als Extra»,
+  #443/#576/#587): a rule the learner slipped on is repaired as a *review*
+  beside today's rule (its erratum is due in the one queue, so the rule is
+  among the due rules), never in the «today's rule» slot. The plan's rule
+  outranks everything through step 1; on a day whose plan introduces no rule,
+  the slot is the quota's new rule, else the weakest rule in progress.
 
 * **due** — grammar rules the one review queue (WP-L3
   ``UnifiedSRSService.plan_review_items``) says are due, including rules a due
@@ -92,7 +97,6 @@ ROLE_CONTRAST: ForgeRole = "contrast"
 #: Why the anchor was chosen (``ForgePlan.reason``).
 REASON_PREFERRED = "preferred"
 REASON_INTRODUCED_TODAY = "introduced_today"
-REASON_DUE_ERRATUM = "due_erratum"
 REASON_NEW_FROM_QUOTA = "new_from_quota"
 REASON_WEAKEST_IN_PROGRESS = "weakest_in_progress"
 REASON_MOST_DUE = "most_due"
@@ -103,7 +107,6 @@ REASON_WEAK_SPOT = "weak_spot"
 ANCHOR_REASONS = (
     REASON_PREFERRED,
     REASON_INTRODUCED_TODAY,
-    REASON_DUE_ERRATUM,
     REASON_NEW_FROM_QUOTA,
     REASON_WEAKEST_IN_PROGRESS,
     REASON_MOST_DUE,
@@ -427,10 +430,13 @@ def _anchor(
     language: str,
     rows: list[tuple[UserGrammarProgress, GrammarConcept]],
     preferred_concept_id: int | None,
-    errata_ids: list[int],
     due_ids: list[int],
 ) -> tuple[int | None, str, bool]:
-    """``(concept_id, reason, is_new)`` of today's rule."""
+    """``(concept_id, reason, is_new)`` of today's rule.
+
+    #1108: no step here reads the errata. A slip's rule reaches today's séance
+    only as a due unit (``due_ids`` carries it), never as the anchor.
+    """
 
     from app.services import concept_life
 
@@ -458,16 +464,6 @@ def _anchor(
     )
     if introduced_today and not _second_new_rule_due(db, user, now=now):
         return introduced_today[0][1], REASON_INTRODUCED_TODAY, False
-
-    for concept_id in errata_ids:
-        concept = db.get(GrammarConcept, concept_id)
-        progress = by_id.get(concept_id)
-        if not _usable(concept, language) or retired_until_due(progress, now=now):
-            # R2: a held rule (its épreuve passed) is not the day's rule again
-            # because an old slip on it is due: the slip is reviewed around the
-            # scene; the rule waits for its own spaced review.
-            continue
-        return concept_id, REASON_DUE_ERRATUM, progress is None or not _introduced(progress)
 
     if concept_life.introduction_due(db, user, now=now):
         from app.services.atelier import AtelierScheduler
@@ -694,7 +690,7 @@ def forge_plan(
     progress_by_id = {concept.id: progress for progress, concept in rows}
     notes: list[str] = []
 
-    errata_ids, due_ids, queue_contrast = _review_queue(db, user, now=now)
+    _errata_ids, due_ids, queue_contrast = _review_queue(db, user, now=now)
     anchor_id, reason, is_new = _anchor(
         db,
         user,
@@ -702,7 +698,6 @@ def forge_plan(
         language=language,
         rows=rows,
         preferred_concept_id=preferred_concept_id,
-        errata_ids=errata_ids,
         due_ids=due_ids,
     )
     units: list[ForgeUnit] = []
