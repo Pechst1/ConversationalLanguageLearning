@@ -3103,6 +3103,49 @@ def _predicate_adjective_plural(source: str, tokens: list[Tok], index: int) -> E
                  subject=subject.low, right=right, wrong=original)
 
 
+#: What may open a clause before its subject («… et tes murs sont …»).
+_CLAUSE_OPENERS = frozenset({"et", "mais", "ou", "donc", "alors", "quand", "si", "que", "qu", "parce", "car"})
+
+
+def _predicate_adjective_feminine(source: str, tokens: list[Tok], index: int) -> Edit | None:
+    """#1105 (live walk 27 Nov): «Ta chambre est très grand» was a review item's key.
+
+    A feminine determiner and a feminine noun open the clause (``ta chambre``, both say
+    feminine), then «est», one degree word at most, and an adjective of the closed table
+    :data:`_FEMININE_OF_ADJECTIVE` in its masculine form that ends its phrase: the
+    adjective takes the feminine. «Le prix de la chambre est grand» (the subject is «le
+    prix»), a noun of either gender and any adjective outside the table stay as written.
+    """
+
+    tok = tokens[index]
+    if index < 2 or tok.low != "est":
+        return None
+    det, noun = tokens[index - 2], tokens[index - 1]
+    if det.low not in _FEMININE_ARTICLES or not (_joined(source, det, noun) and _joined(source, noun, tok)):
+        return None
+    if "'" in source[det.start : noun.end]:
+        return None
+    if index >= 3 and _joined(source, tokens[index - 3], det) and tokens[index - 3].low not in _CLAUSE_OPENERS:
+        return None  # «… de la chambre est»: «la chambre» is not plainly the subject
+    if noun.low in _TWO_GENDER_NOUNS or _noun_gender(noun.low) != "f":
+        return None
+    at = index + 1
+    if at < len(tokens) and tokens[at].low in _DEGREE_WORDS and _joined(source, tok, tokens[at]):
+        at += 1
+    if at >= len(tokens) or not _joined(source, tokens[at - 1], tokens[at]):
+        return None
+    adjective = tokens[at]
+    written = source[adjective.start : adjective.end]
+    feminine = _FEMININE_OF_ADJECTIVE.get(written)
+    if feminine is None:
+        return None
+    after = tokens[at + 1] if at + 1 < len(tokens) else None
+    if after is not None and _joined(source, adjective, after) and after.low not in _PHRASE_END_WORDS:
+        return None
+    return _edit("FR_ADJ_AGREE", source, adjective.start, adjective.end, feminine,
+                 noun=noun.low, right=feminine, wrong=written)
+
+
 _NUMBER_FOLLOWERS = (
     r"deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|"
     r"vingt|trente|quarante|cinquante|soixante|mille"
@@ -3175,6 +3218,12 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
         plural_adjective = _predicate_adjective_plural(source, tokens, i)
         if plural_adjective is not None:
             add(plural_adjective)
+            continue
+
+        # --- #1105: a predicate adjective after a feminine noun («Ta chambre est grand») ---
+        feminine_adjective = _predicate_adjective_feminine(source, tokens, i)
+        if feminine_adjective is not None:
+            add(feminine_adjective)
             continue
 
         # --- être-verbs conjugated with avoir; agreement after être ------------------

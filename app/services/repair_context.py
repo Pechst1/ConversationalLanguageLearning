@@ -73,6 +73,26 @@ def context_sentence(*, slip: object, answer: object = None, prompt: object = No
     return None
 
 
+#: Where one sentence of a written text ends and the next begins.
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+|\n+")
+
+
+def sentence_holding(text: object, slip: object) -> str | None:
+    """#1098: the sentence of a longer text (a letter) that holds ``slip``, or ``None``.
+
+    A Courrier letter is many sentences; the slip «a 10» sat in one of them, «Je passe
+    demain a 10 heure.», and that sentence, not the letter, is what a repair prints."""
+
+    wanted = _clean(slip)
+    if not wanted:
+        return None
+    for sentence in _SENTENCE_END.split(str(text or "")):
+        line = _clean(sentence)
+        if len(line.split()) > len(wanted.split()) and find_slip(line, wanted):
+            return line
+    return None
+
+
 def corrected_sentence(sentence: object, slip: object, fix: object) -> str | None:
     """``sentence`` with ``slip`` replaced by ``fix``, or ``None`` when it is not in it."""
 

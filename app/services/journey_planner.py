@@ -1112,6 +1112,11 @@ def _repairs_the_wording(learner: str, answer: str) -> bool:
     return 2 * common / (len(left) + len(right)) >= 0.35
 
 
+#: #1098: a slip or a fix shorter than this many words is no line on its own: it is
+#: posed inside the learner's sentence, and typed.
+_SHORT_SLIP_WORDS = 3
+
+
 def _says_the_key(learner: str, key: str) -> bool:
     """Is the learner's line already one of the key's right wordings?
 
@@ -1195,13 +1200,22 @@ def build_recall_task(
             # not use), or over «der Schlüssel» (a tapped card). A repair is only
             # honest when the right answer is recognisably a fix of the wording.
             return None
-        task_type: RecallTaskType = "tiles" if len(tokens) >= 2 else "short_answer"
+        sentence = clean_text(repair.sentence) if repair else ""
+        in_sentence = bool(sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner))
+        if not in_sentence and len(learner.split()) < _SHORT_SLIP_WORDS:
+            # #1098: «c est», «a 10», «de Odile» alone under «Write what you said,
+            # correctly»: a fragment is no line the learner wrote, and with nothing
+            # around it nothing says what to fix. Without its sentence it is not posed.
+            return None
+        # #1098: a short fix is typed. Its own words as tiles («10», «à») leave nothing
+        # to think about, and a tile build only proves recognition, so a slip repaired
+        # right came back two days later.
+        task_type: RecallTaskType = "tiles" if len(tokens) >= _SHORT_SLIP_WORDS else "short_answer"
         prompt_fr = learner
         instruction_override = _localized(_ERROR_INSTRUCTION, language)
         gloss = None
         goal = recall_goal("repair_own", language)
-        sentence = clean_text(repair.sentence) if repair else ""
-        if sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner):
+        if in_sentence:
             # The slip is marked inside the sentence it was made in.
             prompt_fr = sentence
             slip_fr = learner

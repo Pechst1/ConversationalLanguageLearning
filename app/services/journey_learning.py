@@ -2039,7 +2039,10 @@ def repaired_sentence_of(task: RecallTask) -> str | None:
     from app.services.repair_context import corrected_sentence
 
     whole = corrected_sentence(task.source_fr, task.slip_fr, task.solution_fr)
-    if not whole or fold_for_comparison(whole) == fold_for_comparison(task.source_fr):
+    # #1098: the learner typed the line, so its marks are theirs: «Oui, c'est loin.»
+    # repairs «Oui, c est loin.», though the speech fold reads the two as one line
+    # (and then left the item with no line to judge the answer against).
+    if not whole or fold_for_written_comparison(whole) == fold_for_written_comparison(task.source_fr):
         return None
     return whole
 
@@ -2579,7 +2582,9 @@ def evaluate_recall(
                 article_optional=recall_article_optional,
                 accents=accents,
             )
-            is_correct = is_correct or typed_verdict.correct
+            # #1098: an answer that keeps the slip it repairs («c est» for «c'est») is
+            # never right, though the plain fold reads it as the key.
+            is_correct = typed_verdict.correct if typed_verdict.kept_slip else (is_correct or typed_verdict.correct)
         else:
             typed_verdict = judge(
                 answer.text, _accepted_answers(task), article_optional=recall_article_optional, accents=accents
@@ -2770,13 +2775,13 @@ def evaluate_recall(
 
         slip_note = case_slip_note(learner_text, task.solution_fr, str(user_correction_language(user)))
         slip_kind = "case" if slip_note else None
-    elif is_correct and typed is not None and typed.correct and (typed.accent_slip or typed.typo):
+    elif is_correct and typed is not None and typed.correct and (typed.forgiven_slip or typed.typo):
         # QA-CLOSE (owner decision d): a forgiven slip is named on a hit, one line.
         from app.services.answer_acceptance import feedback_note
         from app.services.chrome_language import user_correction_language
 
         slip_note = feedback_note(typed, str(user_correction_language(user)))
-        slip_kind = "accent" if typed.accent_slip else "typo"
+        slip_kind = "accent" if typed.accent_slip else "apostrophe" if typed.apostrophe_slip else "typo"
     elif (
         is_correct
         and task.task_type == "short_answer"

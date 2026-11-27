@@ -61,13 +61,17 @@ def _une_cafe(language: str) -> RecallTask:
     """The walk's item, as the planner builds it from the erratum «une café» → «un café»."""
 
     target = TargetRef(kind=TargetKind.ERROR, id="err-cafe", label_fr="un café", label_native="why")
-    task = planner.build_recall_task(
-        target=target,
-        scenario=_brief(control_language=language),
-        affordances=[],
-        optional=False,
-        learner_text="une café",
-    )
+    with pytest.MonkeyPatch.context() as mp:
+        # #1098 types a two-word fix in its sentence; this note is about a tile build,
+        # so the item is built the way the walk's build was.
+        mp.setattr(planner, "_SHORT_SLIP_WORDS", 2)
+        task = planner.build_recall_task(
+            target=target,
+            scenario=_brief(control_language=language),
+            affordances=[],
+            optional=False,
+            learner_text="une café",
+        )
     assert task is not None and task.task_type == "tiles", "the repair is still a build"
     assert {tile["text_fr"] for tile in task.options} == {"café", "un"}
     return task

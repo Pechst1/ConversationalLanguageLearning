@@ -206,8 +206,13 @@ export function ForgeRecapRules({
             </p>
           </div>
           <p className="forge-recap__change" data-changed={row.changed ? 'true' : undefined}>{row.change}</p>
+          {/* #1088: the proof lines carry their own label; the stage line above them
+              («Weiterhin in Übung») read as «still practising these». */}
           {row.proof.length > 0 && (
-            <ul className="forge-recap__proof">
+            <p className="forge-recap__proof-label">{copy.recap_proof_label}</p>
+          )}
+          {row.proof.length > 0 && (
+            <ul className="forge-recap__proof" aria-label={copy.recap_proof_label}>
               {row.proof.map((line, index) => (
                 <li key={index} data-fixed={line.fixed ? 'true' : undefined}>
                   <ShapeToken kind={line.fixed ? 'action' : 'done'} size="sm" title={line.fixed ? proofFixed : proofRight} />
@@ -387,6 +392,7 @@ export function ForgeStyles() {
 .av2 .forge-recap__level, .ep-recap .forge-recap__level { margin: 0; display: flex; align-items: center; gap: 8px; font-size: var(--av2-t-meta); font-weight: 700; color: var(--av2-muted); }
 .av2 .forge-recap__change, .ep-recap .forge-recap__change { margin: 0; font-size: var(--av2-t-label); font-weight: 600; color: var(--av2-ink-2); }
 .av2 .forge-recap__change[data-changed='true'], .ep-recap .forge-recap__change[data-changed='true'] { color: var(--av2-green); }
+.av2 .forge-recap__proof-label, .ep-recap .forge-recap__proof-label { margin: 0; font-size: var(--av2-t-meta); font-weight: 600; color: var(--av2-muted); }
 .av2 .forge-recap__proof, .ep-recap .forge-recap__proof { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .av2 .forge-recap__proof li, .ep-recap .forge-recap__proof li { display: flex; align-items: baseline; gap: 8px; font-size: var(--av2-t-body); line-height: 1.35; color: var(--av2-ink); overflow-wrap: anywhere; }
 .av2 .forge-recap__proof .av2-shape, .ep-recap .forge-recap__proof .av2-shape { flex: none; align-self: center; }

@@ -64,7 +64,9 @@ def _due_rule():
 def _mistake(identifier: str, wrong: str, right: str):
     return _candidate(
         kind=TargetKind.ERROR, identifier=identifier, label_fr=right, label_native="wrong form",
-        priority=9.0, metadata={"erratum_learner": wrong, "target_reason": f"erratum:{identifier}"},
+        priority=9.0,
+        # #1098: a short slip is posed inside the sentence it sat in.
+        metadata={"erratum_learner": wrong, "erratum_context": f"Je vois {wrong} ici.", "target_reason": f"erratum:{identifier}"},
     )
 
 

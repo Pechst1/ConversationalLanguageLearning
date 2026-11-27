@@ -272,7 +272,8 @@ def _forgiven_accent(text: str, keys: list[str], unit: Any, language: str | None
     sentence with its accent and names it in one line, the way a keyed answer's forgiven
     accent is (QA-CLOSE, owner decision d) — also where the accent changes the word
     («fatigues» is a verb form). ``{}`` when the sentence is the key or more than an
-    accent away from it.
+    accent away from it. #1088: an apostrophe typed as a space («J ai») is forgiven and
+    named the same way (``Verdict.forgiven_slip``).
     """
 
     from dataclasses import replace
@@ -283,7 +284,7 @@ def _forgiven_accent(text: str, keys: list[str], unit: Any, language: str | None
         return {}
     verdict = judge(text, keys, accents=accent_policy(unit=unit))
     expected = str(verdict.expected or "").strip()
-    if verdict.exact or not verdict.accent_slip or not expected:
+    if verdict.exact or not verdict.forgiven_slip or not expected:
         return {}
     return {
         "corrected_answer": expected,
@@ -6584,10 +6585,11 @@ class AtelierCorrectionService:
                 correct_count += 1
                 if verdict.expected and mode != "classify":
                     corrected[item_id] = verdict.expected
-                if verdict.accent_slip:
+                if verdict.forgiven_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": learner_text, "corrected_target": verdict.expected or target})
                     # #562: right up to an accent, and the accent is named — the
-                    # one note the keyed rungs and the relecture give.
+                    # one note the keyed rungs and the relecture give. #1088: so is
+                    # an apostrophe typed as a space («J ai»).
                     accent_note = feedback_note(verdict, self.explanation_language)
                     if accent_note and accent_note not in accent_texts:
                         accent_texts.append(accent_note)
@@ -7438,7 +7440,7 @@ class AtelierCorrectionService:
             verdict = _keyed_verdict(concept, item, learner, target, keys=keys, others=[item.get("source")], source=source)
             if verdict.correct or self._close_enough_transform(concept, learner, target):
                 correct_count += 1
-                if verdict.correct and verdict.accent_slip:
+                if verdict.correct and verdict.forgiven_slip:
                     accent_notes.append({"item_id": item_id, "learner_text": str(learner), "corrected_target": target})
                 continue
             # A wrong part («verts») is filed as the sentence it stands for.
@@ -9000,7 +9002,9 @@ class AtelierSRSService:
                 key = str(item.get("expected_answer") or "")
             elif attempt.mode == "fill":
                 blank = _without_asides(str(item.get("prompt") or ""))
-                answer = (learner if right and learner else "") or str(item.get("correct_answer") or "")
+                answer = (cls._accepted_spelling(correction, item, learner) if right and learner else "") or str(
+                    item.get("correct_answer") or ""
+                )
                 if BLANK_RE.search(blank) and answer:
                     key = fill_blank(blank, answer)
             elif attempt.mode == "word_bank":
@@ -9012,6 +9016,25 @@ class AtelierSRSService:
         if len(text.split()) < 2:
             return None
         return text, not right
+
+    @staticmethod
+    def _accepted_spelling(correction: dict[str, Any], item: dict[str, Any], learner: str) -> str:
+        """#1088: a right gap's answer as the grader accepted it, not as it was typed.
+
+        The grader forgives typography («J ai» is «J'ai») and stores the accepted
+        answer it measured the learner against (``corrected_answer``, the learner's own
+        variant, #174). The end sheet prints that spelling when it is the learner's
+        answer read by the same contract; anything else stays the learner's words."""
+
+        from app.services.answer_acceptance import judge
+
+        stored = correction.get("corrected_answer")
+        if isinstance(stored, dict):
+            stored = stored.get(str(item.get("id") or ""))
+        stored = str(stored or "").strip() if isinstance(stored, str) else ""
+        if stored and judge(learner, [stored]).correct:
+            return stored
+        return learner
 
     def _forge_rule_progress(
         self,

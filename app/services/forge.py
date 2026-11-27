@@ -1139,12 +1139,42 @@ def _mine_sentence(db: Session, error: Any) -> tuple[str, str]:
         # learner meets their own line with this one slip, and the key is right French.
         for wrong, right in _sibling_fixes(db, error):
             head, tail = _repair_once(head, wrong, right), _repair_once(tail, wrong, right)
+        # #1105 (live walk 27 Nov): «Ta chambre est très grand et tes murs sont blanc»
+        # was saved with one mistake, «blanc» (the correction missed «grand»), and the key
+        # «… très grand et tes murs sont blancs …» refused the right fix. The key is read
+        # by the rule pass too: what it still finds around the slip is a sibling mistake.
+        head, tail = _rules_repair_around(head, corrected, tail)
         line = (head + str(match.group(0)) + tail).strip()
         fixed = (head + corrected + tail).strip()
         if drills.mine_fits(line, fixed):
             return line, fixed
         break
     return learner, corrected
+
+
+def _rules_repair_around(head: str, corrected: str, tail: str) -> tuple[str, str]:
+    """#1105: ``head`` and ``tail`` with what the model-free rule pass finds in the key
+    line (``head + corrected + tail``) repaired, the slip's own stretch left alone.
+
+    A «Ta phrase» key is the learner's line with one saved slip fixed; the rest of the
+    line was trusted as right French. Whatever the rules still find around the slip is
+    repaired in the line *and* the key, as another saved mistake of the line is."""
+
+    from app.services.correction_contract import deterministic_edits
+
+    key = head + corrected + tail
+    try:
+        edits = deterministic_edits(key)
+    except Exception:  # noqa: BLE001 - the rules are a check, never a crash
+        return head, tail
+    start, end = len(head), len(head) + len(corrected)
+    for edit in sorted(edits, key=lambda e: e.start, reverse=True):
+        if edit.end <= start:
+            head = head[: edit.start] + edit.replacement + head[edit.end :]
+        elif edit.start >= end:
+            at = edit.start - end
+            tail = tail[:at] + edit.replacement + tail[at + edit.end - edit.start :]
+    return head, tail
 
 
 def _repair_once(text: str, wrong: str, right: str) -> str:

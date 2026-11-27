@@ -442,12 +442,16 @@ def test_recall_697(db_session):
     mission.selected_concept_ids = [pc_avoir.id]  # the letter practises the passé composé
     service = MissionCorrectionService(db_session, llm_service=_ExplodingMissionLLM())
     correction = service.correct_submission(
-        user=user, mission=mission, text="Salut Marin, hier j'ai mangé une crêpe. A bientot, Sam",
+        user=user, mission=mission, text="Salut Marin, hier j'ai mangé une crêpe. Je reviens bientot au marché.",
         mode="letter", near_realtime=True,
     )
-    service.persist_errata(user=user, mission=mission, correction=correction, mode="letter", source_id="letter-697")
+    service.persist_errata(
+        user=user, mission=mission, correction=correction, mode="letter", source_id="letter-697",
+        submission_text="Salut Marin, hier j'ai mangé une crêpe. Je reviens bientot au marché.",
+    )
     db_session.flush()
     row = next(r for r in _stored(db_session, user) if "bient" in (r.original_text or ""))
+    print("ROW", repr(row.original_text), repr(row.correction), row.error_metadata.get("context_fr"))
     assert row.concept_id is None, f"«bientot → bientôt» filed under {row.concept.name if row.concept else None}"
 
     row.next_review_date = datetime.now(UTC) - timedelta(days=1)  # due, as on day 2
@@ -506,7 +510,10 @@ def _letter_1027(db_session, units, user):
     correction = service.correct_submission(
         user=user, mission=mission, text=WALK_LETTER_1027, mode="letter", near_realtime=True
     )
-    service.persist_errata(user=user, mission=mission, correction=correction, mode="letter", source_id="letter-1027")
+    service.persist_errata(
+        user=user, mission=mission, correction=correction, mode="letter", source_id="letter-1027",
+        submission_text=WALK_LETTER_1027,
+    )
     db_session.flush()
     return correction
 
