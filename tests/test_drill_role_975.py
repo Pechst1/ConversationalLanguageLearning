@@ -50,7 +50,10 @@ def _due_articles():
 def _slip_cafe():
     return _candidate(
         kind=TargetKind.ERROR, identifier="e-cafe", label_fr="café", label_native="wrong form",
-        priority=9.0, metadata={"erratum_learner": "cafe", "target_reason": "erratum:e-cafe"},
+        priority=9.0, metadata={
+            # #1098: a short slip is posed inside the sentence it sat in.
+            "erratum_learner": "cafe", "erratum_context": "Je prends un cafe au comptoir.", "target_reason": "erratum:e-cafe",
+        },
     )
 
 
