@@ -1,5 +1,5 @@
 {
- "_about": "FORGE-DE (2026-10-03): the German side of lexicon.json, merged at load time by item_bank_de.merge_overlay. Keys are deu / deu_* (the key «de» is French: «de Paris»). Verbs: inf, pres (irregular table) or pres2/pres3 (du/er forms with a vowel change), prt (Präteritum 1s), pp, aux (sein), sep (separable prefix), refl, konj (Konjunktiv II), imp, tail (a fixed end of the middle field, «nach Hause»); a complement may bring its own German verb (deu_verb) and its negated form (deu_neg). Nouns: deu, dg (m/f/n), dpl, dweak, deu_at/deu_to/deu_from.",
+ "_about": "FORGE-DE (2026-10-03): the German side of lexicon.json, merged at load time by item_bank_de.merge_overlay. Keys are deu / deu_* (the key «de» is French: «de Paris»). Verbs: inf, pres (irregular table) or pres2/pres3 (du/er forms with a vowel change), prt (Präteritum 1s), pp, aux (sein), sep (separable prefix), refl, konj (Konjunktiv II), imp, tail (a fixed end of the middle field, «nach Hause»), exp (dat: the French subject feels it, in the dative, before an impersonal verb: «mir ist heiß»); a complement may bring its own German verb (deu_verb) and its negated form (deu_neg). Nouns: deu, dg (m/f/n), dpl, dweak, deu_at/deu_to/deu_from.",
  "verbs": {
   "être": {
    "inf": "sein",
@@ -3415,6 +3415,26 @@
      "inf": "frieren",
      "prt": "fror",
      "pp": "gefroren"
+    }
+   },
+   "chaud": {
+    "deu": "heiß",
+    "deu_verb": {
+     "inf": "sein",
+     "pres": [
+      "bin",
+      "bist",
+      "ist",
+      "sind",
+      "seid",
+      "sind"
+     ],
+     "prt": "war",
+     "pp": "gewesen",
+     "aux": "sein",
+     "konj": "wäre",
+     "imp": "sei",
+     "exp": "dat"
     }
    },
    "sommeil": {

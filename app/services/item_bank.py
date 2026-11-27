@@ -168,9 +168,13 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
     before a plural verb can only be «they», so nothing is added. «alle» would be one
     more word to translate («tous») and would stand wrongly before a reflexive
     («sie ziehen alle sich an», review on #409).
+
+    The dative is the same trap (#1087): «Ihnen ist heiß» (avoir chaud, ils/elles)
+    reads as the polite «you» and opens «Ihnen (allen) ist heiß» / «Lila, ihnen ist heiß».
     """
 
-    if not re.match(r"Sie\s", text):
+    opening = re.match(r"(Sie|Ihnen)\s", text)
+    if not opening:
         return text
     plural_subject = any(
         isinstance(entry, dict) and _german_pronoun_subject(entry) and _german_person(entry) == 5
@@ -178,10 +182,16 @@ def disambiguate_plural_sie(text: str, bindings: dict[str, dict[str, Any]]) -> s
     )
     if not plural_subject:
         return text
-    return _name_first(text, bindings.get("VOC")) or "Sie (alle)" + text[3:]
+    pronoun = opening.group(1)
+    named = _name_first(text, bindings.get("VOC"), pronoun)
+    return named or f"{pronoun} ({_PLURAL_SIE_TAG[pronoun]})" + text[len(pronoun):]
 
 
-def _name_first(text: str, vocative: Any) -> str | None:
+#: The word that names the plural after a sentence-initial «Sie» / «Ihnen», in its case.
+_PLURAL_SIE_TAG = {"Sie": "alle", "Ihnen": "allen"}
+
+
+def _name_first(text: str, vocative: Any, pronoun: str = "Sie") -> str | None:
     """#384: «Sie sind fertig, Lila.» → «Lila, sie sind fertig.», wherever the name stands
     («Sie wollen Birnen, Lila? Ja, …» → «Lila, sie wollen Birnen? Ja, …»). ``None`` when
     the sentence names nobody it is said to (the frame's ``VOC`` binding)."""
@@ -191,10 +201,10 @@ def _name_first(text: str, vocative: Any) -> str | None:
     name = str(vocative.get("deu") or vocative.get("fr") or "").strip()
     if not name:
         return None
-    said_to = re.match(rf"Sie\s+(.+?),\s+{re.escape(name)}(?=[.?!])", text, re.DOTALL)
+    said_to = re.match(rf"{pronoun}\s+(.+?),\s+{re.escape(name)}(?=[.?!])", text, re.DOTALL)
     if said_to is None:
         return None
-    return f"{name}, sie {said_to.group(1)}{text[said_to.end():]}"
+    return f"{name}, {pronoun.lower()} {said_to.group(1)}{text[said_to.end():]}"
 
 
 def _german_pronoun_subject(entry: dict[str, Any]) -> bool:
@@ -3783,7 +3793,7 @@ def without_vocative(item: BankItem) -> BankItem | None:
         return None
     wrong = tuple(finish_sentence(f"{prefix}{trap}{suffix}") for trap in traps)
     de = strip_vocative(item.de, spoken) if item.de else item.de
-    if de and de.startswith("Sie ") and not de.startswith("Sie (alle)"):
+    if de and re.match(r"(?:Sie|Ihnen) (?!\(all)", de):
         de = disambiguate_plural_sie(de, {slot: entry for slot, entry in item.bindings if slot != "VOC"})
     return replace(
         item,
