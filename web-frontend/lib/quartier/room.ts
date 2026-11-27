@@ -217,7 +217,8 @@ export type ThingKind =
   | 'drawing'
   | 'snapshot'
   | 'polaroidwall'
-  | 'replycard';
+  | 'replycard'
+  | 'oilsketch';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2283,6 +2284,29 @@ function thing(B: Build, t: RoomThing, i: number) {
       }
       return;
     }
+    case 'oilsketch': {
+      // a small canvas on its stretcher, no frame, stood on a shelf and leaned back against what
+      // stands behind it (the bottles), its face to the room: Lila's quick oil of the burnt
+      // omelette in its black pan, the smoke going up from it in a big grey curl
+      // (`at` its foot on the shelf, facing (sin rot, cos rot); `size` [w, h], 40 by 32 cm)
+      const [w, h] = t.size ?? [0.4, 0.32];
+      const lean = 0.14;
+      const deep = 0.018;
+      const wood = zoned(mix(TONES.wood, INKS.paper, 0.25), z);
+      const linen = zoned(mix(INKS.card, INKS.ochre, 0.18), z);
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(-lean));
+        // the linen round the edge, tacked to the stretcher behind it
+        D.box(0, h / 2, -deep / 2, w, h, deep, linen);
+        D.box(0, h / 2, -deep - 0.003, w - 0.03, h - 0.03, 0.006, wood);
+        D.pop();
+      });
+      const up = new Vector3(-Math.sin(rot) * Math.sin(lean), Math.cos(lean), -Math.cos(rot) * Math.sin(lean));
+      const n = new Vector3(Math.sin(rot) * Math.cos(lean), Math.sin(lean), Math.cos(rot) * Math.cos(lean));
+      const center = new Vector3(x, y, zz).addScaledVector(up, h / 2).addScaledVector(n, 0.0015);
+      B.signs.push({ key, center, normal: n, width: w - 0.002, height: h - 0.002, density: 1500, draw: omeletteArt(), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
     case 'replycard': {
       // a small correspondence card stood on its long edge and leaned back against something (a
       // till's front), its words to the room: `text` the lines in a neat ink hand, the last one the
@@ -3804,6 +3828,109 @@ function burntArt(caption: string) {
  * A reply on a correspondence card: thick white stock with a thin grey rule round it, the words in
  * a neat upright hand in blue-black ink, the signature lower right with a short stroke under it.
  */
+function omeletteArt() {
+  // Lila's oil of the omelette, smoke and all: thick quick strokes, the colours of her classroom,
+  // a black pan from a little above with the yellow omelette gone brown and black in the middle,
+  // and the smoke rising out of it in one big curl to the top of the canvas. No signature.
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    let seed = 7;
+    const r = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+    const dab = (u: number, v: number, len: number, ang: number, width: number, color: number) => {
+      ctx.strokeStyle = css(color);
+      ctx.lineWidth = Math.max(1, h * width);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(w * u - Math.cos(ang) * w * len * 0.5, h * v - Math.sin(ang) * w * len * 0.5);
+      ctx.lineTo(w * u + Math.cos(ang) * w * len * 0.5, h * v + Math.sin(ang) * w * len * 0.5);
+      ctx.stroke();
+    };
+    // the kitchen behind: a warm wall, the tiles above the cooker in blue, the cooker's top below
+    ctx.fillStyle = css(mix(INKS.sunflower, INKS.ochre, 0.45));
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 160; i++) {
+      const v = r() * 0.62;
+      dab(r(), v, 0.06 + r() * 0.08, (r() - 0.5) * 0.5, 0.035, mix(mix(INKS.sunflower, INKS.ochre, 0.3 + r() * 0.4), INKS.vermilion, r() * 0.2));
+    }
+    for (let c = 0; c < 9; c++) for (let q = 0; q < 3; q++) {
+      const u = 0.03 + c * 0.115 + (r() - 0.5) * 0.01;
+      const v = 0.38 + q * 0.085;
+      ctx.fillStyle = css(mix(mix(INKS.cobalt, INKS.paper, 0.35 + r() * 0.2), INKS.green, r() * 0.15));
+      ctx.fillRect(w * u, h * v, w * 0.1, h * 0.072);
+    }
+    for (let i = 0; i < 40; i++) dab(r(), 0.38 + r() * 0.25, 0.05 + r() * 0.06, (r() - 0.5) * 0.3, 0.025, mix(mix(INKS.cobalt, INKS.paper, 0.3 + r() * 0.3), INKS.sunflower, r() * 0.25));
+    ctx.fillStyle = css(mix(INKS.ink, INKS.cobalt, 0.35));
+    ctx.fillRect(0, h * 0.64, w, h * 0.36);
+    for (let i = 0; i < 70; i++) dab(r(), 0.66 + r() * 0.32, 0.08 + r() * 0.1, (r() - 0.5) * 0.2, 0.03, mix(mix(INKS.ink, INKS.cobalt, 0.2 + r() * 0.3), INKS.paper, r() * 0.12));
+    // the ring's flame peeping under the pan
+    for (let i = 0; i < 9; i++) dab(0.3 + i * 0.045, 0.86, 0.02, -Math.PI / 2 + (r() - 0.5) * 0.4, 0.035, mix(INKS.cobalt, INKS.paper, 0.4));
+    for (let i = 0; i < 7; i++) dab(0.33 + i * 0.05, 0.84, 0.025, -Math.PI / 2 + (r() - 0.5) * 0.4, 0.03, mix(INKS.vermilion, INKS.sunflower, 0.5));
+    // the pan, from a little above, and its handle out to the right
+    const cx = w * 0.46;
+    const cy = h * 0.76;
+    const rx = w * 0.27;
+    const ry = h * 0.12;
+    ctx.strokeStyle = css(INKS.ink);
+    ctx.lineCap = 'round';
+    ctx.lineWidth = h * 0.06;
+    ctx.beginPath();
+    ctx.moveTo(cx + rx * 0.9, cy - ry * 0.1);
+    ctx.lineTo(w * 0.97, cy - h * 0.1);
+    ctx.stroke();
+    ctx.fillStyle = css(INKS.ink);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + h * 0.02, rx * 1.02, ry * 1.25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = css(mix(INKS.ink, INKS.paper, 0.18));
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 0.9, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // the omelette: yellow at its edge, browned, black in the middle where it caught
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 0.8, ry * 0.82, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = css(mix(INKS.sunflower, INKS.card, 0.15));
+    ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+    for (let i = 0; i < 70; i++) {
+      const a = r() * Math.PI * 2;
+      const d = Math.sqrt(r());
+      const u = (cx + Math.cos(a) * rx * 0.75 * d) / w;
+      const v = (cy + Math.sin(a) * ry * 0.75 * d) / h;
+      const tone = d < 0.45 ? mix(INKS.ink, INKS.ochre, 0.15 * r()) : d < 0.75 ? mix(INKS.ochre, INKS.ink, 0.25 + r() * 0.3) : mix(INKS.sunflower, INKS.ochre, r() * 0.5);
+      dab(u, v, 0.03 + r() * 0.04, (r() - 0.5) * 0.8, 0.035, tone);
+    }
+    ctx.restore();
+    // the smoke: one big grey cloud climbing out of the pan and filling the top of the canvas,
+    // darker low down where it leaves the pan, paler as it spreads
+    for (let k = 0; k <= 60; k++) {
+      const s = k / 60;
+      const u = 0.46 + Math.sin(s * 4.6) * (0.05 + s * 0.14) + s * 0.04;
+      const v = 0.68 - s * 0.66;
+      const rad = 0.05 + s * 0.2;
+      for (let j = 0; j < 4; j++) {
+        ctx.fillStyle = css(mix(mix(INKS.ink, INKS.paper, 0.22 + s * 0.5 + r() * 0.08), INKS.cobalt, 0.06));
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.ellipse(w * (u + (r() - 0.5) * rad * 0.9), h * (v + (r() - 0.5) * rad * 0.6), w * rad * (0.35 + r() * 0.3), h * rad * (0.55 + r() * 0.35), r() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    // the brush going up through it: long soft strokes along the curl, a shade off the grey
+    for (let i = 0; i < 40; i++) {
+      const s = r();
+      const u = 0.46 + Math.sin(s * 4.6) * (0.05 + s * 0.14) + s * 0.04 + (r() - 0.5) * (0.04 + s * 0.25);
+      const v = 0.66 - s * 0.62;
+      const ang = -Math.PI / 2 + Math.cos(s * 4.6) * 0.9 + (r() - 0.5) * 0.4;
+      dab(u, v, 0.05 + s * 0.06, ang, 0.022, mix(mix(INKS.ink, INKS.paper, 0.3 + s * 0.45 + (r() - 0.5) * 0.12), INKS.cobalt, 0.06));
+    }
+    // the canvas's edge: the paint stops short of it, the linen showing
+    ctx.strokeStyle = css(mix(INKS.card, INKS.ochre, 0.18));
+    ctx.lineWidth = Math.max(1, h * 0.03);
+    ctx.strokeRect(0, 0, w, h);
+  };
+}
+
 function replyCardArt(lines: string[]) {
   return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.35));

@@ -86,6 +86,13 @@ export const ZINC = { front: -34.8, north: -17.4, south: -11.5, top: ROOM.floor 
 export const TILL = { x: ZINC.front - 0.42, z: ZINC.north + 0.55, front: ZINC.front - 0.21, half: 0.18 };
 
 /**
+ * The two shelves of bottles on the mirror behind the zinc: the bottles' axis across (`x`), the
+ * shelves' depth round it, each shelf's height above the floor (`rows`, its top 0.015 higher), a
+ * bottle's radius, and where along the zinc the coffee machine stands in front of them.
+ */
+export const SHELVES = { x: ROOM.x0 + 0.14, depth: 0.22, rows: [1.55, 2.1], bottle: 0.035, machineZ: ZINC.south - 0.9 };
+
+/**
  * The two marble tables in front of the booth, at the back of the room: their centres along the
  * booth, their top's size and height, and where Marin's bowl of soup stands on the left one.
  */
@@ -299,16 +306,16 @@ export function buildMistral(B: Build, building: BuildingInfo): MistralParts {
   D.box(backX + 0.03, R.floor + 1.2, (zN + zS) / 2, 0.06, 0.1, zS - zN - 0.3, frameP);
   // shelves of bottles on the mirror, two rows
   const bottleTones = [mix(INKS.green, INKS.ink, 0.2), mix(INKS.ochre, INKS.vermilion, 0.2), mix(INKS.card, INKS.cobalt, 0.15), INKS.green, mix(INKS.sunflower, INKS.ochre, 0.4), mix(INKS.vermilion, INKS.ink, 0.3)];
-  for (const sy of [1.55, 2.1]) {
-    D.box(backX + 0.12, R.floor + sy, (zN + zS) / 2, 0.22, 0.03, zS - zN - 0.5, indoor({ color: GILT, id: frameP.id }));
+  for (const sy of SHELVES.rows) {
+    D.box(SHELVES.x, R.floor + sy, (zN + zS) / 2, SHELVES.depth, 0.03, zS - zN - 0.5, indoor({ color: GILT, id: frameP.id }));
     for (let z = zN + 0.5; z < zS - 0.4; z += B.rand.range(0.13, 0.2)) {
       const h = B.rand.range(0.24, 0.36);
-      D.lathe(backX + 0.12, R.floor + sy + 0.015, z, [[0.035, 0], [0.035, h * 0.62], [0.012, h * 0.8], [0.012, h], [0, h]], 6, indoor({ color: B.rand.pick(bottleTones), id: nextId(), wet: 0.4 }), { flat: true });
+      D.lathe(SHELVES.x, R.floor + sy + 0.015, z, [[SHELVES.bottle, 0], [SHELVES.bottle, h * 0.62], [0.012, h * 0.8], [0.012, h], [0, h]], 6, indoor({ color: B.rand.pick(bottleTones), id: nextId(), wet: 0.4 }), { flat: true });
     }
   }
   // the coffee machine: brass dome and chrome body
   {
-    const z = zS - 0.9;
+    const z = SHELVES.machineZ;
     const chrome: Paint = indoor({ color: mix(INKS.card, INKS.cobalt, 0.12), wet: 1, id: nextId() });
     D.box(backX + 0.32, R.floor + 1.2, z, 0.5, 0.5, 0.75, chrome);
     D.lathe(backX + 0.32, R.floor + 1.45, z, [[0.18, 0], [0.16, 0.2], [0.08, 0.32], [0.02, 0.4], [0, 0.42]], 10, brass);

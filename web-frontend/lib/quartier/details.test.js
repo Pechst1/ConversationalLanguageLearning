@@ -16,7 +16,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
-const { BACK_TABLES, MARKS, ROOM, TILL, ZINC } = require('./mistral.ts');
+const { BACK_TABLES, MARKS, ROOM, SHELVES, TILL, ZINC } = require('./mistral.ts');
 const { buildRoom, polaroidWall } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
@@ -459,4 +459,36 @@ test("M. Marchand's reply, «J'y serai. M.», propped against the till: laid onc
   for (const id of ['tasse_habituelle', 'carte_odile']) {
     for (const t of details.find(({ spec: d }) => d.id === id).spec.things) assert.ok(Math.abs(t.at[2] - card.at[2]) > 0.5, `clear of ${id}`);
   }
+});
+
+test("Lila's painting of the omelette, smoke and all, propped against the bottles behind the zinc: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'tableau_omelette').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: "le tableau de l'omelette de Lila", location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "le tableau de l'omelette de Lila", location_id: 'le_mistral' }]), ['tableau_omelette']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "le tableau de l'omelette de Lila", location_id: 'odile_flat' }]), []);
+  assert.equal(spec.things.length, 1);
+  const p = spec.things[0];
+  assert.equal(p.kind, 'oilsketch');
+  // no words on its face: its back (Odile's name) faces the bottles, and no signature could be
+  // taken for «L.»'s on the painting above the zinc
+  assert.equal(p.text, undefined);
+  const [w, h] = p.size;
+  // a small canvas: smaller than «L.»'s, larger than a card
+  assert.ok(w <= 0.45 && h <= 0.35 && w > h, 'a small landscape canvas');
+  // standing on the lower shelf, its face to the room
+  assert.ok(Math.abs(p.at[1] - (ROOM.floor + SHELVES.rows[0] + 0.015)) < 0.003, 'on the lower shelf');
+  assert.ok(Math.abs(p.rot - Math.PI / 2) < 0.01, 'facing the room');
+  // its foot on the shelf, in front of the bottles; leaned back 0.14 rad on its 1.8 cm stretcher
+  // (room.ts), its top rests on them without going through
+  assert.ok(p.at[0] < SHELVES.x + SHELVES.depth / 2 && p.at[0] > SHELVES.x + SHELVES.bottle, "its foot on the shelf's front");
+  const topBack = p.at[0] - h * Math.sin(0.14) - 0.018;
+  assert.ok(topBack >= SHELVES.x + SHELVES.bottle - 0.003 && topBack < SHELVES.x + SHELVES.bottle + 0.02, 'against the bottles');
+  // under the upper shelf, along the zinc where the shelves run, clear of the coffee machine
+  assert.ok(p.at[1] + h < ROOM.floor + SHELVES.rows[1] - 0.015, 'under the upper shelf');
+  assert.ok(p.at[2] - w / 2 > ZINC.north + 0.5 && p.at[2] + w / 2 < ZINC.south - 0.4, 'where the bottles stand');
+  assert.ok(Math.abs(p.at[2] - SHELVES.machineZ) > 0.375 + w / 2 + 0.1, 'clear of the coffee machine');
+  // and below «L.»'s painting, which stays where it hangs above the mirror
+  assert.ok(MARKS.painting.y - 0.31 > p.at[1] + h + 0.5, "well under «L.»'s painting");
 });
