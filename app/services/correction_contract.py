@@ -3784,6 +3784,46 @@ def _an_article_before(wrong: str, tokens: list[Tok], index: int, context: objec
     return lexicon_pos(tokens[index + 1].low) == "noun"
 
 
+#: #1099: the determiners that are also object pronouns in front of a verb: «je la
+#: vois», «puis l'éteint», «je leur parle».
+_CLITIC_DETERMINERS = frozenset({"le", "la", "les", "l", "leur"})
+
+
+def object_pronoun_at(text: object, start: int) -> bool:
+    """#1099: is the «le», «la», «les», «l'» or «leur» at ``start`` in ``text`` an
+    object pronoun in front of a verb, and so no determiner?
+
+    A surface that marks an article asks this, from the same lexicon and pronoun
+    list the rules' own elision and gender checks use. It is a pronoun
+
+    - after a subject or another clitic: «je la porte», «tu ne l'aimes pas»;
+    - in front of a word that can only be a verb: «puis l'éteint», «Margaux la regarde»;
+    - in front of a word that is a noun and a verb («porte», «aide», «écoute») only when
+      a name or a noun right before it is the subject: «Lila la porte».
+
+    Anything else, an unknown word included, stays a determiner: «la caméra», «l'aide
+    arrive», «j'ouvre les portes».
+    """
+
+    source = _norm(text)
+    tokens = _tokens(source)
+    index = next((i for i, tok in enumerate(tokens) if tok.start == start), None)
+    if index is None or tokens[index].low not in _CLITIC_DETERMINERS or index + 1 >= len(tokens):
+        return False
+    tok, nxt = tokens[index], tokens[index + 1]
+    if not _joined(source, tok, nxt):
+        return False
+    prev = tokens[index - 1] if index > 0 else None
+    joined_prev = prev is not None and _joined(source, prev, tok) and source[prev.end : tok.start] != "-"
+    if joined_prev and prev.low in _PRONOUN_CONTEXT:
+        return True
+    if not _could_be_verb(nxt.low):
+        return False
+    if _noun_lemma(nxt.low) is None:
+        return True
+    return joined_prev and _names_a_subject(source, prev)
+
+
 def _word_before(context: object, quoted: str) -> str | None:
     """The word right in front of ``quoted`` where the learner wrote it in ``context``."""
 
@@ -4584,6 +4624,7 @@ __all__ = [
     "note_for_form",
     "note_from_form",
     "note_matches_form",
+    "object_pronoun_at",
     "reconcile_notes",
     "to_erratum",
     "verify_edit",

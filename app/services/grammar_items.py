@@ -221,15 +221,27 @@ def _word_bounds(text: str, start: int, end: int) -> tuple[int, int]:
     return start, end
 
 
-def _is_noun_phrase(span: str) -> bool:
-    """A determiner followed by a word that can be the noun (or its adjective)."""
+_SPAN_WORD = re.compile(r"[\w'-]+")
 
-    words = [word.strip(".,;:!?«»\"()") for word in fold_apostrophes(span).casefold().split()]
-    words = [word for word in words if word]
-    for index, word in enumerate(words):
+
+def _is_noun_phrase(text: str, start: int, end: int) -> bool:
+    """Does ``text[start:end]`` hold a determiner followed by a word that can be the
+    noun (or its adjective)?
+
+    ``text`` is the whole sentence: «le», «la», «les», «l'» and «leur» are also object
+    pronouns, and only the words around them tell which (#1099: «puis l'éteint» is
+    «la» in front of a verb, never the article rule).
+    """
+
+    from app.services.correction_contract import object_pronoun_at
+
+    words = [(match.start(), match.group(0).casefold()) for match in _SPAN_WORD.finditer(text, start, end)]
+    for index, (at, word) in enumerate(words):
         if word.startswith("l'") and len(word) > 3:
-            return True
-        if word in _DETERMINERS and index + 1 < len(words) and words[index + 1] not in _NOT_A_NOUN:
+            determiner = True
+        else:
+            determiner = word in _DETERMINERS and index + 1 < len(words) and words[index + 1][1] not in _NOT_A_NOUN
+        if determiner and not object_pronoun_at(text, at):
             return True
     return False
 
@@ -259,7 +271,7 @@ def rule_span(brief: dict[str, Any], text: str | None) -> tuple[int, int] | None
             start = match.start() + (len(span) - len(span.lstrip()))
             end = match.end() - (len(span) - len(span.rstrip()))
             start, end = _word_bounds(folded, start, end)
-            if brief.get("noun_phrase") and not _is_noun_phrase(folded[start:end]):
+            if brief.get("noun_phrase") and not _is_noun_phrase(folded, start, end):
                 continue
             return start, end
     return None
