@@ -30,7 +30,7 @@ def _render(frame_id: str, subject: str, state: str = "chaud") -> str | None:
     return bank.render_german(frame, {"S": _entry("pron", subject), "H": _entry("avoir_state", state)})
 
 
-def test_the_walk_item_says_ist_dir_heiss():
+def test_walk_item():
     """The walk's item «Tu as chaud ce soir ?» means «Ist dir heute Abend heiß?»."""
 
     assert _render("avoir-state-q", "tu_m") == "Ist dir heute Abend heiß?"
@@ -49,17 +49,20 @@ def test_the_walk_item_says_ist_dir_heiss():
         ("ils", "Ihnen (allen) ist heute Abend heiß."),
         ("elles", "Ihnen (allen) ist heute Abend heiß."),
     ],
+    ids=lambda value: value.split("_")[0] if " " not in value else "",
 )
-def test_every_person_takes_the_dative(subject, german):
+def test_dative(subject, german):
+    """Every person feels hot in the dative («avoir-state» frame)."""
+
     assert _render("avoir-state", subject) == german
 
 
-def test_the_other_states_keep_their_nominative():
+def test_others():
     assert _render("avoir-state-q", "tu_m", "faim") == "Hast du heute Abend Hunger?"
     assert _render("avoir-state", "je_m", "froid") == "Ich friere heute Abend."
 
 
-def test_every_chaud_item_the_bank_serves_has_a_german_meaning():
+def test_bank():
     """The prompt the learner sees (``meaning_l10n``) carries German for every «chaud»
     item, the one said to someone as well («…, Marin ?» loses its address)."""
 
@@ -76,7 +79,7 @@ def test_every_chaud_item_the_bank_serves_has_a_german_meaning():
         assert ib.german_problems(posed) == [], (posed.de, ib.german_problems(posed))
 
 
-def test_the_checker_catches_the_nominative_calque():
+def test_calque():
     """«Bist du heute Abend heiß?» is «are you sexy tonight?»: the gate refuses it."""
 
     from app.services.item_bank_de import german_violations
@@ -87,7 +90,7 @@ def test_the_checker_catches_the_nominative_calque():
         assert german_violations(right) == [], right
 
 
-def test_every_pool_the_german_lexicon_authors_is_covered():
+def test_pools():
     """The structural guard: a pool ``lexicon_de.json`` gives German to has German for
     each of its entries, so a word added to the French pool cannot lose its German
     meaning in silence (the 2 % the rendering gate tolerates hid «chaud»)."""
@@ -105,7 +108,7 @@ def test_every_pool_the_german_lexicon_authors_is_covered():
     assert missing == []
 
 
-def test_a_plural_said_to_someone_names_them_first():
+def test_voc():
     """«Ils ont chaud ce soir, Lila.» → «Lila, ihnen ist heute Abend heiß.» (the #384 rule
     for «Sie», in the dative)."""
 
