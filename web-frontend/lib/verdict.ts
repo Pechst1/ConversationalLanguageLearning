@@ -69,19 +69,19 @@ export function checkedSince(check: CheckLike | null | undefined): boolean {
 export const CHECK_COPY = {
   en: {
     not_checked: "Answer saved, not checked yet. It doesn't count yet.",
-    basic: 'Basic check only. The full check did not run.',
+    basic: 'Some slips may be missing: only the basic check ran.',
     unavailable: 'Checking is not available right now, so this answer does not count. Go on with the next one.',
     checked_since: 'Checked since. It counts now.',
   },
   de: {
     not_checked: 'Antwort gespeichert, noch nicht geprüft. Sie zählt noch nicht.',
-    basic: 'Nur Grundprüfung. Die volle Prüfung lief nicht.',
+    basic: 'Manche Fehler fehlen hier vielleicht: Nur die Grundprüfung lief.',
     unavailable: 'Die Prüfung ist gerade nicht verfügbar, darum zählt diese Antwort nicht. Mach mit der nächsten weiter.',
     checked_since: 'Inzwischen geprüft. Sie zählt jetzt.',
   },
   fr: {
     not_checked: 'Réponse enregistrée, pas encore vérifiée. Elle ne compte pas encore.',
-    basic: 'Vérification de base seulement. La vérification complète n’a pas eu lieu.',
+    basic: 'Certaines fautes manquent peut-être : seule la vérification de base a eu lieu.',
     unavailable: 'La vérification n’est pas disponible pour le moment : cette réponse ne compte pas. Passe à la suivante.',
     checked_since: 'Vérifiée depuis. Elle compte maintenant.',
   },

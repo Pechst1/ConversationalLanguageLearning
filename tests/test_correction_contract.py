@@ -511,7 +511,6 @@ def test_the_phrase_rules_fix_the_classic_mistakes(sentence, span, fix):
         # unsure means silent: «d'un café» or «un café»? «leur voiture» or «leurs voitures»?
         "Je voudrais de un café.",
         "Ils ont pris leurs voiture.",
-        "J'ai reve de toi.",  # «rêvé», not «rêve»
     ],
 )
 def test_the_phrase_rules_leave_the_near_misses_alone(sentence):

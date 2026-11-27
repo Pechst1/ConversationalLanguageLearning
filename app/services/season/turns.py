@@ -619,7 +619,7 @@ def reaction_text(panels: list[dict[str, Any]], *, addressee: str, labelled: boo
 
 
 #: The thread's speaker for a line nobody says (:func:`reaction_lines`).
-CAPTION_SPEAKER = "caption"
+CAPTION_SPEAKER = scene_ledger.CAPTION_SPEAKER
 
 
 def reaction_lines(panels: list[dict[str, Any]], *, addressee: str, names: dict[str, str] | None = None) -> list[dict[str, Any]]:

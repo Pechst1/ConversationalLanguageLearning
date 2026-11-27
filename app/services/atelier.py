@@ -8237,7 +8237,7 @@ class AtelierCorrectionService:
                 temperature=0.1,
                 max_tokens=settings.ATELIER_CORRECTION_LLM_MAX_TOKENS,
                 model=settings.ATELIER_CORRECTION_LLM_MODEL,
-                request_timeout=settings.ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS,
+                request_timeout=self._correction_request_timeout(),
                 disable_retries=True,
                 reasoning_effort=settings.ATELIER_CORRECTION_LLM_REASONING_EFFORT,
             )
@@ -8262,6 +8262,12 @@ class AtelierCorrectionService:
             # answered badly» ask the learner for different patience.
             self._llm_failure_reason = "timeout" if "timeout" in str(exc).lower() else "model_error"
             return None
+
+    def _correction_request_timeout(self) -> float:
+        """How long one check may wait for the provider. A caller that must answer
+        inside its own deadline (the Journal, #1062) narrows it; it never widens it."""
+
+        return settings.ATELIER_CORRECTION_LLM_TIMEOUT_SECONDS
 
     # WP-16 additive
     def _record_correction_cost(self, result: Any) -> None:

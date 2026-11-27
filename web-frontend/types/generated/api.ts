@@ -10202,6 +10202,12 @@ export interface components {
             callback_fr?: string | null;
             /** Character Line Fr */
             character_line_fr?: string | null;
+            /** Character Line Speaker */
+            character_line_speaker?: string | null;
+            /** Lines */
+            lines?: {
+                [key: string]: unknown;
+            }[];
             /** Setup Fr */
             setup_fr?: string | null;
             /** Title Fr */

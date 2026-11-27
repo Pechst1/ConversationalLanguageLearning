@@ -255,11 +255,46 @@ def on_screen(step: Any) -> dict[str, list[dict[str, Any]]]:
                 # #333/#971: nobody read a reply whose check failed, so its words certify nothing.
                 "checked": not row.get("check_failure"),
                 "stock_exit": bool(row.get("stock_exit")),
+                "lines": spoken_lines(row),
             }
         )
     ledger = private.get("ledger") if isinstance(private.get("ledger"), dict) else {}
     established = [fact for fact in ledger.get("established") or [] if isinstance(fact, dict)]
     return {"turns": turns, "established": established}
+
+
+#: The speaker of a line nobody says: a caption the page moves on with (``season.turns``).
+CAPTION_SPEAKER = "caption"
+
+
+def spoken_lines(row: Any) -> list[dict[str, Any]]:
+    """Each line a turn's reply said, with who said it: ``{"speaker_id", "speaker_name",
+    "text_fr"}``, captions left out.
+
+    #1081: a many-voiced reply is stored twice, as its words run together (``character``)
+    and as its lines with their speakers (``lines``, #313). A reader that takes the words
+    gives four people's lines to one of them: the Journal quoted «Tu as peur de Marchand.
+    Merci. Merci. Et Marchand signe à dix heures. Oui.» as one thing Margaux said. A reply
+    stored without ``lines`` (one voice, or a day from before them) is its lines, one per
+    row of the words, said by the scene's character (``speaker_id`` ``None``)."""
+
+    row = row if isinstance(row, dict) else {}
+    stored = [line for line in row.get("lines") or [] if isinstance(line, dict)]
+    if stored:
+        return [
+            {
+                "speaker_id": str(line.get("speaker_id") or "") or None,
+                "speaker_name": str(line.get("speaker_name") or "") or None,
+                "text_fr": " ".join(str(line.get("text_fr") or "").split()),
+            }
+            for line in stored
+            if str(line.get("text_fr") or "").strip() and line.get("speaker_id") != CAPTION_SPEAKER
+        ]
+    return [
+        {"speaker_id": None, "speaker_name": None, "text_fr": " ".join(part.split())}
+        for part in str(row.get("character") or "").splitlines()
+        if part.strip()
+    ]
 
 
 def build(
