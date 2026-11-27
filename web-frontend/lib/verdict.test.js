@@ -42,9 +42,10 @@ test('the words the owner approved, in all three languages', () => {
   assert.equal(CHECK_COPY.en.not_checked, "Answer saved, not checked yet. It doesn't count yet.");
   assert.equal(CHECK_COPY.de.not_checked, 'Antwort gespeichert, noch nicht geprüft. Sie zählt noch nicht.');
   assert.equal(CHECK_COPY.fr.not_checked, 'Réponse enregistrée, pas encore vérifiée. Elle ne compte pas encore.');
-  assert.equal(CHECK_COPY.en.basic, 'Basic check only. The full check did not run.');
-  assert.equal(CHECK_COPY.de.basic, 'Nur Grundprüfung. Die volle Prüfung lief nicht.');
-  assert.equal(CHECK_COPY.fr.basic, 'Vérification de base seulement. La vérification complète n’a pas eu lieu.');
+  // #1062: a basic check says what it is: a list that may miss slips, never the check's result.
+  assert.equal(CHECK_COPY.en.basic, 'Some slips may be missing: only the basic check ran.');
+  assert.equal(CHECK_COPY.de.basic, 'Manche Fehler fehlen hier vielleicht: Nur die Grundprüfung lief.');
+  assert.equal(CHECK_COPY.fr.basic, 'Certaines fautes manquent peut-être : seule la vérification de base a eu lieu.');
 });
 
 test('every surface takes its line from the one table', () => {

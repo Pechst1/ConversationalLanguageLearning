@@ -271,7 +271,7 @@ def test_the_prompt_model_has_no_field_that_could_hold_scene_text(journal_client
 
     source = Path("app/api/v1/endpoints/journal.py").read_text(encoding="utf-8")
     # The reveal is attached on the written branch only, and once.
-    assert source.count("JournalRevealView(**dict(entry.scene_reveal or {}))") == 1
+    assert source.count("JournalRevealView(**reveal_view(entry.scene_reveal))") == 1
     assert "if written else None" in source
 
     tab = Path("web-frontend/components/cahiers/JournalTab.tsx").read_text(encoding="utf-8")

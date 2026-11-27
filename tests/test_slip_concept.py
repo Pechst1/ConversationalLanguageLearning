@@ -532,7 +532,10 @@ def test_walk_letter_1027(db_session):
         f"«a le → au» filed under {by_change[('a le', 'au')].concept_id}"
     )
     for change, row in by_change.items():
-        if change != ("a le", "au"):
+        if change == ("oublie", "oublié"):
+            # #1062: «j ai oublie» is the passé composé's own slip, as «ai mange» is (GUARD_PAIRS).
+            assert row.concept_id == units["PC_AVOIR"].id, f"«oublie → oublié» filed under {row.concept_id}"
+        elif change != ("a le", "au"):
             assert row.concept_id is None, f"«{row.original_text} → {row.correction}» filed under rule {row.concept_id}"
 
     # The same letter again: each slip recurs once, on its own row.
