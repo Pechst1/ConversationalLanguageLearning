@@ -62,11 +62,12 @@ def test_daily_context_follows_the_forge_picker_without_padding(db_session) -> N
 
     context = ExerciseGenerationService(db_session).build_daily_context(user=user)
 
-    # WP-S4: the one picker, no pad to three from teaching order.
-    assert context.concepts[0]["id"] == cond.id
-    assert context.concepts[0]["role"] == "today", "a due erratum makes its rule today's"
-    assert len(context.concepts) == 2
-    assert any(item["id"] == tense.id and item["role"] == "due" for item in context.concepts)
+    # WP-S4: the one picker, no pad to three from teaching order. #1108: a due
+    # erratum's rule is repaired as a due rule, never today's.
+    assert context.concepts[0]["role"] == "today"
+    assert context.concepts[0]["id"] != cond.id, "a due erratum took today's rule"
+    assert any(item["id"] == cond.id and item["role"] == "due" for item in context.concepts)
+    assert any(item["id"] == tense.id and item["role"] in {"today", "due"} for item in context.concepts)
     assert str(cond.id) in context.concept_blueprints
     assert context.due_errata[0]["concept_id"] == cond.id
 
