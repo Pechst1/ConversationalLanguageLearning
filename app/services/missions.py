@@ -5209,6 +5209,43 @@ class MissionSRSService:
         return unique
 
 
+def todo_progress_from_thread(
+    mission: RealWorldMission,
+    progress_by_id: dict[str, dict[str, Any]],
+    *,
+    attempts: list[RealWorldMissionAttempt] | None = None,
+    turns: list[RealWorldMissionTurn] | None = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, str] | None]:
+    """The corrector's flags with the letter's To do read off the whole thread.
+
+    #1080 / #922: the corrector grades one learner message and never sees the
+    correspondent's lines. The verdict, the «goals met» count and the story's
+    outcome all read the To do through this one function, so they agree with
+    what the thread established (`courrier.progress_read_with_thread`).
+    """
+
+    messenger = (mission.prompt_payload or {}).get("messenger") or {}
+    todo_by_language = success_signal_i18n(messenger) if isinstance(messenger, dict) else {}
+    seen: set[int] = set()
+    rows: list[RealWorldMissionTurn] = []
+    for turn in [*(mission.turns or []), *(turns or [])]:
+        if id(turn) not in seen:
+            seen.add(id(turn))
+            rows.append(turn)
+    rows.sort(key=lambda turn: (turn.turn_index if turn.turn_index is not None else 0))
+    learner_lines = [str((attempt.answer_payload or {}).get("text") or "") for attempt in attempts or []]
+    learner_lines += [turn.text or "" for turn in rows if turn.role == "user"]
+    correspondent_lines = [turn.text or "" for turn in rows if turn.role == "assistant"]
+    return courrier.progress_read_with_thread(
+        objectives=mission.objectives or [],
+        progress_by_id=progress_by_id,
+        todo_by_language=todo_by_language,
+        learner_lines=learner_lines,
+        correspondent_lines=correspondent_lines,
+        language=_mission_chrome_language(mission),
+    )
+
+
 class MissionDebriefService:
     """Build a human-readable completion debrief from mission traces."""
 
@@ -5227,6 +5264,10 @@ class MissionDebriefService:
         # scored a whole conversation on its closing "Oui." and reported 0%
         # task fit for a mission the learner had actually completed.
         progress_by_id = self._merged_objective_progress(attempts=attempts, turns=turns)
+        # #1080 / #922: the To do is what the thread established, not one message's grade.
+        progress_by_id, todo_open = todo_progress_from_thread(
+            mission, progress_by_id, attempts=attempts, turns=turns
+        )
         objectives = mission.objectives or []
         objective_results = [
             {
@@ -5243,13 +5284,15 @@ class MissionDebriefService:
             }
             for item in objectives
         ]
-        scored_objectives = [item for item in objectives if item.get("required")] or objectives
+        # #1080: the same objectives the verdict reads. A suggested word is not a goal:
+        # «goals met 0/1» for the word chip «rue» was a count of nothing the To do asked.
+        scored_objectives = courrier.scored_objectives(objectives)
         met_required = sum(
             1
             for item in scored_objectives
             if progress_by_id.get(str(item.get("id")), {}).get("met")
         )
-        required_total = max(1, len(scored_objectives))
+        required_total = len(scored_objectives)
         # WP-64 — honest numbers only. What the debrief used to print as
         # "readiness" was four figures, three of which were formulas over word
         # count and mistake count: `naturalness = 55 + words * 0.45` told a learner
@@ -5275,6 +5318,9 @@ class MissionDebriefService:
             "replies": len(turns),
             "words_written": self._word_total(attempts, turns),
         }
+        if todo_open:
+            # #922: the part of the To do the reply contradicted, as the learner was shown it.
+            measured["todo_open"] = todo_open
         label = self._outcome_label(outcome=courrier_outcome, errata_count=errata_count, turns=len(turns))
         # WP-74 — the grader never looked: say so instead of «partly settled».
         unassessed = bool(scored_objectives) and all(
@@ -7835,7 +7881,12 @@ class MissionConversationService:
         legacy = verdict_ledger.counting(self.db, [*(attempts or []), *(turns or [])])
         outcome = courrier.outcome_from_objectives(
             objectives=mission.objectives or [],
-            progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
+            progress_by_id=todo_progress_from_thread(
+                mission,
+                {str(item.get("id")): item for item in progress if item.get("id")},
+                attempts=attempts,
+                turns=turns,
+            )[0],
             had_submission=bool(attempts or turns),
             reply_pending=bool(unanswered_user_turns(turns, cut=legacy))
             or bool(unchecked_messages(attempts, turns, cut=legacy)),
@@ -7949,7 +8000,12 @@ class MissionConversationService:
         # ended on a statement rather than a question could not advance the story.
         letter_outcome = courrier.outcome_from_objectives(
             objectives=mission.objectives or [],
-            progress_by_id={str(item.get("id")): item for item in progress if item.get("id")},
+            progress_by_id=todo_progress_from_thread(
+                mission,
+                {str(item.get("id")): item for item in progress if item.get("id")},
+                attempts=list(mission.attempts or []),
+                turns=list(mission.turns or []),
+            )[0],
             had_submission=bool(progress),
         )
         ready = bool(progress) and letter_outcome == "kept"

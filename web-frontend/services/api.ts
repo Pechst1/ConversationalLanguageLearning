@@ -1614,6 +1614,8 @@ export interface MissionMeasured {
   reply_pending?: boolean;
   /** #333: a message of this letter was never read. */
   unchecked?: boolean;
+  /** #922: the part of the To do the reply contradicted, per language (`fr` always). */
+  todo_open?: Partial<Record<string, string>> | null;
 }
 
 export interface RealWorldMission {

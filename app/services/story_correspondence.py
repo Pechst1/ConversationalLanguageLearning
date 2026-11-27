@@ -466,7 +466,7 @@ def outcome_from_objectives(
     # communicative verdict. Using it does not lift a letter, leaving it out does
     # not lower one — so two otherwise equal letters get the same word here.
     communicative = [item for item in objectives if not _is_vocabulary_objective(item)]
-    scored = [item for item in objectives if item.get("required")] or communicative or objectives
+    scored = scored_objectives(objectives)
     if not scored:
         return "partial"
     # WP-74 — the grader was down: nothing was measured, so the letter moves the
@@ -491,6 +491,22 @@ def outcome_from_objectives(
     if met or optional_met:
         return "partial"
     return "missed"
+
+
+def scored_objectives(objectives: Sequence[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """The objectives a letter's word and its «goals met» count are read from.
+
+    One rule, read by `outcome_from_objectives` and by the debrief's count (#1080):
+    the required objectives, else the communicative ones. A suggested word is never
+    among them: it is not named in the To do, so it can neither lift a letter nor
+    hold one at «Partly», and it is never printed as «goals met 0/1». The debrief
+    used to fall back to *every* objective, word chips included, and this function
+    to the word chips when nothing else was left.
+    """
+
+    items = [item for item in (objectives or []) if isinstance(item, dict)]
+    required = [item for item in items if item.get("required")]
+    return required or [item for item in items if not _is_vocabulary_objective(item)]
 
 
 def _is_vocabulary_objective(objective: dict[str, Any]) -> bool:
@@ -569,6 +585,366 @@ def _promise_overlap(left: str, right: str) -> float:
     if not left_words or not right_words:
         return 0.0
     return len(left_words & right_words) / float(min(len(left_words), len(right_words)))
+
+
+# ---------------------------------------------------------------------------
+# The To do, read off the thread (#1080, #922)
+# ---------------------------------------------------------------------------
+#
+# The corrector reads one learner message at a time and says whether the To do
+# was met. It never sees the correspondent's lines, so an agent who confirmed
+# «demain matin» and «une place près de la fenêtre» left the letter at «Partly»
+# (#1080); and it took «Non, je n’ai pas la serviette» for a letter that did what
+# «Zoé sait que tu as la serviette» asked (#922). This reading is deterministic and
+# runs on the whole thread: an item of the To do is *established* when the learner
+# said it and the correspondent confirmed it in a statement of its own, and
+# *contradicted* when the learner's last word on a stated fact negates it.
+
+#: «L'agent sait que …», «Zoé knows …», «Nadia weiß, dass …»: the lead before the items.
+_TODO_LEAD = re.compile(
+    r"^.*?\b(?:sait|savent|saura|conna[iî]t|comprend|comprennent|knows|know|understands|"
+    r"wei[ßs]|wissen|versteht|kennt)\b,?\s+(?:that\s+|dass\s+)?",
+    re.IGNORECASE,
+)
+_TODO_ITEM_SPLIT = re.compile(r"\s*(?:,\s*(?:et|and|und)\b|\bet\b|\band\b|\bund\b|[,;])\s*", re.IGNORECASE)
+#: An item that opens on one of these asks a question («si tu pars samedi», «quand tu
+#: passes», «ce que tu en penses»): any answer settles it, a «non» included.
+_TODO_QUESTION_OPENERS = frozenset(
+    {"si", "s", "quand", "ou", "quel", "quelle", "quels", "quelles", "ce", "comment", "pourquoi",
+     "combien", "de", "d", "qui", "quoi"}
+)
+_TODO_STOPWORDS = frozenset(
+    {"sait", "savent", "saura", "connait", "comprend", "pour", "avec", "dans", "sans", "chez", "elle",
+     "elles", "nous", "vous", "leur", "leurs", "veux", "veut", "voulez", "voulons", "vouloir", "avoir",
+     "etre", "sont", "etait", "cela", "ceci", "cette", "celui", "celle", "aussi", "bien", "tres",
+     "plus", "moins", "fait", "faire", "fais", "peut", "peux", "pouvez", "pouvoir", "tout", "tous",
+     "toute", "toutes", "votre", "notre", "autre", "ensuite", "apres", "avant", "quelque", "chose",
+     "alors", "donc", "mais", "encore", "comme", "quel", "quelle", "quels", "quelles", "quand",
+     "comment", "pourquoi", "combien", "quoi"}
+)
+_SENTENCE = re.compile(r"[^.!?…]+[.!?…]*")
+_CLAUSE_SPLIT = re.compile(r"[,;:]|\bmais\b", re.IGNORECASE)
+
+
+def _todo_split(text: str) -> list[str]:
+    body = _TODO_LEAD.sub("", " ".join(str(text or "").split()), count=1)
+    return [part.strip(" .!?…") for part in _TODO_ITEM_SPLIT.split(body) if part.strip(" .!?…")]
+
+
+def _tokens(text: str) -> list[str]:
+    # «n’ai» with a typographic apostrophe must split like «n'ai», not fold to «nai».
+    return re.findall(r"[a-z]+", _folded(str(text or "").replace("’", "'").replace("‘", "'")))
+
+
+def _stems(tokens: Sequence[str]) -> set[str]:
+    return {word[:5] for word in tokens if len(word) >= 4 and word not in _TODO_STOPWORDS}
+
+
+def _negated(tokens: Sequence[str]) -> bool:
+    words = set(tokens)
+    if words & {"pas", "jamais", "aucun", "aucune"}:
+        return True
+    return bool(words & {"ne", "n"}) and bool(words & {"plus", "rien", "personne"})
+
+
+#: Subject and object pronouns read past to reach an item's verb («que tu la gardes»).
+_TODO_PRONOUNS = frozenset(
+    {"je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ne", "n", "le", "la", "l",
+     "les", "lui", "leur", "en", "y", "me", "m", "te", "t", "se", "s"}
+)
+#: Read past between a negation and the word it bears on («pas *de* place», «pas *la* serviette»).
+_TODO_DETERMINERS = frozenset(
+    {"de", "d", "du", "des", "la", "le", "les", "l", "un", "une", "ma", "ta", "sa", "mon", "ton", "son",
+     "mes", "tes", "ses", "votre", "vos", "notre", "nos", "leur", "leurs", "ce", "cet", "cette", "ces"}
+)
+#: The irregular forms a To do's verb and a learner's reply most often take, by lemma.
+_VERB_LEMMAS: dict[str, str] = {
+    **dict.fromkeys(
+        ("ai", "as", "a", "avons", "avez", "ont", "avais", "avait", "aurai", "auras", "aurais", "avoir"), "avoir"
+    ),
+    **dict.fromkeys(
+        ("suis", "es", "est", "sommes", "etes", "sont", "etais", "etait", "serai", "seras", "etre"), "etre"
+    ),
+    **dict.fromkeys(
+        ("veux", "veut", "voulons", "voulez", "veulent", "voudrais", "voudrait", "voudrions", "voudriez",
+         "vouloir"),
+        "vouloir",
+    ),
+    **dict.fromkeys(
+        ("peux", "peut", "pouvons", "pouvez", "peuvent", "pourrais", "pourrait", "pouvoir"), "pouvoir"
+    ),
+    **dict.fromkeys(("vais", "vas", "va", "allons", "allez", "vont", "irai", "iras", "aller"), "aller"),
+    **dict.fromkeys(("viens", "vient", "venons", "venez", "viennent", "viendrai", "viendras", "venir"), "venir"),
+    **dict.fromkeys(("fais", "fait", "faisons", "faites", "font", "ferai", "feras", "faire"), "faire"),
+    **dict.fromkeys(("prends", "prend", "prenons", "prenez", "prennent", "prendrai", "prendre"), "prendre"),
+    **dict.fromkeys(("dois", "doit", "devons", "devez", "doivent", "devrais", "devoir"), "devoir"),
+}
+_NEGATION_PARTICLES = frozenset({"pas", "jamais", "point", "aucun", "aucune"})
+
+
+def _verb_lemma(token: str) -> str:
+    return _VERB_LEMMAS.get(token) or (token[:4] if len(token) >= 4 else token)
+
+
+def _todo_predicate(tokens: Sequence[str]) -> tuple[str, str, set[str]] | None:
+    """(verb lemma, head of the object, the object's stems) of one stated To do item.
+
+    «que tu as la serviette pour elle» -> ("avoir", "servi", {"servi"});
+    «que tu veux partir demain» -> ("vouloir", "parti", {"parti", "demai"}).
+    """
+
+    rest = list(tokens)
+    while rest and rest[0] in {"que", "qu"}:
+        rest = rest[1:]
+    while rest and rest[0] in _TODO_PRONOUNS:
+        rest = rest[1:]
+    if len(rest) < 2:
+        return None
+    verb, obj = rest[0], rest[1:]
+    while obj and obj[0] in _TODO_DETERMINERS:
+        obj = obj[1:]
+    stems = _stems(obj)
+    if not obj or not stems:
+        return None
+    return _verb_lemma(verb), obj[0][:5], stems
+
+
+def _negates_predicate(tokens: Sequence[str], predicate: tuple[str, str, set[str]] | None) -> bool:
+    """The clause negates the item's own verb *and* object: «je n’ai pas la serviette».
+
+    The negation must sit on the item's verb (a form of it among the few words
+    before «pas»), and the first word after it must be the item's object, with
+    every word of the object there. So «je n’ai pas *oublié* la serviette», «je
+    n’oublie pas ta serviette», «pas de place côté *couloir*» and «demain je ne
+    *travaille* pas» negate nothing the To do states (review of #1093).
+    """
+
+    if predicate is None:
+        return False
+    verb, head, stems = predicate
+    words = list(tokens)
+    for index, word in enumerate(words):
+        particle = word in _NEGATION_PARTICLES or (
+            word in {"plus", "rien"} and bool({"ne", "n"} & set(words[:index]))
+        )
+        if not particle:
+            continue
+        if not any(_verb_lemma(before) == verb for before in words[max(0, index - 4) : index]):
+            continue
+        after = words[index + 1 :]
+        while after and after[0] in _TODO_DETERMINERS:
+            after = after[1:]
+        if after and after[0][:5] == head and stems <= _stems(after):
+            return True
+    return False
+
+
+def _clauses(lines: Sequence[str]) -> list[tuple[bool, list[str]]]:
+    """(in a question, tokens) for every clause of every line, in order."""
+
+    rows: list[tuple[bool, list[str]]] = []
+    for line in lines:
+        for sentence in _SENTENCE.findall(str(line or "")):
+            question = sentence.rstrip().endswith("?")
+            for clause in _CLAUSE_SPLIT.split(sentence):
+                tokens = _tokens(clause)
+                if tokens:
+                    rows.append((question, tokens))
+    return rows
+
+
+#: A correspondent's line that refuses, with or without a «pas»: «Désolé, les trains
+#: sont complets», «c'est impossible», «les places sont prises / réservées».
+_REFUSAL_WORDS = frozenset(
+    {"desole", "desolee", "desoles", "desolees", "malheureusement", "helas", "impossible", "complet",
+     "complets", "complete", "completes", "pris", "prise", "prises", "reserves", "reservees", "plein",
+     "pleine", "pleins", "pleines", "indisponible", "indisponibles", "occupe", "occupee", "occupes",
+     "occupees", "refuse", "refusee", "annule", "annulee"}
+)
+#: «pas de problème» is a yes: read past it before looking for a «pas».
+_NOT_A_REFUSAL = re.compile(r"\b(?:pas|sans) de (?:probleme|souci)s?\b")
+#: The correspondent grants: «Oui», «D'accord», «Parfait», «je vous réserve …», «c'est noté».
+_GRANT = re.compile(
+    r"\b(?:oui|parfait|entendu|d accord|volontiers|ok|okay|voila|voici|bien sur|tres bien|"
+    r"avec plaisir|c est note|je note|c est fait|c est reserve|c est confirme|je confirme|"
+    r"je (?:vous |te )?(?:reserve|mets|donne|garde)|je vais (?:vous |te )?(?:reserver|mettre|garder)|"
+    r"(?:pas|sans) de (?:probleme|souci)s?)\b"
+)
+#: A clause that restates the wish («vous voulez partir demain», «je comprends que …»)
+#: repeats it back; it does not grant it.
+_RESTATEMENT = re.compile(
+    r"\b(?:vous voulez|vous voudriez|vous souhaitez|vous aimeriez|vous demandez|tu veux|tu voudrais|"
+    r"tu souhaites|tu aimerais|tu demandes|je comprends|comprends que)\b"
+)
+
+
+def _correspondent_lines_read(
+    lines: Sequence[str],
+) -> list[tuple[bool, bool, list[tuple[bool, bool, set[str]]]]]:
+    """(refuses, grants, [(question, restatement, stems) per clause]) for every line."""
+
+    rows: list[tuple[bool, bool, list[tuple[bool, bool, set[str]]]]] = []
+    for line in lines:
+        folded = " ".join(_tokens(line))
+        refuses = bool(_REFUSAL_WORDS & set(folded.split())) or _negated(_NOT_A_REFUSAL.sub(" ", folded).split())
+        grants = bool(_GRANT.search(folded))
+        clauses: list[tuple[bool, bool, set[str]]] = []
+        for sentence in _SENTENCE.findall(str(line or "")):
+            # A restatement colours its whole sentence: «vous voulez partir demain, une place …».
+            restatement = bool(_RESTATEMENT.search(" ".join(_tokens(sentence))))
+            clauses += [(question, restatement, _stems(tokens)) for question, tokens in _clauses([sentence])]
+        rows.append((refuses, grants, clauses))
+    return rows
+
+
+def todo_items(todo_fr: str) -> list[dict[str, Any]]:
+    """The French To do as items: their text, whether each states a fact, their stems."""
+
+    items: list[dict[str, Any]] = []
+    lead_fact: bool | None = None
+    for part in _todo_split(todo_fr):
+        tokens = _tokens(part)
+        if not tokens:
+            continue
+        if tokens[0] in {"que", "qu"}:
+            fact = True
+        elif tokens[0] in _TODO_QUESTION_OPENERS:
+            fact = False
+        else:
+            fact = bool(lead_fact)
+        if lead_fact is None:
+            lead_fact = fact
+        items.append(
+            {
+                "text": part,
+                "fact": fact,
+                "stems": _stems(tokens),
+                "predicate": _todo_predicate(tokens) if fact else None,
+            }
+        )
+    return items
+
+
+def read_todo_in_thread(
+    todo_fr: str,
+    *,
+    learner_lines: Sequence[str],
+    correspondent_lines: Sequence[str],
+) -> dict[str, Any]:
+    """Which items of the To do the thread established or contradicted.
+
+    * **contradicted**: the item states a fact («que tu as la serviette») and the
+      learner's last word on it negates that fact's own verb and object («je n’ai
+      pas la serviette»), not some other verb of the clause («je n’ai pas oublié
+      la serviette»). An item that asks («si tu pars samedi») is never
+      contradicted by an answer.
+    * **established**: the learner said it, and the correspondent's last word on
+      it grants it: a line with a yes («Oui», «Parfait», «je vous réserve …») and
+      no refusal anywhere in it («désolé», «complets», «impossible», «prises», a
+      negation), in a statement carrying at least half the item's own words that
+      does not merely repeat the wish back («vous voulez partir demain»).
+    """
+
+    items = todo_items(todo_fr)
+    learner = _clauses(learner_lines)
+    correspondent = _correspondent_lines_read(correspondent_lines)
+    established: list[int] = []
+    contradicted: list[int] = []
+    for index, item in enumerate(items):
+        stems: set[str] = item["stems"]
+        if not stems:
+            continue
+        learner_negates: bool | None = None
+        for _question, tokens in learner:
+            if stems & _stems(tokens):
+                learner_negates = _negates_predicate(tokens, item["predicate"])
+        if item["fact"] and learner_negates is True:
+            contradicted.append(index)
+            continue
+        if learner_negates is not False:
+            continue
+        need = max(1, (len(stems) + 1) // 2)
+        granted = False
+        for refuses, grants, clauses in correspondent:
+            if refuses and any(stems & clause for _question, _restatement, clause in clauses):
+                granted = False
+            elif grants and any(
+                not question and not restatement and len(stems & clause) >= need
+                for question, restatement, clause in clauses
+            ):
+                granted = True
+        if granted:
+            established.append(index)
+    return {
+        "items": [item["text"] for item in items],
+        "established": established,
+        "contradicted": contradicted,
+        "all_established": bool(items) and len(established) == len(items),
+    }
+
+
+def _todo_item_shown(todo_by_language: dict[str, str], index: int, count: int) -> dict[str, str]:
+    """Item ``index`` of the To do in every language whose text splits the same way."""
+
+    shown: dict[str, str] = {}
+    for language, text in (todo_by_language or {}).items():
+        parts = _todo_split(text)
+        if len(parts) == count and parts[index]:
+            shown[str(language)] = parts[index]
+    return shown
+
+
+def progress_read_with_thread(
+    *,
+    objectives: Sequence[dict[str, Any]] | None,
+    progress_by_id: dict[str, dict[str, Any]],
+    todo_by_language: dict[str, str] | None,
+    learner_lines: Sequence[str],
+    correspondent_lines: Sequence[str],
+    language: Any = None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, str] | None]:
+    """The corrector's per-objective flags, with the To do read off the whole thread.
+
+    Returns the flags and, when the learner contradicted part of the To do, that
+    part in every language it is shown in (the seal's «still open» line). Only the
+    To do objective (``real_world_task``) moves: a contradiction makes it *partly*
+    met whatever one message's grade said (#922); a thread that established every
+    item makes it met though no single message did (#1080).
+    """
+
+    todo = next(
+        (
+            item
+            for item in objectives or []
+            if isinstance(item, dict) and item.get("required") and str(item.get("id")) == "real_world_task"
+        ),
+        None,
+    )
+    todo_fr = str((todo_by_language or {}).get("fr") or "").strip()
+    if todo is None or not todo_fr:
+        return progress_by_id, None
+    reading = read_todo_in_thread(todo_fr, learner_lines=learner_lines, correspondent_lines=correspondent_lines)
+    key = str(todo["id"])
+    current = dict(progress_by_id.get(key) or {"id": key, "label": todo.get("label")})
+    if reading["contradicted"]:
+        from app.services.learner_copy import copy_language
+
+        index = reading["contradicted"][0]
+        shown = {"fr": reading["items"][index]}
+        shown.update(_todo_item_shown(todo_by_language or {}, index, len(reading["items"])))
+        item = shown.get(copy_language(language)) or shown["fr"]
+        current.update(
+            met=False,
+            partly=True,
+            assessed=True,
+            note=learner_note_with("mission.todo_contradicted", language, item=item),
+        )
+        return {**progress_by_id, key: current}, shown
+    if reading["all_established"] and not current.get("met"):
+        current.update(met=True, assessed=True, note=learner_note("mission.todo_confirmed", language))
+        current.pop("partly", None)
+        return {**progress_by_id, key: current}, None
+    return progress_by_id, None
 
 
 # ---------------------------------------------------------------------------
@@ -1739,8 +2115,11 @@ __all__ = [
     "outcome_from_objectives",
     "pending_chain_step",
     "plan_chain",
+    "progress_read_with_thread",
     "promises_in",
+    "read_todo_in_thread",
     "record_letter",
+    "scored_objectives",
     "seeded_order",
     "slug",
     "story_letter_candidate",
@@ -1748,5 +2127,6 @@ __all__ = [
     "learner_register",
     "summarise_letter",
     "thread_history",
+    "todo_items",
     "weighted_pick",
 ]

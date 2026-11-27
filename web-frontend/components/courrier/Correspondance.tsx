@@ -135,7 +135,21 @@ export type CrMeasured = {
   reply_pending?: boolean;
   /** #333 — a message of this letter was never read. */
   unchecked?: boolean;
+  /** #922 — the part of the To do the reply contradicted, per language (`fr` always). */
+  todo_open?: Partial<Record<string, string>> | null;
 };
+
+/** #922: the To do item a reply contradicted, in the chrome language when the
+ *  letter carries it there, else in the letter's French. */
+export function crTodoOpen(
+  measured: { todo_open?: Partial<Record<string, string>> | null } | null | undefined,
+  language: unknown = 'fr',
+): string | null {
+  const open = measured?.todo_open;
+  if (!open) return null;
+  const lang = courrierCopy(language).lang;
+  return String(open[lang] || open.fr || '').trim() || null;
+}
 
 /* ---------- the word for an outcome ----------
    Four words for four states. `kept` is the only one that celebrates; the other
@@ -172,7 +186,7 @@ export function crOutcomeSentence(
   outcome: CrLetterOutcome | null | undefined,
   name?: string | null,
   language: unknown = 'fr',
-  options: { unanswered?: boolean; unchecked?: boolean } = {},
+  options: { unanswered?: boolean; unchecked?: boolean; open?: string | null } = {},
 ): string | null {
   const t = courrierCopy(language);
   const who = String(name || '').trim();
@@ -182,7 +196,8 @@ export function crOutcomeSentence(
     case 'kept':
       return who ? crFill(t.sentence_kept_named, { name: who }) : t.sentence_kept;
     case 'partial':
-      return t.sentence_partial;
+      // #922: name the part of the To do the reply contradicted.
+      return options.open ? crFill(t.sentence_partial_open, { item: options.open }) : t.sentence_partial;
     case 'missed':
       return t.sentence_missed;
     case 'ignored':
@@ -442,7 +457,7 @@ export function CrDebrief({
   const mood = after || String(correspondent?.mood_line || '').trim();
   const story = String(storySummary || '').trim();
   if (!label && rows.length === 0 && !story && !mood) return null;
-  const sentence = crOutcomeSentence(outcome, name, t.lang, held);
+  const sentence = crOutcomeSentence(outcome, name, t.lang, { ...held, open: crTodoOpen(measured, t.lang) });
   return (
     <section className="cr-debrief" aria-label={t.debrief_aria}>
       <CourrierCorrespondanceStyles />

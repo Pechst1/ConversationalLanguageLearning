@@ -1012,6 +1012,17 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Diesmal nicht geübt; das zählt nicht gegen dich.",
         "fr": "Pas pratiqué cette fois ; rien n’est compté contre toi.",
     },
+    # #922 / #1080: the To do, read off the whole thread rather than one message.
+    "mission.todo_contradicted": {
+        "en": "Still open: “{item}”. Your reply said otherwise.",
+        "de": "Noch offen: „{item}“. Deine Antwort sagte etwas anderes.",
+        "fr": "Reste ouvert : « {item} ». Ta réponse disait le contraire.",
+    },
+    "mission.todo_confirmed": {
+        "en": "Your correspondent confirmed everything the To do asked for.",
+        "de": "Dein Gegenüber hat alles bestätigt, worum die Aufgabe bat.",
+        "fr": "Ton correspondant a confirmé tout ce que la tâche demandait.",
+    },
     "mission.vocabulary_translation_why": {
         "en": "You wrote the meaning (“{meaning}”) rather than the French word “{word}”.",
         "de": "Du hast die Bedeutung („{meaning}“) geschrieben statt des französischen Worts „{word}“.",
