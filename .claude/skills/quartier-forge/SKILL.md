@@ -344,7 +344,10 @@ the steps above with these differences.
      caption; `size` [width, height], a photo every 0.2 by 0.24 m: `polaroidWall()` gives the
      layout), `replycard` (a correspondence card stood on its edge and leaned back against
      something, a till's front: `text` its lines in a neat ink hand, the last the signature; `at`
-     its foot on the counter; the till's place is `TILL` in `mistral.ts`);
+     its foot on the counter; the till's place is `TILL` in `mistral.ts`), `oilsketch` (a small
+     canvas on its stretcher, no frame, stood on a shelf and leaned back against the bottles, face
+     to the room: Lila's quick oil of the burnt omelette in its black pan and the smoke going up;
+     no `text`; `at` its foot, `size` [w, h], 40 by 32 cm; the shelves are `SHELVES` in `mistral.ts`);
      a room's cards share one sign atlas (2048 px square): keep what they ask under about 0.6 of
      it, or the last ones print blank; in a
      street, `intercom` (a plate on the wall by a door, `text` its names from the top floor down,
@@ -440,7 +443,10 @@ One a run, in this order:
   (`dessin_maitresse`), and the learner's navy coat on a hook in the corner by the zinc's
   north end, under a daytime Polaroid of Odile captioned «Odile, au Mistral» (`manteau_mistral`),
   and Odile's wall: some sixty Polaroids between the two posters above the booth, the burnt one
-  alone in the gap over the sconce (`mur_odile`).
+  alone in the gap over the sconce (`mur_odile`), and Lila's small oil of the burnt omelette,
+  smoke and all, stood on the lower shelf and leaned back against the bottles behind the zinc,
+  its back with Odile's name to them (`tableau_omelette`; the shelves are `SHELVES` in
+  `mistral.ts`).
 - **The plan's ladder** (`docs/story/season-1/09-entre-les-episodes.md` and the episodes): the
   learner's usual cup on the zinc after «La même chose ?» (done), M. Marchand's reply «J'y serai.
   M.» propped against the till once he was invited (`s1.marchand_invited`, `carte_marchand`,
