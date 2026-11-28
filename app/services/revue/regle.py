@@ -271,6 +271,9 @@ def vet(marks: Sequence[dict[str, Any]], *, learner_fr: str, target_fr: str, lan
         return _fallback(learner_fr, language=language, shape=shape)
     dropped = {int(m.get("start") or 0) for m in marks} - {int(m.get("start") or 0) for m in kept}
     pairs = _pairs(learner_fr, target_fr)
+    # A rebuilt sentence keeps the learner's words where a mark was dropped; a slip the
+    # model-free checks know there is still corrected and marked, so «corrigé» is never
+    # printed over a sentence known to be wrong (real-model run 2026-11-22).
     if pairs:  # only the sentences a dropped mark was in are rebuilt; the others stay Romy's
         parts = []
         for offset, mine, theirs in pairs:
@@ -278,15 +281,45 @@ def vet(marks: Sequence[dict[str, Any]], *, learner_fr: str, target_fr: str, lan
                 parts.append(theirs)
                 continue
             edits = [(s - offset, a, b) for s, a, b in (m["_edit"] for m in kept) if offset <= s < offset + len(mine)]
+            known = _known_slips(mine, edits, language=language)
+            kept += [{**mark, "start": offset + mark["start"]} for mark in known]
+            edits += [(m["start"], m["span_fr"], m["_fix"]) for m in known]
             parts.append(" " + _apply(mine, edits))
         target = shape("".join(parts).strip())
     else:
-        target = shape(_apply(learner_fr, [m["_edit"] for m in kept]))
+        edits = [m["_edit"] for m in kept]
+        known = _known_slips(learner_fr, edits, language=language)
+        kept += known
+        target = shape(_apply(learner_fr, [*edits, *((m["start"], m["span_fr"], m["_fix"]) for m in known)]))
+    kept.sort(key=lambda m: int(m.get("start") or 0))
     return target, [_without_edit(m) for m in kept]
 
 
+def _known_slips(text: str, edits: Sequence[tuple[int, str, str]], *, language: str | None) -> list[dict[str, Any]]:
+    """The model-free edits (``correction_contract.deterministic_edits``) in ``text`` that no
+    kept edit already covers, as marks (``start`` in ``text``; ``_fix`` its replacement)."""
+
+    from app.services.correction_contract import deterministic_edits
+    from app.services.revue.comptoir_loop import _mark_kind
+
+    taken = [(start, start + len(span)) for start, span, _ in edits]
+    out: list[dict[str, Any]] = []
+    for edit in deterministic_edits(text):
+        at = edit.start if text[edit.start:edit.start + len(edit.span)] == edit.span else text.find(edit.span)
+        if at < 0 or not edit.replacement or any(at < b and a < at + len(edit.span) for a, b in taken):
+            continue
+        taken.append((at, at + len(edit.span)))
+        mark: dict[str, Any] = {"span_fr": edit.span, "start": at, "_fix": edit.replacement,
+                                "kind": _mark_kind(_WORD.findall(edit.span), _WORD.findall(edit.replacement))}
+        note = edit.note_for(language)
+        if note:
+            mark["why_full"] = note
+        out.append(mark)
+    return out
+
+
 def _without_edit(mark: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in mark.items() if key != "_edit"}
+    return {key: value for key, value in mark.items() if key not in {"_edit", "_fix"}}
 
 
 def _fallback(learner_fr: str, *, language: str | None, shape: Callable[[str], str]) -> tuple[str, list[dict[str, Any]]]:
@@ -340,9 +373,40 @@ KIND_CONCEPTS: dict[str, tuple[str, ...]] = {
 
 
 def _hits(patterns: list[str], text: str, start: int, end: int) -> bool:
+    return _reach(patterns, text, start, end) > 0
+
+
+def _reach(patterns: list[str], text: str, start: int, end: int) -> int:
+    """How much of ``text`` the detector's longest match over ``start``–``end`` takes (0: none).
+    A longer match is a more specific unit: «j'ai acheté» (passé composé) over «j'ai» (avoir)."""
+
     from app.services.grammar_units import detector_spans
 
-    return any(a < end and start < b for a, b in detector_spans(patterns, text))
+    return max((b - a for a, b in detector_spans(patterns, text) if a < end and start < b), default=0)
+
+
+#: «à le» → «au», «de les» → «des»: a contraction, whatever else the corrected form looks like.
+_CONTRACTIONS = {("à", "le"): "au", ("à", "les"): "aux", ("de", "le"): "du", ("de", "les"): "des"}
+
+
+def is_elision(span: str, fix: str) -> bool:
+    """«je ai» → «j'ai», «que un» → «qu'un», «la utiliser» → «l'utiliser», «si il» → «s'il»:
+    the same words with a vowel elided (spelling, never the verb or the article's rule)."""
+
+    def words(text: str) -> list[str]:
+        return " ".join(text.replace("’", "'").casefold().split()).split(" ")
+
+    mine, theirs = words(span), words(fix)
+    if "'" not in " ".join(theirs) or "'" in " ".join(mine):
+        return False
+    expanded: list[list[str]] = [[]]
+    for word in theirs:
+        if "'" in word:
+            head, _, tail = word.partition("'")
+            expanded = [e + [head + v, tail] for e in expanded for v in ("e", "a", "i")]
+        else:
+            expanded = [e + [word] for e in expanded]
+    return any(e == mine for e in expanded)
 
 
 def concept_for(sentence: str, span: str, fix: str, *, kind: str, rule: str | None, rules: dict | None,
@@ -361,8 +425,8 @@ def concept_for(sentence: str, span: str, fix: str, *, kind: str, rule: str | No
     from app.services.grammar_units import _v2_rows_by_external_id, regex_patterns
 
     at = sentence.find(span) if span else -1
-    if at < 0 or not fix:
-        return None
+    if at < 0 or not fix or is_elision(span, fix):
+        return None  # an elision is spelling: never «Avoir» for «je ai» → «j'ai» (run of 2026-11-22)
     today, recent = day_rules.rule_ids(rules)
     entries = {str(e.get("id")): e for e in [(rules or {}).get("today"), *((rules or {}).get("recent") or [])]
                if isinstance(e, dict) and e.get("id")}
@@ -378,28 +442,38 @@ def concept_for(sentence: str, span: str, fix: str, *, kind: str, rule: str | No
         statement = day_rules.rule_statement(rules, rule_id, text=sentence, span=span, corrected=fix)
         if statement:
             return found(rule_id, str(entries[rule_id].get("name") or ""), statement)
-    fixed = sentence[:at] + fix + sentence[at + len(span):]
     rows = _v2_rows_by_external_id()
+
+    def named(concept_id: str) -> dict[str, Any]:
+        names = rows[concept_id].get("syllabus", {}).get("names") or {}
+        entry = entries.get(concept_id) or {}
+        name = str(entry.get("name") or names.get(language) or names.get("en") or rows[concept_id].get("name") or "")
+        return found(concept_id, name, str(entry.get("rule") or "") or None)
+
+    pair = tuple(" ".join(span.casefold().split()).split(" "))
+    if _CONTRACTIONS.get(pair) == fix.strip().casefold() and "FR2_A11_CONTRACTIONS" in rows:  # type: ignore[call-overload]
+        return named("FR2_A11_CONTRACTIONS")  # «de les» → «des» is «des» = de + les, not «un, une, des»
+    fixed = sentence[:at] + fix + sentence[at + len(span):]
     mine = list(dict.fromkeys([*RULE_CONCEPTS.get(rule or "", ()), *KIND_CONCEPTS.get(kind, ())]))
     others = [c for c in dict.fromkeys(c for ids in KIND_CONCEPTS.values() for c in ids) if c not in mine]
     brought: list[str] = []
     there: list[str] = []
     elsewhere: list[str] = []  # another kind's unit, only when the correction brought its form in
+    reach: dict[str, int] = {}
     for concept_id in [*mine, *others]:
         row = rows.get(concept_id)
         patterns = regex_patterns([(row or {}).get("syllabus", {}).get("detector") or {}])
-        if not patterns or not _hits(patterns, fixed, at, at + len(fix)):
+        reach[concept_id] = _reach(patterns, fixed, at, at + len(fix)) if patterns else 0
+        if not reach[concept_id]:
             continue
         new = not _hits(patterns, sentence, at, at + len(span))
         if concept_id in mine:
             (brought if new else there).append(concept_id)
         elif new:
             elsewhere.append(concept_id)
-    for concept_id in [*brought, *there, *elsewhere]:
-        names = rows[concept_id].get("syllabus", {}).get("names") or {}
-        entry = entries.get(concept_id) or {}
-        name = str(entry.get("name") or names.get(language) or names.get("en") or rows[concept_id].get("name") or "")
-        return found(concept_id, name, str(entry.get("rule") or "") or None)
+    for bucket in (brought, there, elsewhere):
+        if bucket:  # the specific unit before the general one: «j'ai acheté» before «j'ai»
+            return named(sorted(bucket, key=lambda c: -reach[c])[0])
     return None
 
 

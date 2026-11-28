@@ -274,11 +274,15 @@ def _ct(text: ComptoirText | None, language: str) -> RvComptoirText:
     return RvComptoirText(fr=text.fr, tr=text.translation(language) if language != "fr" else None)
 
 
+#: «que» elides before these («parce qu'il», «qu'un»).
+_VOWEL_START = r"[aeiouyàâäéèêëîïôöûü]"
+
+
 def elide_parce_que(reason: str) -> str:
     """«parce que» + ``reason``, elided before a vowel («parce qu'il»)."""
 
     reason = reason.strip()
-    if re.match(r"[aeiouyàâäéèêëîïôöûü]", reason, flags=re.IGNORECASE):
+    if re.match(_VOWEL_START, reason, flags=re.IGNORECASE):
         return f"parce qu'{reason}"
     return f"parce que {reason}"
 
@@ -304,6 +308,10 @@ def a2_sentence(frame: str, text: str) -> str:
     frame = re.sub(r"\s+", " ", frame).strip()
     if _has_frame(text, frame):
         return _sentence_end(text)
+    if re.search(r"\bque$", frame, flags=re.IGNORECASE) and re.match(_VOWEL_START, text, flags=re.IGNORECASE):
+        # The desk's own words elide («parce qu'un prix»): Romy never marks the app's
+        # «parce que un» as the learner's slip (real-model run 2026-11-22, C-A2-G6).
+        return _sentence_end(f"{frame[:-1]}'{text}")
     return _sentence_end(f"{frame} {text}")
 
 
@@ -312,11 +320,16 @@ def _has_frame(text: str, frame: str) -> bool:
 
 
 def _without_frame(text: str, frame: str) -> str:
-    """``text`` without the A2 frame it starts with (the frame is the desk's, not the learner's)."""
+    """``text`` without the A2 frame it starts with (the frame is the desk's, not the learner's),
+    the frame's last «que» elided into the learner's first word or not («parce qu'un prix»)."""
 
     if not _has_frame(text, frame):
         return text
     words, frame_words = text.split(), len(frame.split())
+    last = words[frame_words - 1] if 0 < frame_words <= len(words) else ""
+    elided = re.match(r"qu['’](.+)", last, flags=re.IGNORECASE) if frame.split()[-1].casefold() == "que" else None
+    if elided:
+        return " ".join([elided.group(1), *words[frame_words:]])
     return " ".join(words[frame_words:])
 
 

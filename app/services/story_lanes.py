@@ -772,7 +772,7 @@ def _accepted_correction(
     it, on its own (P3: each of several the same as the one before)."""
 
     span, fixed, note = item.span_fr, engine._scrub_paren_gender(item.corrected_fr), item.note_native
-    if not fixed or (engine.gender_only_change(span, fixed) and not tense_change.changed_tenses(span, fixed)):
+    if not fixed or (engine.gender_only_change(span, fixed, text=text) and not tense_change.changed_tenses(span, fixed)):
         # «Je suis perdu» → «perdu(e)» (live read 2026-09-30): the learner's
         # gender is theirs to give; a gender-only "correction" is dropped. A verb whose
         # mood changes is not a gender (walk 2, day 4: «que tu me dis» → «dises»).
