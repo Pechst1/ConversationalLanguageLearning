@@ -366,6 +366,56 @@ def test_each_morning_writes_the_takes_once_per_row(db: Session) -> None:
     assert comptoir.ensure_comptoir(db, today, provider=_Desk([])) == [], "a skipped row is not asked again"
 
 
+def test_a_failed_desk_call_is_not_recorded_and_the_next_morning_asks_again(db: Session) -> None:
+    """15-20 Nov: a 401 from the provider marked every story ``comptoir:desk_failed`` for good."""
+
+    today = "2026-10-19"
+    row = _row(db, celine(id="2026-10-19-down"), today)
+    assert comptoir.ensure_comptoir(db, today, provider=_Desk([RuntimeError("401")])) == []
+    db.refresh(row)
+    assert "comptoir" not in (row.checks or {}), "a failed call is no refusal"
+    assert comptoir.ensure_comptoir(db, today, provider=_Desk([gold()])) == ["2026-10-19-down"]
+    db.refresh(row)
+    assert EditorialDossier.model_validate(row.payload).comptoir is not None
+
+
+def test_a_row_marked_desk_failed_by_the_old_code_is_asked_again(db: Session) -> None:
+    today = "2026-10-19"
+    morning = _row(db, celine(id="2026-10-19-morning"), today)
+    tapped = _row(db, celine(id="2026-10-19-tapped"), today)
+    for row in (morning, tapped):
+        row.checks = {"comptoir": "comptoir:desk_failed"}
+    db.commit()
+    desk = _Desk([gold(), gold()])
+    takes, _ = comptoir.takes_at_start(db, celine(id="2026-10-19-tapped"), today, provider=desk)
+    assert takes is not None, "the next session tap heals the row"
+    assert comptoir.ensure_comptoir(db, today, provider=desk) == ["2026-10-19-morning"], "the morning heals the rest"
+    db.refresh(morning), db.refresh(tapped)
+    assert morning.payload.get("comptoir") and tapped.payload.get("comptoir")
+    assert "comptoir" not in (morning.checks or {}) and "comptoir" not in (tapped.checks or {})
+
+
+@pytest.mark.parametrize("recorded", ["skip", "comptoir:intox_not_in_claims",
+                                      "comptoir:desk_failed,comptoir:intox_not_in_claims"])
+def test_a_real_refusal_stays_final(db: Session, recorded: str) -> None:
+    today = "2026-10-19"
+    row = _row(db, celine(id="2026-10-19-refused"), today)
+    row.checks = {"comptoir": recorded}
+    db.commit()
+    assert comptoir.ensure_comptoir(db, today, provider=_Desk([])) == []
+    assert comptoir.takes_at_start(db, celine(id="2026-10-19-refused"), today, provider=_Desk([])) == (None, 0.0)
+    db.refresh(row)
+    assert row.checks["comptoir"] == recorded
+
+
+def test_a_refusal_the_desk_answers_is_recorded(db: Session) -> None:
+    today = "2026-10-19"
+    row = _row(db, celine(id="2026-10-19-skip"), today)
+    assert comptoir.ensure_comptoir(db, today, provider=_Desk([{"fit": "skip"}])) == []
+    db.refresh(row)
+    assert row.checks["comptoir"] == "skip"
+
+
 def test_each_morning_writes_the_takes_after_the_leads_while_the_switch_is_on(monkeypatch) -> None:
     from app.config import settings
     from app.tasks import revue as task

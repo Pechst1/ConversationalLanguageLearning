@@ -977,17 +977,31 @@ def _kiosk_rows(db: Any, period: str) -> list[Any]:
     ))
 
 
+def refusal_recorded(checks: Any, key: str) -> bool:
+    """Whether ``checks[key]`` records a final answer (a refusal or ``"skip"``). A lone
+    ``"<key>:desk_failed"`` (written before 22 Nov when the provider call failed, e.g. the
+    401s of 15-20 Nov) is no answer: the row is asked again."""
+
+    value = (checks or {}).get(key)
+    return bool(value) and value != f"{key}:desk_failed"
+
+
+def _without(checks: Any, key: str) -> dict[str, Any]:
+    return {k: v for k, v in (checks or {}).items() if k != key}
+
+
 def ensure_comptoir(db: Any, period: str, *, provider: Any = None) -> list[str]:
     """Give every dossier in ``period``'s kiosk without takes a try at the takes desk, once
-    (``checks["comptoir"]`` records a refusal, or ``"skip"``, so the row is not asked again);
-    an evergreen reads the takes shipped with it. Returns the ids that got takes."""
+    (``checks["comptoir"]`` records a refusal, or ``"skip"``, so the row is not asked again;
+    a failed call is not recorded and is asked again tomorrow); an evergreen reads the takes
+    shipped with it. Returns the ids that got takes."""
 
     from app.services.revue.evergreen import evergreen_takes
 
     done: list[str] = []
     changed = False
     for row in _kiosk_rows(db, period):
-        if (row.payload or {}).get("comptoir") or (row.checks or {}).get("comptoir"):
+        if (row.payload or {}).get("comptoir") or refusal_recorded(row.checks, "comptoir"):
             continue
         try:
             dossier = EditorialDossier.model_validate(row.payload)
@@ -998,12 +1012,15 @@ def ensure_comptoir(db: Any, period: str, *, provider: Any = None) -> list[str]:
         problems: list[str] = []
         if takes is None:
             takes, problems = write_comptoir(dossier, provider)
+        if problems == ["comptoir:desk_failed"]:
+            continue  # asked again by the next session or tomorrow
         changed = True
         if takes is None:
             row.checks = {**(row.checks or {}), "comptoir": "skip" if problems == ["skip"] else ",".join(problems) or "refused"}
             logger.bind(dossier=dossier.id, problems=problems).info("revue comptoir: no takes; the story stays a chat")
             continue
         row.payload = {**row.payload, "comptoir": takes.model_dump(mode="json")}
+        row.checks = _without(row.checks, "comptoir")
         done.append(dossier.id)
     if changed:
         db.commit()
@@ -1039,7 +1056,7 @@ def takes_at_start(db: Any, dossier: EditorialDossier, period: str, *, provider:
         logger.debug("revue comptoir: kiosk rows unreadable ({})", exc)
         rows = []
     for row in rows:
-        if (row.checks or {}).get("comptoir"):
+        if refusal_recorded(row.checks, "comptoir"):
             return None, 0.0
         if (row.payload or {}).get("comptoir"):
             try:
@@ -1063,6 +1080,7 @@ def takes_at_start(db: Any, dossier: EditorialDossier, period: str, *, provider:
             row.checks = {**(row.checks or {}), "comptoir": "skip" if problems == ["skip"] else ",".join(problems) or "refused"}
         else:
             row.payload = {**row.payload, "comptoir": takes.model_dump(mode="json")}
+            row.checks = _without(row.checks, "comptoir")
     db.commit()
     return takes, cost
 
@@ -1086,6 +1104,7 @@ __all__ = [
     "desk_payload",
     "ensure_comptoir",
     "repair_comptoir",
+    "refusal_recorded",
     "reply_for",
     "takes_at_start",
     "write_comptoir",

@@ -352,6 +352,18 @@ def test_each_morning_writes_each_once_per_row_and_skips_what_the_comptoir_skipp
     assert intox.intox_of(stored) is not None and titre.titre_of(stored) is not None
 
 
+def test_a_failed_titre_desk_call_is_not_recorded_and_the_next_morning_asks_again(db_session: Session,
+                                                                                    revue_tables) -> None:
+    db = db_session
+    period = "2026-03-11"
+    story = beauvau(id="2026-03-11-down")
+    row = _row(db, story, period)
+    assert titre.ensure_titre(db, period, provider=_Desk([RuntimeError("401")])) == []
+    db.refresh(row)
+    assert "titre" not in (row.checks or {}), "a failed call is no refusal"
+    assert titre.ensure_titre(db, period, provider=_Desk([gold_titre()])) == [story.id]
+
+
 def test_the_morning_task_runs_both_desks_only_while_the_switch_is_on(monkeypatch) -> None:
     from app.tasks import revue as task
 

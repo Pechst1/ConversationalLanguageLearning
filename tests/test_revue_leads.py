@@ -234,6 +234,28 @@ def test_the_lead_desk_writes_the_kiosks_missing_leads_once(db: Session) -> None
     assert ensure_leads(db, today, provider=_Desk([])) == [], "a refused row is not asked again"
 
 
+def test_a_failed_lead_desk_call_is_not_recorded_and_the_next_morning_asks_again(db: Session) -> None:
+    today = "2026-10-18"
+    row = _row(db, marche(id="down"), today)
+    assert ensure_leads(db, today, provider=_Desk([RuntimeError("401")])) == []
+    db.refresh(row)
+    assert "leads" not in (row.checks or {}), "a failed call is no refusal"
+    assert ensure_leads(db, today, provider=_Desk([{"leads": GOOD}])) == ["down"]
+
+
+def test_a_row_marked_desk_failed_by_the_old_code_gets_its_leads(db: Session) -> None:
+    today = "2026-10-18"
+    legacy = _row(db, marche(id="legacy"), today)
+    refused = _row(db, marche(id="refused"), today)
+    legacy.checks = {"leads": "leads:desk_failed"}
+    refused.checks = {"leads": "leads:desk_failed,leads:a1:number_not_in_claims"}
+    db.commit()
+    assert ensure_leads(db, today, provider=_Desk([{"leads": GOOD}])) == ["legacy"], "a real refusal stays final"
+    db.refresh(legacy), db.refresh(refused)
+    assert legacy.payload.get("leads") and "leads" not in (legacy.checks or {})
+    assert refused.payload.get("leads") is None
+
+
 def test_a_failing_desk_leaves_the_summary() -> None:
     leads, repairs = leads_module.write_leads(marche(), _Desk([RuntimeError("down")]))
     assert leads is None and repairs == ["leads:desk_failed"]
