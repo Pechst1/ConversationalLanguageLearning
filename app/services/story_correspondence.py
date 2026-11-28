@@ -220,6 +220,36 @@ def slug(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "_", folded.lower()).strip("_")
 
 
+#: Letters whose writer is a person of the cast (``MissionGenerator`` ``origin``).
+CAST_ORIGINS = frozenset({"story_born", "cast"})
+
+
+def cast_author_of(mission: RealWorldMission | None) -> str | None:
+    """The registry id of the cast member who wrote this letter, or ``None``.
+
+    A serial act names its character; a story-born or authored cast letter stores the
+    writer's id. A standalone letter's slugged contact name («camille» for «Camille, une
+    amie») is not a cast id, so it is never resolved here.
+    """
+
+    if mission is None:
+        return None
+    prompt = mission.prompt_payload or {}
+    character_id = str(prompt.get("serial_character_id") or "").strip()
+    if character_id:
+        return cast_registry.resolve_id(character_id)
+    custom = prompt.get("custom_context") if isinstance(prompt.get("custom_context"), dict) else {}
+    correspondence = prompt.get("correspondence") if isinstance(prompt.get("correspondence"), dict) else {}
+    if custom.get("source") != "story_born" and correspondence.get("origin") not in CAST_ORIGINS:
+        return None
+    writer = (
+        correspondence.get("correspondent_id")
+        or getattr(mission, "correspondent_id", None)
+        or custom.get("relationship")
+    )
+    return cast_registry.resolve_id(str(writer or "")) or None
+
+
 def correspondent_of(mission: RealWorldMission | None) -> dict[str, Any]:
     """The person on the other side of this letter, as one stable identity.
 
@@ -238,10 +268,15 @@ def correspondent_of(mission: RealWorldMission | None) -> dict[str, Any]:
     identifier = character_id or getattr(mission, "correspondent_id", None) or slug(name)
     if not identifier:
         return {}
+    # #1070: a cast member's role is the registry's, read now, so a letter stored before
+    # their row existed is signed right too; anyone else's is the one their letter names.
+    # Never the domain label: «Les services» is the letter's subject, not who wrote it.
+    cast_id = cast_author_of(mission)
+    role = cast_registry.role(cast_id, "fr") if cast_id else str(messenger.get("contact_role") or "")
     return {
         "id": str(identifier),
         "name": name or str(identifier).replace("_", " ").title(),
-        "role": str(messenger.get("contact_role") or variety.get("domain_label") or "").strip(),
+        "role": role.strip(),
         "initials": str(messenger.get("contact_initials") or "").strip(),
         "channel": str(variety.get("channel") or "").strip(),
         "domain": str(variety.get("domain") or "").strip(),

@@ -3120,7 +3120,8 @@ class MissionGenerator:
         story_messenger = {
             **messenger,
             "contact_name": name,
-            "contact_role": CAST_ROLES_FR.get(key) or "",
+            # #1070: the registry's role, by id or alias; empty rather than borrowed.
+            "contact_role": cast_registry.role(character_id, "fr") or CAST_ROLES_FR.get(key) or "",
             "contact_initials": (messenger.get("contact_initials") if generated else None) or name[:2].upper(),
             "channel_label": "Message",
             "thread_title": f"{name} · après la scène",

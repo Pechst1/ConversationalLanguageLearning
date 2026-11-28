@@ -48,6 +48,35 @@ ROLES: dict[str, dict[str, str]] = {
         "en": "your landlord",
         "de": "dein Vermieter",
     },
+    # #1070: every person of the cast has a row. Anyone who speaks in a scene is a witness
+    # a story letter can come from, and a letter without a role here was signed with the
+    # label of whatever domain it was laid over («Camille · Les services»).
+    # Camille's gender is the learner's choice: no word here agrees with it.
+    "camille_marchand": {
+        "fr": "urbaniste",
+        "en": "an urban planner",
+        "de": "arbeitet in der Stadtplanung",
+    },
+    "mme_diallo": {
+        "fr": "boulangère du coin",
+        "en": "the baker on the corner",
+        "de": "Bäckerin an der Ecke",
+    },
+    "maitre_vasseur": {
+        "fr": "notaire",
+        "en": "a notary",
+        "de": "Notarin",
+    },
+    "bastien_roux": {
+        "fr": "agent immobilier",
+        "en": "an estate agent",
+        "de": "Immobilienmakler",
+    },
+    "odile_ferrand": {
+        "fr": "ta grand-mère",
+        "en": "your grandmother",
+        "de": "deine Großmutter",
+    },
 }
 
 
