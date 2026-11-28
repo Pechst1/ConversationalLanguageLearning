@@ -365,3 +365,59 @@ def test_a_test_out_passes_on_local_grading_without_a_model(db_session: Session,
     assert answered == 5
     result = forge_state_of(session).result
     assert result["passed"] is True and result["production_correct"] is True
+
+
+def test_a_top_up_never_seats_an_id_the_set_already_holds(db_session: Session, monkeypatch) -> None:
+    """#771: a bank sentence and its vocative twin build ONE item («said to nobody»), with
+    one id. The twin was seated beside the item it repeats, the set failed its own shape
+    check, the next submit rebuilt it, and the build on screen was graded as blank."""
+
+    from app.core.forge import Rung
+    from app.services.atelier import AtelierExerciseGenerator
+    from app.services.forge import BankItemProvider
+
+    user, concept, session, _shared = _forge_session(db_session)
+    provider = BankItemProvider.for_session(db_session, user=user, session=session)
+    held = provider.payloads.payloads[concept.id]["recognize"]["word_bank"]["items"][0]
+    real_build = provider._build
+    twins = iter([True])
+
+    def build(rung, candidate, **kwargs):
+        built = real_build(rung, candidate, **kwargs)
+        if built is not None and next(twins, False):
+            return {**built, "id": held["id"]}  # the twin: another fingerprint, the same item
+        return built
+
+    monkeypatch.setattr(provider, "_build", build)
+    topped = provider.top_up(concept_id=concept.id, rung=int(Rung.BUILD))
+
+    assert topped is not None and topped.item_id != held["id"], "the twin is passed over for a new sentence"
+    owned = provider.sets[concept.id]
+    db_session.refresh(owned)
+    ids = [item["id"] for item in owned.payload["recognize"]["word_bank"]["items"]]
+    assert len(ids) == len(set(ids)), "no id twice in the set"
+    assert AtelierExerciseGenerator.validate_payload(owned.payload, concept=concept), "the set keeps its shape"
+
+
+def test_a_set_that_already_holds_an_id_twice_keeps_its_shape_and_grades_the_item_once(db_session: Session) -> None:
+    """#771, for the séances already seated that way: the set is not thrown away under the
+    item on screen, and the item is graded once."""
+
+    from app.services.atelier import AtelierCorrectionService, AtelierExerciseGenerator
+
+    _user, concept, _session, shared = _forge_session(db_session)
+    payload = json.loads(json.dumps(shared.payload))
+    assert AtelierExerciseGenerator.validate_payload(payload, concept=concept)
+    container = payload["recognize"]["word_bank"]
+    twin = dict(container["items"][0])
+    container["items"].append(twin)
+    payload["forge"] = {
+        **(payload.get("forge") or {}),
+        "appended": [{"id": twin["id"], "round": "recognize", "mode": "word_bank", "rung": 2}],
+    }
+
+    assert AtelierExerciseGenerator.validate_payload(payload, concept=concept), "one top-up, three base items"
+    scoped = AtelierCorrectionService._scope_prompt_items(
+        {"round": "recognize", "mode": "word_bank", **container}, f"{concept.external_id}:word_bank:{twin['id']}"
+    )
+    assert [item["id"] for item in scoped["items"]] == [twin["id"]]
