@@ -65,6 +65,8 @@ def record_erratum(db: Session, user: User, *, label: str = LABEL) -> UserError:
             "display_label": label,
             "learner_text": "une homme",
             "corrected_target": "un homme",
+            # #1098: a short slip is saved with its sentence, or it is never posed.
+            "context_fr": "Je vois une homme au marché.",
             "why_wrong": "homme is masculine",
             "repair_hint": "un homme",
             "task_error_type": label,

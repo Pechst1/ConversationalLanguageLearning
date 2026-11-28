@@ -73,10 +73,6 @@ def context_sentence(*, slip: object, answer: object = None, prompt: object = No
     return None
 
 
-#: Where one sentence of a written text ends and the next begins.
-_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+|\n+")
-
-
 def sentence_holding(text: object, slip: object) -> str | None:
     """#1098: the sentence of a longer text (a letter) that holds ``slip``, or ``None``.
 
@@ -86,7 +82,10 @@ def sentence_holding(text: object, slip: object) -> str | None:
     wanted = _clean(slip)
     if not wanted:
         return None
-    for sentence in _SENTENCE_END.split(str(text or "")):
+    from app.services.sentence_line import sentences
+
+    # #896: the one sentence splitter every surface reads a text with.
+    for sentence in sentences(text):
         line = _clean(sentence)
         if len(line.split()) > len(wanted.split()) and find_slip(line, wanted):
             return line
