@@ -1971,6 +1971,33 @@ def _state_after_etre(source: str, tokens: list[Tok], index: int) -> str | None:
     return right
 
 
+@lru_cache(maxsize=1)
+def _accented_nouns() -> Mapping[str, tuple[str, ...]]:  # pragma: no cover - thin cache
+    """Unaccented spelling -> the common lexicon nouns written with an accent that fold to it."""
+
+    by_fold: dict[str, list[str]] = {}
+    for word, entry in _lexicon().lemmas.items():
+        if entry.get("pos") != "noun" or entry.get("gender") not in {"m", "f"}:
+            continue
+        if not isinstance(entry.get("rank"), int) or entry["rank"] > _ACCENT_FOLD_RANK:
+            continue
+        bare = _strip_marks(word)
+        if bare != word:
+            by_fold.setdefault(bare, []).append(word)
+    return {bare: tuple(sorted(words)) for bare, words in by_fold.items()}
+
+
+def _accented_twin(noun: str, gender: str) -> str | None:
+    """The one accented noun of ``gender`` that ``noun`` is the bare spelling of, or ``None``.
+
+    #1100: «le marche» is «le marché» with its accent dropped, far more often than «la marche»
+    with the wrong article. When the written determiner already agrees with such a twin, the
+    slip is the accent, never the gender."""
+
+    twins = [word for word in _accented_nouns().get(noun, ()) if _noun_gender(word) == gender]
+    return twins[0] if len(twins) == 1 else None
+
+
 def _accent_fold(word: str) -> str | None:
     """The accented word ``word`` must be, its plural too («cles» -> «clés»), or ``None``."""
 
@@ -3349,6 +3376,16 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
                 pass  # «la manger» (a pronoun); «la tour» / «le tour», «une enfant»
             else:
                 gender = _noun_gender(nxt.low)
+                # #1100: «le marche» is «le marché», not «la marche»: the determiner agrees
+                # with the accented noun this spelling can be, so the accent is the slip.
+                twin = (
+                    _accented_twin(nxt.low, "m" if gender == "f" else "f")
+                    if (gender == "f" and tok.low in _MASC_DET) or (gender == "m" and tok.low in _FEM_DET)
+                    else None
+                )
+                if twin is not None:
+                    add(_edit("FR_ACCENT", source, nxt.start, nxt.end, _case(source[nxt.start:nxt.end], twin), right=twin))
+                    continue
                 if gender == "f" and tok.low in _MASC_DET:
                     if not (tok.low in {"mon", "ton", "son"} and vowel):
                         right = _MASC_DET[tok.low]

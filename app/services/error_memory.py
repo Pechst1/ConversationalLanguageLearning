@@ -338,6 +338,9 @@ class ErrorMemoryService:
                     "mode": attempt.mode,
                     "exercise_id": attempt.exercise_id,
                     "erratum_index": index,
+                    # #1100: the fix came from the basic check alone (no full check read
+                    # the answer); it is shown, but never dealt later as a key.
+                    **({"basic_only": True} if correction.get("assessment_status") == "unavailable" else {}),
                 },
                 merge_same_attempt=merge_same_attempt,
             )

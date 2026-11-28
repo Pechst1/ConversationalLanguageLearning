@@ -698,6 +698,11 @@ class BankItemProvider:
             ) else {}
             if str(row.source_type or "") == "atelier" and str(source_payload.get("round") or "") == "recognize":
                 continue
+            if source_payload.get("basic_only"):
+                # #1100: «a le marche» → «la marche» came from the basic check alone and
+                # was drilled the next day as the key. Only a fix the full check made
+                # becomes «Ta phrase».
+                continue
             if not _mine_on_schedule(row, now):
                 continue
             origin = str(row.source_attempt_id or row.message_id or "")
