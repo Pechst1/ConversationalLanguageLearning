@@ -1,0 +1,54 @@
+{
+  "id": "mot_noel_marchand",
+  "version": 1,
+  "kind": "detail",
+  "in": "gerance_marchand",
+  "title": {
+    "fr": "Le mot de Noël pour M. Marchand",
+    "en": "The Christmas note for M. Marchand",
+    "de": "Der Weihnachtsgruß für Herrn Marchand"
+  },
+  "moment": "a page of the learner's own story left «le mot de Noël pour Marchand» in his office: a small card propped against the lamp on the desk, with the paper bag beside it; gap 6 «Deux croissants»: the office empty, the learner leaves something in return",
+  "mark": {
+    "name_fr": "le mot de Noël pour Marchand",
+    "location_id": "marchand_office"
+  },
+  "things": [
+    {
+      "kind": "notecard",
+      "at": [
+        -28.563,
+        8.66,
+        -16.709
+      ],
+      "rot": -0.5236,
+      "text": [
+        "Joyeux Noël,",
+        "M. Marchand.",
+        "Merci pour",
+        "les croissants !"
+      ]
+    },
+    {
+      "kind": "paperbag",
+      "at": [
+        -28.7,
+        8.66,
+        -16.42
+      ],
+      "rot": -1.75,
+      "size": [
+        0.12,
+        0.24
+      ]
+    }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/09-entre-les-episodes.md",
+    "scenes": [
+      "the story order «le mot de Noël pour Marchand» at marchand_office (1 life): «A small card propped against the lamp on the desk, with the paper bag beside it.»",
+      "gap 6 «Deux croissants» (09-entre-les-episodes.md): «Christmas morning: a paper bag at Odile's door with two croissants in it. You go up to thank Marchand and find the office empty, the camp bed stripped. Camille took him home. You leave something in return, and choose what.»",
+      "the office (world/rooms/gerance_marchand.json): the desk with its blotter and files, the green desk lamp on it, the framed Polaroid «Dimanche. M. rit. Enfin.»"
+    ]
+  }
+}
