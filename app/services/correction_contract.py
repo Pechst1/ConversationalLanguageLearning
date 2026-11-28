@@ -4003,6 +4003,67 @@ def _an_article_before(wrong: str, tokens: list[Tok], index: int, context: objec
     return lexicon_pos(tokens[index + 1].low) == "noun"
 
 
+#: #1099: the determiners that are also object pronouns in front of a verb: «je la
+#: vois», «puis l'éteint», «je leur parle».
+_CLITIC_DETERMINERS = frozenset({"le", "la", "les", "l", "leur"})
+#: #1099: the coordinators that may drop the subject of the verb after them: «… puis
+#: l'éteint», «et la range».
+_DROPPED_SUBJECT_COORDINATORS = frozenset({"et", "puis", "mais", "ou"})
+
+
+def object_pronoun_at(text: object, start: int) -> bool:
+    """#1099: is the «le», «la», «les», «l'» or «leur» at ``start`` in ``text`` an
+    object pronoun in front of a verb, and so no determiner?
+
+    A surface that marks an article asks this, from the same lexicon and pronoun
+    list the rules' own elision and gender checks use. A clitic sits between a
+    subject (said or dropped) and its verb, so it is a pronoun only where the word in
+    front is one of these and the word after it can be a verb:
+
+    - a subject pronoun, another clitic or «ne»: «je la porte», «tu ne l'aimes pas»;
+    - a name or a plain noun that is the subject: «Margaux la regarde», «le chat la
+      regarde»;
+    - «et», «puis», «mais», «ou» with the subject dropped, and then only in front of an
+      inflected form the lexicon knows as a verb alone: «puis l'éteint», «et la range».
+
+    Anything else stays a determiner: at the start of a clause («La ferme est loin»: a
+    clitic never opens a statement), after an ordinary verb or a preposition («Romy
+    voit la ferme», «J'aime le sourire de Margaux»), and after a coordinator in front of
+    a word the lexicon also has as a noun, an adjective or an infinitive («et la ferme»,
+    «et le devoir»).
+    """
+
+    source = _norm(text)
+    tokens = _tokens(source)
+    index = next((i for i, tok in enumerate(tokens) if tok.start == start), None)
+    if index is None or index == 0 or tokens[index].low not in _CLITIC_DETERMINERS or index + 1 >= len(tokens):
+        return False
+    prev, tok, nxt = tokens[index - 1], tokens[index], tokens[index + 1]
+    if not (_joined(source, prev, tok) and _joined(source, tok, nxt)) or source[prev.end : tok.start] == "-":
+        return False  # it opens its clause («Alors, la table…», «Prends-le»)
+    if not _could_be_verb(nxt.low):
+        return False
+    if prev.low in _PRONOUN_CONTEXT or _subject_noun_at(source, tokens, index - 1):
+        return True
+    return prev.low in _DROPPED_SUBJECT_COORDINATORS and _lemma(nxt.low) is None and _noun_lemma(nxt.low) is None
+
+
+def _subject_noun_at(source: str, tokens: list[Tok], at: int) -> bool:
+    """#1099: is ``tokens[at]`` a subject a clitic may follow: a name («Margaux la
+    regarde», «Lila les appelle»), or a noun after its determiner or one that is no
+    verb form («le chat la regarde»)? In «Elle garde la place» a verb stands in front."""
+
+    word = tokens[at]
+    if _names_a_subject_in_front(source, word, False):
+        return True
+    if _noun_gender(word.low) is None:
+        return False
+    det = tokens[at - 1] if at > 0 and _joined(source, tokens[at - 1], word) else None
+    if det is not None and (det.low in _DET_GENDER or det.low in _PLURAL_DETS):
+        return True
+    return not _could_be_verb(word.low)
+
+
 def _word_before(context: object, quoted: str) -> str | None:
     """The word right in front of ``quoted`` where the learner wrote it in ``context``."""
 
@@ -4803,6 +4864,7 @@ __all__ = [
     "note_for_form",
     "note_from_form",
     "note_matches_form",
+    "object_pronoun_at",
     "reconcile_notes",
     "to_erratum",
     "verify_edit",
