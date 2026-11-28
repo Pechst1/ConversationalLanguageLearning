@@ -6229,6 +6229,8 @@ class GraphicNovelCorrectionService:
                 erratum=erratum,
                 source_type="graphic_novel",
                 concept_id=erratum.get("concept_id") or task.get("concept_id"),
+                # #1098: the answer the slip sat in gives it its sentence.
+                submission_text=answer_text,
                 source_payload={
                     "scene_id": str(scene.id),
                     "panel_id": str(panel.id) if panel else None,

@@ -4281,7 +4281,13 @@ class MissionCorrectionService:
         mode: str,
         source_id: str,
         include_vocabulary: bool = True,
+        submission_text: str | None = None,
     ) -> list[dict[str, Any]]:
+        """Save a letter's errata. #1098: ``submission_text`` is the letter; each slip is
+        saved with the sentence of it that it sat in (``context_fr``, by
+        ``ErrorMemoryService.record_erratum``), so a repair later prints «Je passe demain
+        a 10 heure.», never the bare «a 10»."""
+
         memory = ErrorMemoryService(self.db)
         persisted: list[dict[str, Any]] = []
         saved_changes: set[str] = set()
@@ -4304,6 +4310,7 @@ class MissionCorrectionService:
                 user=user,
                 erratum=erratum,
                 source_type="mission",
+                submission_text=submission_text,
                 concept_id=erratum.get("concept_id"),
                 source_payload={
                     "mission_id": str(mission.id),
@@ -7129,6 +7136,7 @@ def recheck_message(db: Session, *, user: User, row: Any) -> list[dict]:
         mode=row.mode,
         source_id=str(row.id),
         include_vocabulary=False,
+        submission_text=text,
     )
     already = [record for record in (previous.get("persistence") or {}).get("records") or [] if isinstance(record, dict)]
     row.correction_payload = correction_with_persistence(correction, [*persisted, *already])

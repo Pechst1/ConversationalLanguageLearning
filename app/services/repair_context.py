@@ -73,6 +73,25 @@ def context_sentence(*, slip: object, answer: object = None, prompt: object = No
     return None
 
 
+def sentence_holding(text: object, slip: object) -> str | None:
+    """#1098: the sentence of a longer text (a letter) that holds ``slip``, or ``None``.
+
+    A Courrier letter is many sentences; the slip «a 10» sat in one of them, «Je passe
+    demain a 10 heure.», and that sentence, not the letter, is what a repair prints."""
+
+    wanted = _clean(slip)
+    if not wanted:
+        return None
+    from app.services.sentence_line import sentences
+
+    # #896: the one sentence splitter every surface reads a text with.
+    for sentence in sentences(text):
+        line = _clean(sentence)
+        if len(line.split()) > len(wanted.split()) and find_slip(line, wanted):
+            return line
+    return None
+
+
 def corrected_sentence(sentence: object, slip: object, fix: object) -> str | None:
     """``sentence`` with ``slip`` replaced by ``fix``, or ``None`` when it is not in it."""
 

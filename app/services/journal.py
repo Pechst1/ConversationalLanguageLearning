@@ -1583,6 +1583,9 @@ class JournalService:
                         "task_error_type": item.get("task_error_type") or "grammar_target",
                     },
                     source_type="journal",
+                    # #1098: the slip is saved with the sentence of the entry it sat
+                    # in, so tomorrow's repair prints that sentence, not «une homme».
+                    submission_text=entry.entry_text,
                     source_payload={
                         "surface": "journal",
                         "journal_entry_id": str(entry.id),

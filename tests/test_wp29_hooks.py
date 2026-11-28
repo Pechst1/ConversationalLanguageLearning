@@ -113,6 +113,8 @@ def record_erratum_with(db: Session, user: User, *, correction: str) -> None:
             "display_label": "Le nom masculin",
             "learner_text": correction.replace("un ", "une "),
             "corrected_target": correction,
+            # #1098: a short slip is saved with its sentence, or it is never posed.
+            "context_fr": f"Je vois {correction.replace('un ', 'une ')} au marché.",
             "why_wrong": "this noun is masculine",
             "repair_hint": correction,
             "task_error_type": "gender",

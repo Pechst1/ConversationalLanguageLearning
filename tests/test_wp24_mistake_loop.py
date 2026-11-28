@@ -93,6 +93,8 @@ def _record(
             "display_label": label,
             "learner_text": learner_text,
             "corrected_target": corrected,
+            # #1098: a short slip is saved with its sentence, or it is never posed.
+            "context_fr": f"Je vois {learner_text} au marché.",
             "why_wrong": "homme is masculine",
             "repair_hint": corrected,
             "task_error_type": task_type,
