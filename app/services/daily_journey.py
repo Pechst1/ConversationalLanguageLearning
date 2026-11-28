@@ -242,8 +242,8 @@ def _planned_rule_id(journey: Any, today: date) -> int | None:
     a rule stores it (``_planned_introduction``); a day whose card only reviews a
     known rule (WP-129) introduces nothing, so the card's own step is the reader.
     The forge entry Home links to reads it from here instead of asking the forge
-    picker, which knows nothing of the scene's rule and would put a due erratum's
-    rule in the «today's rule» slot.
+    picker, which knows nothing of the scene's rule. On a day whose plan holds no
+    rule the picker answers, with the quota's new rule (#1108: never a due slip's).
     """
 
     if journey is None or getattr(journey, "local_date", None) != today:
@@ -265,7 +265,7 @@ def todays_planned_rule_id(db: Session, user: Any, *, now: datetime | None = Non
 
     La Forge opened as the day's step asks this when it starts. Its link may have
     been read on Home before the day was planned, when the only answer for «today's
-    rule» was the Forge picker's (a due slip's rule first): a link carries a guess,
+    rule» was the Forge picker's (the quota's first rule): a link carries a guess,
     the plan carries the day's rule.
     """
 

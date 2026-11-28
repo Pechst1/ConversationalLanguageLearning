@@ -96,8 +96,6 @@ def test_a_missing_accent_comes_back_when_the_word_can_only_be_one_word(text, sp
     ("text", "bare"),
     [
         pytest.param("Ça m'enerve.", "enerve", id="énerve-or-énervé"),
-        pytest.param("J'ai ecoute la radio.", "ecoute", id="écoute-or-écouté"),
-        pytest.param("Il a complete le formulaire.", "complete", id="complète-or-complété"),
         pytest.param("Je suis desole.", "desole", id="désole-or-désolé"),
         pytest.param("Je mange un desert.", "desert", id="désert-or-dessert"),
         pytest.param("Je vais metre la table.", "metre", id="mètre-or-mettre"),

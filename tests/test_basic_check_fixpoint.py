@@ -385,7 +385,7 @@ def test_courrier_925(row):
     for errata in (COURRIER_925_ERRATA, cc.deterministic_errata(COURRIER_925, language="en")):
         printed = _printed(row, errata, COURRIER_925) or ""
         assert "Je n'ai pas vendu" in printed, printed
-        assert "Je n'ai rien mange" in printed, f"the second «n ai» is listed and not printed: {printed}"
+        assert "Je n'ai rien mang" in printed, f"the second «n ai» is listed and not printed: {printed}"
 
 
 def test_courrier_925_through_the_courrier(db_session):

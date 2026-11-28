@@ -51,6 +51,7 @@ import api, {
   type JournalEntryView,
   type JournalEnvelope,
   type JournalFollowup,
+  type JournalReveal,
 } from '@/services/api';
 
 import { cahierCopy, fill, useCahierCopy, type CahierCopy } from './cahier-copy';
@@ -614,38 +615,71 @@ export default function JournalTab() {
               <ul className="jn-list jn-list--facts">
                 {(entry.content_recall?.missed || []).map((fact, index) => (
                   <li key={`${fact.key || index}`} lang="fr">
-                    {fact.text_fr}
+                    {saidBy(fact.speaker_name, fact.text_fr)}
                   </li>
                 ))}
               </ul>
             )}
           </Surface>
 
-          {entry.reveal && (
-            <Surface as="section" tone="outline" shape="card" className="jn-card">
-              <p className="av2-label">{t.reveal_label}</p>
-              {entry.reveal.title_fr && <h2 className="jn-title">{entry.reveal.title_fr}</h2>}
-              {entry.reveal.setup_fr && (
-                <p className="jn-scene" lang="fr">
-                  {entry.reveal.setup_fr}
-                </p>
-              )}
-              {entry.reveal.character_line_fr && (
-                <p className="jn-scene jn-scene--line" lang="fr">
-                  « {entry.reveal.character_line_fr} »
-                </p>
-              )}
-              {entry.reveal.callback_fr && (
-                <p className="jn-scene" lang="fr">
-                  {entry.reveal.callback_fr}
-                </p>
-              )}
-            </Surface>
-          )}
+          {entry.reveal && <SceneReveal reveal={entry.reveal} t={t} />}
         </>
       )}
       <JournalStyles />
     </div>
+  );
+}
+
+/** A line of the scene as the Journal quotes it: «Camille : « … »» when someone said it (#1081). */
+export function saidBy(speaker: string | null | undefined, text: string | null | undefined): string {
+  const line = String(text || '').trim();
+  const who = String(speaker || '').trim();
+  return who && line ? `${who} : « ${line} »` : line;
+}
+
+/** «The scene as it was» (#1081): the title as its heading only, then the setup and each
+ *  line the scene said, once, under its own speaker. The server sends every line once
+ *  (`journal.reveal_view`); a line the card already printed is not printed again. */
+export function SceneReveal({ reveal, t = FRENCH_JOURNAL }: { reveal: JournalReveal; t?: JournalCopy }) {
+  const printed = new Set<string>();
+  const once = (text: string | null | undefined): string | null => {
+    const key = String(text || '').trim().toLowerCase().replace(/[«»"“”.!?…,;:\s]+/g, ' ').trim();
+    if (!key || printed.has(key)) return null;
+    printed.add(key);
+    return String(text).trim();
+  };
+  const title = once(reveal.title_fr);
+  const setup = once(reveal.setup_fr);
+  const opening = once(reveal.character_line_fr);
+  const lines = (reveal.lines || [])
+    .map((line) => ({ speaker: line.speaker_name, text: once(line.text_fr) }))
+    .filter((line): line is { speaker: string | null | undefined; text: string } => Boolean(line.text));
+  const callback = once(reveal.callback_fr);
+  return (
+    <Surface as="section" tone="outline" shape="card" className="jn-card">
+      <p className="av2-label">{t.reveal_label}</p>
+      {title && <h2 className="jn-title">{title}</h2>}
+      {setup && (
+        <p className="jn-scene" lang="fr">
+          {setup}
+        </p>
+      )}
+      {opening && (
+        <p className="jn-scene jn-scene--line" lang="fr">
+          {reveal.character_line_speaker ? saidBy(reveal.character_line_speaker, opening) : `« ${opening} »`}
+        </p>
+      )}
+      {lines.map((line, index) => (
+        <p key={`${index}-${line.text}`} className="jn-scene jn-scene--line" lang="fr" data-speaker={line.speaker || undefined}>
+          {line.speaker ? saidBy(line.speaker, line.text) : `« ${line.text} »`}
+        </p>
+      ))}
+      {callback && (
+        <p className="jn-scene" lang="fr">
+          {callback}
+        </p>
+      )}
+    </Surface>
   );
 }
 

@@ -366,6 +366,7 @@ def submit_mission(
         correction=correction,
         mode=request.mode,
         source_id=str(attempt.id),
+        submission_text=request.text,
     )
     correction = _correction_with_persistence(correction, persisted)
     attempt.correction_payload = correction
@@ -516,6 +517,7 @@ def submit_mission_turn(
         correction=correction,
         mode=request.mode,
         source_id=str(user_turn.id),
+        submission_text=request.text,
     )
     correction = _correction_with_persistence(correction, persisted)
     user_turn.correction_payload = correction

@@ -16,7 +16,7 @@ require(path.join(WEB_ROOT, 'node_modules/sucrase/register/ts'));
 
 const { CardPress, LacePress, Press, seeded } = require('./geo.ts');
 const { buildDetail, detailThings, flagValue, foldName, setBy } = require('./details.ts');
-const { BACK_TABLES, MARKS, ROOM, TILL, ZINC } = require('./mistral.ts');
+const { BACK_TABLES, MARKS, ROOM, SHELVES, TILL, ZINC } = require('./mistral.ts');
 const { buildRoom, polaroidWall } = require('./room.ts');
 const { WORLD, mapPlaces } = require('./world.ts');
 
@@ -459,4 +459,95 @@ test("M. Marchand's reply, «J'y serai. M.», propped against the till: laid onc
   for (const id of ['tasse_habituelle', 'carte_odile']) {
     for (const t of details.find(({ spec: d }) => d.id === id).spec.things) assert.ok(Math.abs(t.at[2] - card.at[2]) > 0.5, `clear of ${id}`);
   }
+});
+
+test("Lila's painting of the omelette, smoke and all, propped against the bottles behind the zinc: laid once a page left it at Le Mistral", () => {
+  const spec = details.find(({ spec }) => spec.id === 'tableau_omelette').spec;
+  assert.equal(spec.in, 'quai_de_valmy');
+  assert.deepEqual(spec.mark, { name_fr: "le tableau de l'omelette de Lila", location_id: 'le_mistral' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "le tableau de l'omelette de Lila", location_id: 'le_mistral' }]), ['tableau_omelette']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: "le tableau de l'omelette de Lila", location_id: 'odile_flat' }]), []);
+  assert.equal(spec.things.length, 1);
+  const p = spec.things[0];
+  assert.equal(p.kind, 'oilsketch');
+  // no words on its face: its back (Odile's name) faces the bottles, and no signature could be
+  // taken for «L.»'s on the painting above the zinc
+  assert.equal(p.text, undefined);
+  const [w, h] = p.size;
+  // a small canvas: smaller than «L.»'s, larger than a card
+  assert.ok(w <= 0.45 && h <= 0.35 && w > h, 'a small landscape canvas');
+  // standing on the lower shelf, its face to the room
+  assert.ok(Math.abs(p.at[1] - (ROOM.floor + SHELVES.rows[0] + 0.015)) < 0.003, 'on the lower shelf');
+  assert.ok(Math.abs(p.rot - Math.PI / 2) < 0.01, 'facing the room');
+  // its foot on the shelf, in front of the bottles; leaned back 0.14 rad on its 1.8 cm stretcher
+  // (room.ts), its top rests on them without going through
+  assert.ok(p.at[0] < SHELVES.x + SHELVES.depth / 2 && p.at[0] > SHELVES.x + SHELVES.bottle, "its foot on the shelf's front");
+  const topBack = p.at[0] - h * Math.sin(0.14) - 0.018;
+  assert.ok(topBack >= SHELVES.x + SHELVES.bottle - 0.003 && topBack < SHELVES.x + SHELVES.bottle + 0.02, 'against the bottles');
+  // under the upper shelf, along the zinc where the shelves run, clear of the coffee machine
+  assert.ok(p.at[1] + h < ROOM.floor + SHELVES.rows[1] - 0.015, 'under the upper shelf');
+  assert.ok(p.at[2] - w / 2 > ZINC.north + 0.5 && p.at[2] + w / 2 < ZINC.south - 0.4, 'where the bottles stand');
+  assert.ok(Math.abs(p.at[2] - SHELVES.machineZ) > 0.375 + w / 2 + 0.1, 'clear of the coffee machine');
+  // and below «L.»'s painting, which stays where it hangs above the mirror
+  assert.ok(MARKS.painting.y - 0.31 > p.at[1] + h + 0.5, "well under «L.»'s painting");
+});
+
+test('the Christmas note for M. Marchand, propped against his desk lamp with the paper bag beside it: laid once a page left it in his office', () => {
+  const spec = details.find(({ spec }) => spec.id === 'mot_noel_marchand').spec;
+  assert.equal(spec.in, 'gerance_marchand');
+  assert.deepEqual(spec.mark, { name_fr: 'le mot de Noël pour Marchand', location_id: 'marchand_office' });
+  const laid = (marks) => setBy([spec], { flags: {}, marks }).map((d) => d.spec.id);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'Le mot de Noël pour Marchand', location_id: 'marchand_office' }]), ['mot_noel_marchand']);
+  assert.deepEqual(laid([{ kind: 'thing', name_fr: 'le mot de Noël pour Marchand', location_id: 'le_mistral' }]), []);
+  const card = spec.things.find((t) => t.kind === 'notecard');
+  const bag = spec.things.find((t) => t.kind === 'paperbag');
+  assert.ok(card && bag && spec.things.length === 2, 'a card and a paper bag');
+  // the learner's words to a stranger: vous or nothing, Christmas and the croissants, no name
+  const words = card.text.join(' ');
+  assert.match(words, /Joyeux Noël/);
+  assert.match(words, /croissants/);
+  assert.match(words, /Marchand/);
+  assert.doesNotMatch(words.toLowerCase(), /\b(tu|te|toi|ton|ta|tes|t')\b/, 'a stranger gets vous');
+  // on his desk's top (`desk`: its top at 0.76 m), within it
+  const room = ROOMS.gerance_marchand;
+  const desk = room.things.find((t) => t.kind === 'desk');
+  const [dw, dd] = desk.size;
+  const toDesk = ([x, , z]) => {
+    const dx = x - desk.at[0];
+    const dz = z - desk.at[2];
+    return [dx * Math.cos(desk.rot) - dz * Math.sin(desk.rot), dx * Math.sin(desk.rot) + dz * Math.cos(desk.rot)];
+  };
+  for (const t of [card, bag]) {
+    assert.ok(Math.abs(t.at[1] - (desk.at[1] + 0.76)) < 0.005, `the ${t.kind} on the desk's top`);
+    const [lx, lz] = toDesk(t.at);
+    assert.ok(Math.abs(lx) < dw / 2 - 0.08 && Math.abs(lz) < dd / 2 - 0.08, `the ${t.kind} within the desk`);
+  }
+  // the desk lamp's round foot (room.ts: 0.24 m behind its shade's mouth, 0.095 m across): the
+  // card stands just outside it, its back to the lamp, so it leans on the stem
+  const lamp = room.lights.find((l) => l.kind === 'desk');
+  const [fx, fz] = lamp.facing;
+  const foot = [lamp.at[0] - 0.24 * fx, lamp.at[2] - 0.24 * fz];
+  const off = [card.at[0] - foot[0], card.at[2] - foot[1]];
+  const dist = Math.hypot(...off);
+  assert.ok(dist > 0.095 && dist < 0.12, `the card at the lamp's foot (${dist.toFixed(3)} m)`);
+  const facing = [Math.sin(card.rot), Math.cos(card.rot)];
+  assert.ok((facing[0] * off[0] + facing[1] * off[1]) / dist > 0.95, 'its back to the lamp');
+  // out from under the shade (0.12 m round its mouth), so it can be read from the visitor's side
+  assert.ok(Math.hypot(card.at[0] - lamp.at[0], card.at[2] - lamp.at[2]) > 0.12 + 0.03, 'not under the shade');
+  // the bag beside it, clear of the lamp's foot, the shade, the files and the framed Polaroids
+  const bagReach = Math.hypot(bag.size[0], bag.size[0] * 0.6) / 2;
+  assert.ok(Math.hypot(bag.at[0] - card.at[0], bag.at[2] - card.at[2]) < 0.4, 'beside the card');
+  assert.ok(Math.hypot(bag.at[0] - foot[0], bag.at[2] - foot[1]) > 0.095 + bagReach, "clear of the lamp's foot");
+  assert.ok(Math.hypot(bag.at[0] - lamp.at[0], bag.at[2] - lamp.at[2]) > 0.12 + bagReach || bag.size[1] < lamp.at[1] - 0.13 - bag.at[1], 'under or clear of the shade');
+  for (const f of room.things.filter((t) => t.kind === 'frame')) assert.ok(Math.hypot(bag.at[0] - f.at[0], bag.at[2] - f.at[2]) > bagReach + 0.08, 'clear of a framed Polaroid');
+  const [blx] = toDesk(bag.at);
+  // (`desk`: the files at local x -w/2 + 0.24, 0.33 m long)
+  assert.ok(blx > -dw / 2 + 0.24 + 0.165 + bagReach, "clear of the files at the desk's end");
+  // the office's lettering and the card's words all print
+  const B = press();
+  buildRoom(B, room);
+  buildDetail(B, spec);
+  const want = B.signs.reduce((n, s) => n + (s.width * (s.density ?? 150) + 4) * (s.height * (s.density ?? 150) + 4), 0);
+  assert.ok(want < 2048 * 2048 * 0.6, `the office's lettering and the card fit the sign atlas (${(want / (2048 * 2048)).toFixed(2)})`);
 });

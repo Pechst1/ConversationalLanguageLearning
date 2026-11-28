@@ -137,7 +137,11 @@ def test_a_learner_sentence_with_slips_is_never_a_detail_to_recall():
 
 def test_the_retell_is_held_to_the_scenes_lines():
     held = [fact.text_fr for fact in scene_facts_for(_lila(), story_context={})]
-    assert "La carte est à toi. Tu ne la vends pas : ça me rassure." in held, held
+    # #1081: one sentence a detail, never a turn's lines run together, and the two
+    # details are two moments of the scene (one per turn), not two sentences of one reply.
+    assert "Pour Napoléon, c'est bizarre, mais tant mieux." in held, held
+    assert "Tu ne la vends pas : ça me rassure." in held, held
+    assert "La carte est à toi. Tu ne la vends pas : ça me rassure." not in held, held
 
 
 def test_a_learner_reply_counts_only_in_its_corrected_form_from_a_checked_turn():

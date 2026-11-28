@@ -209,7 +209,7 @@ const ALLOWED_TITLE_FR = [
   { file: 'pages/atelier.tsx', line: '?.title_fr || req.label', why: 'the legacy produce exercise’s French requirement chips (#522)' },
   { file: 'pages/quartier.tsx', line: 'title: s.title_fr,', why: 'a Quartier scene title: French content' },
   { file: 'pages/quartier.tsx', line: 'today.page.title_fr ||', why: 'the episode title: French content', count: 2 },
-  { file: 'components/cahiers/JournalTab.tsx', line: 'entry.reveal.title_fr', why: 'a journal reveal’s French title', count: 2 },
+  { file: 'components/cahiers/JournalTab.tsx', line: 'once(reveal.title_fr)', why: 'a journal reveal’s French title (the scene’s heading, #1081)' },
 ];
 
 function sourceFiles(dir) {

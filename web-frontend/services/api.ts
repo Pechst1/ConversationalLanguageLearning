@@ -295,10 +295,19 @@ export interface JournalCue {
   days_ago?: number | null;
 }
 
+export interface JournalRevealLine {
+  speaker_name?: string | null;
+  text_fr: string;
+}
+
 export interface JournalReveal {
   title_fr?: string | null;
   setup_fr?: string | null;
   character_line_fr?: string | null;
+  /** #1081: who says the opening line. */
+  character_line_speaker?: string | null;
+  /** #1081: what the scene said after it, in order, each line once with its own speaker. */
+  lines?: JournalRevealLine[] | null;
   callback_fr?: string | null;
 }
 
@@ -339,8 +348,9 @@ export interface JournalContentRecall {
   /** 'scored' | 'no_facts' — a scene with nothing stored scores null, not zero. */
   status: string;
   score: number | null;
-  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
-  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[] }>;
+  /** `speaker_name`: who said a line of the scene (#1081). */
+  matched: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[]; speaker_name?: string | null }>;
+  missed: Array<{ key?: string; kind?: string; text_fr?: string; cues_hit?: string[]; speaker_name?: string | null }>;
   facts_total: number;
 }
 
@@ -2079,6 +2089,12 @@ function normalizeApiBaseUrl(value: string) {
   return `${trimmed}/api/v1`;
 }
 
+/** How long the browser waits for a Journal write or «Check again» (#1062). The server
+ *  fits every call of its check, the retry included, inside `journal.CHECK_BUDGET_SECONDS`;
+ *  `tests/test_journal_slips_1062.py` pins this wait above that budget with margin, so a
+ *  slow check ends on its result, never on «The entry could not be sent». */
+export const JOURNAL_CHECK_TIMEOUT_MS = 90_000;
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -3569,13 +3585,16 @@ class ApiService {
     return this.atelierPost<JournalEnvelope>(
       `/journal/${encodeURIComponent(entryId)}/write`,
       { text },
+      { timeout: JOURNAL_CHECK_TIMEOUT_MS },
     );
   }
 
   /** Runs the French check again on the stored paragraph. A no-op server-side
    *  once the entry is checked, so a double tap buys one call. */
   async retryJournalCorrection(entryId: string): Promise<JournalEnvelope> {
-    return this.atelierPost<JournalEnvelope>(`/journal/${encodeURIComponent(entryId)}/retry`);
+    return this.atelierPost<JournalEnvelope>(`/journal/${encodeURIComponent(entryId)}/retry`, undefined, {
+      timeout: JOURNAL_CHECK_TIMEOUT_MS,
+    });
   }
 
   async skipJournalEntry(entryId: string): Promise<JournalEnvelope> {

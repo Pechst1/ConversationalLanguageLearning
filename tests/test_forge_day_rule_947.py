@@ -87,7 +87,9 @@ def test_stale_link_forges_days_rule(
     avoir = _concept(db_session, "FR2_A11_AVOIR")
     question_words = _concept(db_session, "FR2_A11_QUESTION_WORDS")
     now = datetime.now(UTC)
-    # Avoir was taught days ago and a slip on it is due: the Forge picker's first choice.
+    # Avoir was taught days ago and a slip on it is due (on the walk, the Forge picker's
+    # first choice; since #1108 a slip never anchors, and the picker answers with the
+    # quota's new rule: still a guess that is not the day's rule).
     concept_life.mark_introduced(db_session, user=user, concept_id=avoir.id, now=now - timedelta(days=3))
     db_session.add(
         UserError(
@@ -102,7 +104,7 @@ def test_stale_link_forges_days_rule(
         )
     )
     db_session.commit()
-    assert forge_picker.forge_anchor_id(db_session, user, now) == avoir.id
+    assert forge_picker.forge_anchor_id(db_session, user, now) != question_words.id
 
     # Home, before Start: the day is not planned yet.
     read_before_the_day = _grammar_link(client, headers)

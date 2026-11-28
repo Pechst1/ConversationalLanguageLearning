@@ -1,0 +1,21 @@
+{
+  "id": "tableau_omelette",
+  "version": 1,
+  "kind": "detail",
+  "in": "quai_de_valmy",
+  "title": { "fr": "Le tableau de l'omelette", "en": "The omelette painting", "de": "Das Omelett-Bild" },
+  "moment": "a page of the learner's own story left «le tableau de l'omelette de Lila» at Le Mistral: a small painting of the omelette with its smoke, propped against the bottles behind the zinc; its back, with Odile's name, faces the bottles",
+  "mark": { "name_fr": "le tableau de l'omelette de Lila", "location_id": "le_mistral" },
+  "things": [
+    { "kind": "oilsketch", "at": [-37.36, 1.725, -15.2], "rot": 1.5708, "size": [0.4, 0.32] }
+  ],
+  "provenance": {
+    "canon": "docs/story/season-1/10-lieux-et-images.md",
+    "scenes": [
+      "the story order «le tableau de l'omelette de Lila» at le_mistral (1 life): «A small painting of the omelette with its smoke, propped against the bottles behind the zinc, Odile's name on the back.»",
+      "a generated day after T2, «Le dîner raté» (gaps.json; t5.json): the omelette burns in Odile's kitchen, the smoke alarm screams; the private joke «ne refais jamais l'omelette»",
+      "gap 6 small moment «cadeau_de_lila» (gaps.json): on the friendship path, Lila's present is «a painting of the omelette, smoke and all»",
+      "Le Mistral: the long mirror behind the zinc, two shelves of bottles on it (mistral.ts); «L.»'s painting stays above the zinc and nobody reads its back (gaps.json «painter_named»)"
+    ]
+  }
+}

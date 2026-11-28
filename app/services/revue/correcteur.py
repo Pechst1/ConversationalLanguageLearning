@@ -1048,7 +1048,9 @@ def _subskills(db: Session, concept_ids: set[int]) -> dict[int, str]:
 def _errata_candidates(db: Session, user: User) -> list[_Candidate]:
     from app.services.journey_errata import errata_targets_for_user
 
-    targets = errata_targets_for_user(db, user, limit=8)
+    # #1098: the correcteur prints a slip in its own text, not as a repair card, so
+    # a slip the planner cannot pose (a fragment with no sentence) is still one.
+    targets = errata_targets_for_user(db, user, limit=8, poseable_only=False)
     subskills = _subskills(db, {t.concept_id for t in targets if t.concept_id})
     out = []
     for target in targets:
