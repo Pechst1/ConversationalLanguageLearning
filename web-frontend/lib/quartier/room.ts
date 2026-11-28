@@ -218,7 +218,9 @@ export type ThingKind =
   | 'snapshot'
   | 'polaroidwall'
   | 'replycard'
-  | 'oilsketch';
+  | 'oilsketch'
+  | 'notecard'
+  | 'paperbag';
 
 export interface RoomThing {
   kind: ThingKind;
@@ -2307,6 +2309,46 @@ function thing(B: Build, t: RoomThing, i: number) {
       B.signs.push({ key, center, normal: n, width: w - 0.002, height: h - 0.002, density: 1500, draw: omeletteArt(), indoor: (z ?? 'room') === 'room' });
       return;
     }
+    case 'notecard': {
+      // a small Christmas card stood up and leaned well back against what is behind it (a desk
+      // lamp's stem), a sprig of holly at its top, `text` its lines in a quick ballpoint hand, no
+      // signature (`at` its foot on the desk, facing (sin rot, cos rot); `size` [w, h], 9 by 14 cm)
+      const [w, h] = t.size ?? [0.09, 0.14];
+      const lean = 0.6;
+      const paper = zoned(mix(INKS.card, 0xffffff, 0.3), z);
+      D.at(x, y, zz, rot, () => {
+        D.push(new Matrix4().makeRotationX(-lean));
+        D.box(0, h / 2, -0.001, w, h, 0.002, paper);
+        D.pop();
+      });
+      const up = new Vector3(-Math.sin(rot) * Math.sin(lean), Math.cos(lean), -Math.cos(rot) * Math.sin(lean));
+      const n = new Vector3(Math.sin(rot) * Math.cos(lean), Math.sin(lean), Math.cos(rot) * Math.cos(lean));
+      const center = new Vector3(x, y, zz).addScaledVector(up, h / 2).addScaledVector(n, 0.0015);
+      B.signs.push({ key, center, normal: n, width: w - 0.002, height: h - 0.002, density: 3000, draw: noteCardArt(t.text ?? []), indoor: (z ?? 'room') === 'room' });
+      return;
+    }
+    case 'paperbag': {
+      // a brown paper bag from the baker's, stood up on its square bottom, its top folded over
+      // twice and creased flat (`at` its foot, its front facing (sin rot, cos rot); `size`
+      // [w, h], its depth half its width)
+      const [w, h] = t.size ?? [0.14, 0.2];
+      const d = w * 0.6;
+      const kraft = zoned(mix(INKS.ochre, INKS.card, 0.5), z);
+      const fold = zoned(mix(mix(INKS.ochre, INKS.card, 0.35), INKS.ink, 0.15), z);
+      const crease = zoned(mix(mix(INKS.ochre, INKS.card, 0.35), INKS.ink, 0.3), z);
+      D.at(x, y, zz, rot, () => {
+        // the body, a touch narrower at its shoulders where the paper was pinched shut
+        D.box(0, (h - 0.03) / 2, 0, w, h - 0.03, d, kraft);
+        D.box(0, h - 0.03 + 0.008, 0, w - 0.006, 0.016, d * 0.4, kraft);
+        // the top folded over twice toward the front, its flap lying on the front face
+        D.box(0, h - 0.012, d * 0.08, w - 0.004, 0.024, d * 0.38, fold);
+        D.box(0, h - 0.045, d / 2 + 0.003, w - 0.004, 0.045, 0.004, fold);
+        D.box(0, h - 0.068, d / 2 + 0.0055, w - 0.004, 0.003, 0.002, crease);
+        // the side gussets' crease, a dark line down each side
+        for (const sx of [-1, 1]) D.box(sx * (w / 2 + 0.001), (h - 0.08) / 2 + 0.02, 0, 0.002, h - 0.1, 0.004, crease);
+      });
+      return;
+    }
     case 'replycard': {
       // a small correspondence card stood on its long edge and leaned back against something (a
       // till's front), its words to the room: `text` the lines in a neat ink hand, the last one the
@@ -3928,6 +3970,64 @@ function omeletteArt() {
     ctx.strokeStyle = css(mix(INKS.card, INKS.ochre, 0.18));
     ctx.lineWidth = Math.max(1, h * 0.03);
     ctx.strokeRect(0, 0, w, h);
+  };
+}
+
+function noteCardArt(lines: string[]) {
+  // the learner's Christmas card: cream, a sprig of holly at the top, the words below it in a
+  // quick blue ballpoint hand, each line a touch crooked; no name under them
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = css(mix(INKS.card, 0xffffff, 0.3));
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = css(mix(INKS.vermilion, INKS.paper, 0.35));
+    ctx.lineWidth = Math.max(1, w * 0.02);
+    ctx.strokeRect(w * 0.06, h * 0.04, w * 0.88, h * 0.92);
+    // the holly: two pointed leaves and three red berries
+    const hx = w * 0.5;
+    const hy = h * 0.17;
+    ctx.fillStyle = css(mix(INKS.green, INKS.ink, 0.25));
+    for (const a of [-0.5, Math.PI + 0.5]) {
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      const L = w * 0.26;
+      const W = w * 0.08;
+      ctx.lineTo(L * 0.25, -W);
+      ctx.lineTo(L * 0.4, -W * 0.45);
+      ctx.lineTo(L * 0.6, -W);
+      ctx.lineTo(L * 0.75, -W * 0.45);
+      ctx.lineTo(L, 0);
+      ctx.lineTo(L * 0.75, W * 0.45);
+      ctx.lineTo(L * 0.6, W);
+      ctx.lineTo(L * 0.4, W * 0.45);
+      ctx.lineTo(L * 0.25, W);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = css(mix(INKS.vermilion, INKS.ink, 0.05));
+    for (const [dx, dy] of [[-0.035, 0.02], [0.035, 0.02], [0, -0.03]]) {
+      ctx.beginPath();
+      ctx.arc(hx + w * dx, hy + w * dy, w * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // the words, in blue ballpoint
+    ctx.fillStyle = css(mix(INKS.cobalt, INKS.ink, 0.35));
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    let s = Math.round(h * 0.13);
+    ctx.font = SERIF(s, 600);
+    while (s > 5 && lines.some((l) => ctx.measureText(l).width > w * 0.82)) ctx.font = SERIF(--s, 600);
+    const gap = Math.min(h * 0.16, (h * 0.62) / Math.max(1, lines.length));
+    lines.forEach((l, k) => {
+      ctx.save();
+      ctx.translate(w * 0.1, h * 0.42 + k * gap);
+      ctx.rotate(k % 2 ? -0.025 : 0.02);
+      ctx.fillText(l, 0, 0);
+      ctx.restore();
+    });
   };
 }
 
