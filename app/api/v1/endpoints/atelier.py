@@ -89,7 +89,14 @@ from app.services.atelier import (
 from app.services.atelier_assets import AtelierAssetService
 from app.services.atelier_rewards import AtelierRewardService, AtelierWorkshopShortfall
 from app.services.book_library import BookLibraryService
-from app.services.cast_registry import display_name, people_addressed, people_named, people_speaking
+from app.services.cast_registry import (
+    display_name,
+    people_addressed,
+    people_named,
+    people_speaking,
+    relation_holders,
+    relation_speaking,
+)
 from app.services.cast_registry import resolve_id as _resolve_cast_id
 from app.services.cefr_progress import CEFRProgressService, live_level, with_can_do_line
 from app.services.chrome_language import (
@@ -328,7 +335,20 @@ def _with_serial_conversation(
     named, addressed = people_named(words), people_addressed(words)
     met = context.get("met") or {}
     speaking = people_speaking(words)
-    if speaking:
+    asker = None if speaking else relation_speaking(words)
+    if asker:
+        # #1120: «Ton frère te demande : « On mange où ce soir ? »» went out under Lila. A
+        # relation word gives the line to whoever of the cast is that to the learner (Marin
+        # for «ton ami»), the beat's own character first when they are it («ton amie» is
+        # Lila); when nobody is («ton frère»), no face and no register is put on it.
+        holders = relation_holders(asker)
+        own = _resolve_cast_id(str(character.get("id") or "")) or str(character.get("id") or "")
+        if own not in holders:
+            speaker = next((met[cid] for cid in holders if cid in met), None)
+            if speaker is None:
+                return payload
+            character = _cast_badge(speaker, state=context.get("state") or {})
+    elif speaking:
         # #147 (14 Nov): «Gus : « Tu es où ? »» went out under Lila. A line the item puts
         # in someone's mouth is that person's: their badge when the learner has met them,
         # no badge when not.

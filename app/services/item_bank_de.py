@@ -15,6 +15,8 @@ with the ``g_*`` filters below:
     adverb, negation, complement), non-finite verbs, separable prefix — in main
     (V2), inverted (after a fronted element, or a yes/no question), subordinate
     (verb-final), ``nosubj`` (the frame wrote the subject) or ``inf`` order.
+    A verb marked ``exp: dat`` puts a pronoun subject in the dative before an
+    impersonal verb: «avoir chaud» is «Mir ist heiß.», «Ist dir heiß?» (#1087).
 ``{N|g_np:indef:acc}``, ``{N|g_np:def:dat:p}``, ``{N|g_np:indef:acc:adj=A}``
     a noun phrase with its article (der/ein/kein/dies-/bare) in a case, with an
     adjective declined weak, mixed or strong.
@@ -540,6 +542,16 @@ class GermanFilters:
         if comp in (None, "", "_") and isinstance(gv.get("intrans"), dict):
             gv = gv["intrans"]
         person = g_person(subject)
+        # #1087: a body feeling whose German says who feels it in the dative («avoir
+        # chaud» → «mir ist heiß», «Ist dir heiß?»). The French subject is the
+        # experiencer, the verb is an impersonal third person singular with no «es».
+        dative_experiencer = gv.get("exp") == "dat"
+        if dative_experiencer:
+            if not _is_pronoun(subject) or pro:
+                # «Lila ist heiß» reads as «Lila is hot» (attractive): only a pronoun
+                # shows its dative.
+                raise RenderError("a dative experiencer must be a pronoun")
+            experiencer, person = g_pronoun(subject, "dat"), 2
         if isinstance(t, dict):
             t = (t.get("deu") or {}).get("modal") if isinstance(t.get("deu"), dict) else None
             if not t:
@@ -598,7 +610,11 @@ class GermanFilters:
         ]
         middle = [part for part in middle if part]
         subj = ""
-        if o not in {"inf", "zu", "nosubj"}:
+        if dative_experiencer:
+            if o in {"inf", "zu", "nosubj"}:
+                raise RenderError("a dative experiencer clause has no subject slot to leave out")
+            subj = experiencer
+        elif o not in {"inf", "zu", "nosubj"}:
             subj = g_pronoun(subject, "nom") if pro else g_subject(subject)
         if o == "main":
             words = [subj, finite, *middle, *nonfinite, prefix]
@@ -928,6 +944,15 @@ _ENGLISH_WORDS = re.compile(
     r"\b(?:the|you|is|are|were|would|like|with|this|that|have|has|at the|in the|and|of|to|it|he|she|they|"
     r"please|because|when|where|which|there|some|any|not|don't|doesn't|been|can|my|your|his|her|their)\b",
 )
+#: The body feelings German says in the dative («mir ist heiß», «ist dir kalt?»).
+_DATIVE_FEELINGS = frozenset({"heiß", "kalt"})
+#: «ich bin … heiß», «bist du … kalt»: a speaker or listener «is» hot/cold in the
+#: nominative. Anchored on the clause's end, so it needs no sentence split of its own (#896).
+_NOMINATIVE_FEELING = re.compile(
+    r"\b(?:ich\s+bin|du\s+bist|wir\s+sind|ihr\s+seid|bin\s+ich|bist\s+du|sind\s+wir|seid\s+ihr)\b"
+    r"(?:\s+[\wäöüß]+){0,3}?\s+(?:heiß|kalt)\s*(?=[,.?!:;]|$)",
+    re.IGNORECASE,
+)
 _SUBORDINATORS = ("weil", "dass", "wenn", "ob", "als", "obwohl", "da", "sobald", "wo", "bevor", "nachdem")
 
 
@@ -1037,6 +1062,8 @@ def german_violations(
                 verb = tokens[1].lower()
                 persons = finite.get(verb)
                 expected = {"ich": {0}, "du": {1}, "er": {2}, "es": {2}, "wir": {3}, "ihr": {4}, "sie": {2, 5}}[head]
+                if head == "ihr" and verb in {"ist", "war", "wäre"} and tokens[-1].lower() in _DATIVE_FEELINGS:
+                    expected = {2}  # the dative «Ihr ist heiß» (#1087), not the plural «ihr»
                 if persons is not None and not persons & expected and not (head == "sie" and persons & {5}):
                     problems.append(f"«{tokens[0]} {tokens[1]}» does not agree")
             elif head in {"heute", "morgen", "gestern", "jetzt", "dann", "oft", "manchmal", "normalerweise", "früher", "samstags", "sonntags"} and len(tokens) > 2:
@@ -1058,6 +1085,10 @@ def german_violations(
                 problems.append(f"«{token}» takes sein")
             if token in haben_pp and has_sein and not has_haben:
                 problems.append(f"«{token}» takes haben")
+    # 4. #1087: a person feeling hot or cold is said in the dative («mir ist heiß»);
+    # «ich bin heiß» / «bist du kalt?» say something else (sexy, unfriendly).
+    for wrong in _NOMINATIVE_FEELING.finditer(text):
+        problems.append(f"«{wrong.group(0).strip()}»: a body feeling takes the dative («mir ist heiß»)")
     del words_all
     return problems
 

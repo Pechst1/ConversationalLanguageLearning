@@ -213,9 +213,10 @@ def test_a_task_note_with_nothing_left_to_say_names_what_is_missing_in_words():
 def _age_ask_item() -> ib.BankItem:
     for seed in range(40):
         for item in ib.default_bank().generate("FR2_A11_AVOIR", 12, seed=f"r2-age:{seed}"):
-            if item.frame_id.startswith("avoir-age-ask") and "demande ton âge" in item.sentence:
+            # #1126: the exchange asks a person of the cast, never the learner's own age.
+            if item.frame_id.startswith("avoir-age-ask") and "demande l'âge de" in item.sentence:
                 return item
-    pytest.skip("the bank drew no «demande ton âge» item")
+    pytest.skip("the bank drew no «demande l'âge de» item")
 
 
 def test_a_free_card_never_asks_for_more_words_than_its_own_answer():
@@ -227,7 +228,8 @@ def test_a_free_card_never_asks_for_more_words_than_its_own_answer():
     for round_name in ("sentence", "conversation"):
         card = ib.output_item(item, round_name=round_name, requirement={"label": "avoir"})
         assert card is not None
-        assert card["min_words"] <= shortest <= 3, (round_name, card["min_words"], item.sentence)
+        # «Elle a trente ans.» (#1126: the exchange's answer is about the cast, four words).
+        assert card["min_words"] <= shortest <= 4, (round_name, card["min_words"], item.sentence)
 
 
 def test_a_stored_card_is_served_with_a_floor_that_fits_its_answer():

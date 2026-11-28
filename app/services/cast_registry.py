@@ -655,17 +655,20 @@ def unmet_named(state: Mapping[str, Any] | None, *texts: Any) -> list[str]:
     return [cid for cid in people_named(" ".join(str(text) for text in texts if text)) if cid not in known]
 
 
-#: A line put in someone's mouth: «Gus : « Tu es où ? »», «Gus dit : …», «…, says Gus».
-_SAYS_AFTER = re.compile(
-    r"^\s*(?::\s*[«\"“]|(?:dit|demande|répond|ajoute|says|asks|answers|sagt|fragt|antwortet)\b)", re.IGNORECASE
-)
-_SAYS_BEFORE = re.compile(r"\b(?:dit|demande|répond|says|asks|answers|sagt|fragt|antwortet)\s*$", re.IGNORECASE)
+#: The verbs that give a line to someone, in the languages a prompt is written in.
+_SPEECH_VERBS = r"(?:dit|demande|répond|ajoute|says|asks|answers|sagt|fragt|antwortet)"
+#: «te demande», «vous dit»: the person the line is said to, between speaker and verb (#1120).
+_SAID_TO = r"(?:(?:te|vous|me|lui|nous)\s+|[tm]'\s*)?"
+#: A line put in someone's mouth: «Gus : « Tu es où ? »», «Gus dit : …», «Lila te demande :
+#: …», «…, says Gus».
+_SAYS_AFTER = re.compile(rf"^\s*(?::\s*[«\"“]|{_SAID_TO}{_SPEECH_VERBS}\b)", re.IGNORECASE)
+_SAYS_BEFORE = re.compile(rf"\b{_SPEECH_VERBS}\s*$", re.IGNORECASE)
 
 
 def people_speaking(text: Any) -> list[str]:
     """Registry ids of the people a text gives a line to, in order: «Gus : « Tu es où ? »»,
-    «Lila dit : …», «…», says Gus. A badge over such an item is that person's (#147, #780):
-    a line Gus says never goes out under Lila."""
+    «Lila dit : …», «Lila te demande : …», «…», says Gus. A badge over such an item is that
+    person's (#147, #780): a line Gus says never goes out under Lila."""
 
     content = str(text or "")
     hits: list[tuple[int, str]] = []
@@ -678,6 +681,73 @@ def people_speaking(text: Any) -> list[str]:
     out: list[str] = []
     for _pos, cid in sorted(hits):
         if cid not in out:
+            out.append(cid)
+    return out
+
+
+#: Someone named by what they are, not by name: a determiner, a noun, maybe «du Mistral»
+#: («ton frère», «la patronne du Mistral», «your friend», «deine Freundin»).
+_RELATION = (
+    r"(?P<rel>(?:ton|ta|tes|votre|vos|un|une|le|la|l'|your|a|an|the|dein|deine|ein|eine|der|die)\s*"
+    r"(?!(?:lui|leur|me|te|se|nous|vous|en|y)\b)[^\W\d_]+(?:-[^\W\d_]+)?"
+    r"(?:\s+(?:du|de\s+la|des|at|of|im|vom)\s+[^\W\d_]+)?)"
+)
+#: «Ton frère te demande : …», «Ta voisine : « … »», «« … », demande ton ami.»
+_RELATION_SAYS = re.compile(
+    rf"\b{_RELATION}\s*(?::\s*[«\"“]|{_SAID_TO}{_SPEECH_VERBS}\b)"
+    rf"|[»\"”]\s*,?\s*{_SPEECH_VERBS}\s+{_RELATION.replace('?P<rel>', '?P<rel2>')}\b",
+    re.IGNORECASE,
+)
+
+
+def relation_speaking(text: Any) -> str | None:
+    """The person a text gives a line to by what they are to the learner, lower-cased:
+    «Ton frère te demande : « On mange où ce soir ? »» → ``"ton frère"``. ``None`` when the
+    text gives no line to such a person.
+
+    ROOT CAUSE #147 (#1120): an item carries its cast in its words, and a relation word is
+    one of them. :func:`people_speaking` reads only names, so «Ton frère te demande :» went
+    out under the beat's character, Lila; :func:`relation_holders` says who that is."""
+
+    match = _RELATION_SAYS.search(str(text or ""))
+    if match is None:
+        return None
+    return re.sub(r"\s+", " ", match.group("rel") or match.group("rel2")).strip().lower()
+
+
+#: A possessive names the learner's own: «ton amie» is one of the learner's friends.
+_POSSESSIVE = frozenset({"ton", "ta", "tes", "votre", "vos", "your", "dein", "deine"})
+#: Relation nouns a prompt says more loosely than the cast's labels, as (kind, gender):
+#: «ton amie» may be Lila («ta complice») or Romy; «x» fits either gender.
+_RELATION_NOUNS: dict[str, tuple[str, str]] = {
+    "ami": ("friend", "m"), "amie": ("friend", "f"), "copain": ("friend", "m"), "copine": ("friend", "f"),
+    "complice": ("friend", "x"), "friend": ("friend", "x"), "freund": ("friend", "m"), "freundin": ("friend", "f"),
+    "voisin": ("neighbour", "m"), "voisine": ("neighbour", "f"), "neighbour": ("neighbour", "x"),
+    "neighbor": ("neighbour", "x"), "nachbar": ("neighbour", "m"), "nachbarin": ("neighbour", "f"),
+}
+
+
+def relation_holders(relation: str | None) -> list[str]:
+    """Registry ids of the people who are ``relation`` to the learner: by the cast's own
+    labels in any language («ton ami» → Marin, «la patronne» → Margaux), and for a
+    possessive friend or neighbour word by the kind of tie and the gender («ton amie» →
+    Lila, Romy). ``[]`` when nobody of the cast is («ton frère», «un collègue»): a line
+    such a person says has no face of the cast."""
+
+    wanted = re.sub(r"\s+", " ", str(relation or "")).strip().lower()
+    if not wanted:
+        return []
+    determiner, _, noun = wanted.partition(" ")
+    loose = _RELATION_NOUNS.get(noun) if determiner in _POSSESSIVE else None
+    out: list[str] = []
+    for cid, row in _registry().items():
+        tie = row.relation_to_learner
+        if tie is None:
+            continue
+        labels = {str(label).strip().lower() for label in tie.labels.values()}
+        by_label = any(label == wanted or label.startswith(f"{wanted} ") for label in labels if label)
+        by_kind = loose is not None and tie.kind == loose[0] and (loose[1] == "x" or row.gender in {"x", loose[1]})
+        if by_label or by_kind:
             out.append(cid)
     return out
 

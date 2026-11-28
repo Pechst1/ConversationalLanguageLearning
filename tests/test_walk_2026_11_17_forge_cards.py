@@ -104,6 +104,9 @@ def test_a1_day3_the_age_card_takes_its_own_three_word_answer():
     item = _age_ask_item()
     card = ib.output_item(item, round_name="sentence", requirement={"label": "avoir"})
     assert card is not None
-    assert card["min_words"] <= len("J'ai trente ans.".split()), (WALK, card["min_words"], item.sentence)
+    # #1126: the exchange's answer is about the cast now («Elle a trente ans.»), so the
+    # floor is that answer's own length, not the learner's «J'ai trente ans.».
+    answer = len(item.sentence.split(". ")[-1].split())
+    assert card["min_words"] <= answer <= 4, (WALK, card["min_words"], item.sentence)
     served = ib.public_item(dict(card), "de")
-    assert served["min_words"] <= 3
+    assert served["min_words"] <= answer

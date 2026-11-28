@@ -68,12 +68,14 @@ def test_the_age_build_asks_for_and_accepts_only_the_sentence_it_quotes():
     assert built is not None
     # What the learner was asked for is quoted, and only that.
     assert _sentences(_quoted(built["goal_native"])) == 1
-    assert built["correct_answer"].startswith("J'ai ") and built["correct_answer"].endswith(" ans.")
+    # #1126: the exchange asks a person of the cast («Gus demande l'âge de Lila. Elle a
+    # trente ans.»), never the learner's own age.
+    assert built["correct_answer"].startswith(("Il a ", "Elle a ")) and built["correct_answer"].endswith(" ans.")
     assert _sentences(built["correct_answer"]) == 1
-    assert "demande ton âge" not in " ".join(built["answer_tokens"])
+    assert "demande" not in " ".join(built["answer_tokens"])
     # The question that sets the scene is read before the quote, not built.
-    assert built["goal_native"].startswith("Marin asks how old you are.") or "asks how old you are" in built["goal_native"]
-    assert built["meaning_cue"].startswith("I am ")
+    assert re.search(r"asks how old \w+ is\.", built["goal_native"]), built["goal_native"]
+    assert built["meaning_cue"].startswith(("He is ", "She is "))
 
 
 def test_a_build_of_only_the_answer_sentence_is_marked_right(db_session):

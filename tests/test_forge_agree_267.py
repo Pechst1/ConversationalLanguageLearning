@@ -62,7 +62,10 @@ def test_vous_badge_tu() -> None:
 
 def test_badge_kept() -> None:
     assert _decorated("Ton amie te demande : « Tu viens ? » Réponds que oui.", LILA_TU)["character"]["name"] == "Lila Bonnet"
-    assert _decorated("Votre voisin vous demande : « Vous avez vu mon chat ? »", GUS_VOUS)["character"]["name"] == "Gus"
+    assert _decorated("Un habitué du Mistral vous demande : « Vous avez vu mon chat ? »", GUS_VOUS)["character"]["name"] == "Gus"
+    # #1120: Gus is a regular at Le Mistral, not the learner's neighbour; the relation word
+    # the prompt gives its asker comes from the cast, so «Votre voisin» is not put under him.
+    assert "character" not in _decorated("Votre voisin vous demande : « Vous avez vu mon chat ? »", GUS_VOUS)
     # No address at all: any badge agrees.
     assert _decorated("Au marché, on demande où sont les pommes.", LILA_TU)["character"]["name"] == "Lila Bonnet"
 

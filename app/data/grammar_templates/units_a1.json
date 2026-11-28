@@ -23,7 +23,7 @@
    {"id": "avoir-noun", "fr": "[[{S|sv:avoir} // {S|sv_x:avoir}]] {N|indef} {A|agree:N}.", "en": "{S|en_sv:avoir} {N|en_aadj:A}.", "de": "{S|g_s} {S|g_v:avoir} {N|g_np:indef:acc:adj=A}.", "slots": {"N": "noun:obj,count,possess", "A": "adj:post@N"}},
    {"id": "avoir-cast", "fr": "{C} [[{C|v:avoir} // {C|v_x:avoir}]] {O}.", "en": "{C|en_svc:V:O}.", "de": "{C|g_cl:V:O}.", "slots": {"C": "cast", "O": "comp@V"}, "weight": 3},
    {"id": "avoir-cast-age", "fr": "{C} [[{C|v:avoir} // {C|v:être} // {C|v_x:avoir}]] {M} ans.", "en": "{C} is {M.digits} years old.", "de": "{C} ist {M.digits} Jahre alt.", "slots": {"C": "cast", "M": "num:age@C"}, "weight": 2},
-   {"id": "avoir-age-ask", "fr": "{C} demande ton âge. [[{S|sv:avoir} // {S|sv_etre:avoir} // {S|sv_x:avoir}]] {M} ans.", "en": "{C} asks how old you are. {S|en_sv:être} {M.digits} years old.", "de": "{C} fragt, wie alt du bist. Ich bin {M.digits} Jahre alt.", "slots": {"C": "cast", "S": "pron:1s", "M": "num:age"}, "weight": 2}
+   {"id": "avoir-age-ask", "fr": "{D} demande l'âge de {C}. {C|ilelle_cap} [[{C|v:avoir} // {C|v:être} // {C|v_x:avoir}]] {M} ans.", "en": "{D} asks how old {C} is. {C|en_pron} is {M.digits} years old.", "de": "{D} fragt, wie alt {C} ist. {C|g_pro:nom} ist {M.digits} Jahre alt.", "slots": {"C": "cast", "D": "cast", "M": "num:age@C"}, "weight": 2}
   ]
  },
  "FR2_A11_IL_Y_A": {
