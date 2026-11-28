@@ -233,18 +233,11 @@ def _subject_before_objects(tokens: list[Tok], text: str, index: int) -> int | N
     return None
 
 
-def _subject_person(tokens: list[Tok], text: str, index: int) -> str | None:
-    """Who the subject right before ``tokens[index]`` is, or ``None`` when the
-    sentence does not say (:func:`_subject_at`)."""
-
-    found = _subject_at(tokens, text, index)
-    return found[1] if found else None
-
-
 def _subject_at(tokens: list[Tok], text: str, index: int) -> tuple[str, str] | None:
     """The subject pronoun of the verb at ``tokens[index]`` and its person, or ``None``
     when the sentence does not say. Only a subject read with confidence may prove a
-    form right or wrong."""
+    form right or wrong, and a rule's note names this word, the one the person was read
+    from (#1125: «Je lui a dit» is fixed because of «je», never because of «lui»)."""
 
     at = _subject_before_objects(tokens, text, index)
     if at is not None:
@@ -3264,20 +3257,23 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
 
         # --- person of être / avoir / aller after a plain subject pronoun -------------
         if tok.low in _FORM_PERSONS and prev is not None and joined_prev:
-            person = _subject_person(tokens, source, i)
+            said = _subject_at(tokens, source, i)
             persons = _FORM_PERSONS[tok.low]
-            if person is not None and person not in persons:
+            if said is not None and said[1] not in persons:
+                # #1125: the note names the subject the person was read from («Je lui a
+                # dit»: «je»), never the clitic or «ne» right before the verb.
+                subject = "je" if said[0] == "j" else said[0]
                 lemma = _FORM_LEMMA[tok.low]
-                right = _PERSON_FORMS[lemma][person]
+                right = _PERSON_FORMS[lemma][said[1]]
                 pronoun = source[prev.start : prev.end]
                 if prev.low == "je" and right[0] in "aeiouhéèê":
                     apostrophe = "’" if "’" in source else "'"
                     glued = _case(pronoun, "j") + apostrophe + right
                     add(_edit("FR_PERSON_AUX", source, prev.start, tok.end, glued,
-                              subject=pronoun.casefold(), right=glued))
+                              subject=subject, right=glued))
                 else:
                     add(_edit("FR_PERSON_AUX", source, tok.start, tok.end,
-                              _case(source[tok.start:tok.end], right), subject=pronoun.casefold(), right=right))
+                              _case(source[tok.start:tok.end], right), subject=subject, right=right))
                 continue
 
         # --- walk 14: a predicate adjective after a plural subject («Nous sommes drôle») ---
