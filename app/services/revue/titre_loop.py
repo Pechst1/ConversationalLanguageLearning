@@ -72,7 +72,7 @@ from app.services.revue.encounter import (
 )
 from app.services.revue.fil_loop import _rng
 from app.services.revue.intox_loop import _ct, _place, read_of
-from app.services.revue.titre import headline_text
+from app.services.revue.titre import headline_text, headline_tokens
 
 if TYPE_CHECKING:  # pragma: no cover
     from app.services.revue.encounter import RevueEncounter
@@ -234,14 +234,33 @@ def wrong_span(headline: str, wrong: str) -> list[int]:
     return []
 
 
-def grade_trap(headline: str, wrong: str, picked: list[int]) -> dict[str, Any]:
+def said_in(word: str, honest: str) -> bool:
+    """``word`` (an elided form split, «c'est» → «c'» + «est») stands in the honest headline."""
+
+    said = set(headline_tokens(honest))
+    tokens = headline_tokens(word)
+    return bool(tokens) and all(token in said for token in tokens)
+
+
+def grade_trap(headline: str, wrong: str, picked: list[int], honest: str | None = None) -> dict[str, Any]:
     """Right when every tapped word is one of the words that say too much and at least one of
-    them carries the meaning (not «le» alone); ``fine``: the tapped words the claims do say."""
+    them carries the meaning (not «le» alone); ``fine``: the tapped words the claims do say.
+
+    ``honest`` (the honest headline of the same band, 2026-11-22): a tapped word outside
+    ``wrong`` is ``fine`` («Bleibt stehen: Das sagt der Artikel») only when the honest headline
+    says it too. A desk that changed more than ``wrong`` (the Arc story: «gagne» for «essaie de
+    gagner») never makes the trap call a word the article does not say true; such a word is
+    neither fine nor held against the learner."""
 
     span = set(wrong_span(headline, wrong))
     words = words_of(headline)
     chosen = set(picked)
-    fine = sorted(chosen - span)
+    outside = chosen - span
+    if honest is not None:
+        unsaid = {i for i in outside if not said_in(words[i], honest)}
+        outside -= unsaid
+        chosen -= unsaid
+    fine = sorted(outside)
     meaningful = {i for i in span if comptoir.ci(words[i]) not in _TRAP_STOP}
     return {"correct": bool(chosen) and not fine and bool(chosen & meaningful), "fine": fine}
 
@@ -438,7 +457,7 @@ def apply_act(encounter: RevueEncounter, loaded: Loaded, body: RvRubriqueRequest
             return None
         if not acts.three_resolved:
             raise _out_of_order(step, act)
-        graded = grade_trap(text, desk.wrong_fr, picked)
+        graded = grade_trap(text, desk.wrong_fr, picked, honest=desk.headline("honest").for_band(band).fr)
         state.append(KIND, act="trap", words=picked, correct=graded["correct"], fine=graded["fine"],
                      attempt=len(acts.traps) + 1)
         return None

@@ -104,7 +104,9 @@ RETRY_NOTE = (
     "and articles included, and cut it. number_not_in_claims / name_not_in_claim(s): the line carries a number "
     "or a name its claim does not say, written as the claim writes it — copy it from the claim or drop it. "
     "ungrounded / value_not_said / right_not_in_claim: use the claim's own words. distractor: another value of "
-    "the same kind copied from the claims. previous_answer is your refused answer: return it whole with exactly "
+    "the same kind copied from the claims. changed_outside_wrong: that band's exaggerated headline changes, adds or "
+    "drops a word outside wrong_fr — write it as the honest headline of the same band with only wrong_fr put in, "
+    "every other word as the honest one says it. previous_answer is your refused answer: return it whole with exactly "
     "the named lines fixed; keep every line that was not named, word for word."
 )
 

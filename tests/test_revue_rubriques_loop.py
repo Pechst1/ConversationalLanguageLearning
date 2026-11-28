@@ -420,16 +420,52 @@ def test_the_trap_is_graded_against_the_stored_words(db: Session) -> None:
     solve_three(revue, row)
     trap = revue.view(row).titre.trap
     words = [w.fr for w in trap.words]
-    assert words == ["La", "fête", "plaît", "à", "tout", "le", "monde"] and trap.solution == []
+    assert words == ["La", "fête", "est", "gratuite", "et", "toujours", "calme"] and trap.solution == []
     assert act(revue, row, act="trap", words=[]).error.code == "pick_words"
-    trap = act(revue, row, act="trap", words=[1, 4]).session.titre.trap
-    assert not trap.resolved and trap.fine == [1] and trap.solution == [] and trap.why is None, "fête is true"
+    trap = act(revue, row, act="trap", words=[3, 5]).session.titre.trap
+    assert not trap.resolved and trap.fine == [3] and trap.solution == [] and trap.why is None, "gratuite is true"
     assert titre_loop.grade_trap("La fête plaît à tout le monde", "tout le monde", [5])["correct"] is False, "«le» alone"
     assert titre_loop.grade_trap("La fête plaît à tout le monde", "tout le monde", [4, 6])["correct"] is True
-    view = act(revue, row, act="trap", words=[4, 5, 6]).session.titre
-    assert view.trap.resolved and view.trap.correct and view.trap.solution == [4, 5, 6]
-    assert view.trap.why.fr.startswith("Pas tout le monde") and view.trap.claim.id == "c3"
+    view = act(revue, row, act="trap", words=[5, 6]).session.titre
+    assert view.trap.resolved and view.trap.correct and view.trap.solution == [5, 6]
+    assert view.trap.why.fr.startswith("Pas toujours calme") and view.trap.claim.id == "c3"
     assert view.step == "build"
+
+
+def test_the_trap_never_says_a_word_the_honest_headline_lacks_is_what_the_article_says(db: Session,
+                                                                                        monkeypatch) -> None:
+    """Real run (2026-11-22, the Arc story): «gagne · Bleibt stehen: Das sagt der Artikel» — the
+    honest headline said «essaie de gagner». Stet only for a word the honest headline of the same
+    band says; a desk that changed more than wrong_fr never makes the trap say otherwise."""
+
+    desk = evergreen_titre(FETE)
+    honest = desk.headline("honest")
+    # The shipped evergreen: every content word of the exaggerated headline outside wrong_fr is
+    # one the honest headline of the same band says, so tapping it is always stet.
+    for band in ("a1", "a2", "b1"):
+        text, said = desk.headline("exaggerated").for_band(band).fr, honest.for_band(band).fr
+        span = set(titre_loop.wrong_span(text, desk.wrong_fr))
+        assert span, band
+        for i, word in enumerate(titre_loop.words_of(text)):
+            if i in span or comptoir.ci(word) in titre_desk.FUNCTION_WORDS:
+                continue
+            assert titre_loop.grade_trap(text, desk.wrong_fr, [i], honest=said)["fine"] == [i], (band, word)
+
+    plain = honest.a1.model_copy(update={"fr": "La fête est ouverte à toutes les musiques"})
+    desk.headlines[0] = honest.model_copy(update={"a1": plain})
+    monkeypatch.setattr(titre_loop, "desk_of", lambda loaded: desk)
+    revue, row = start(db, "titre")
+    act(revue, row, act="open")
+    act(revue, row, act="pick", key=titre_loop.key_of(str(row.id))[0])
+    trap = act(revue, row, act="trap", words=[3]).session.titre.trap  # «gratuite»: not in that honest headline
+    assert trap.words[3].fr == "gratuite" and trap.fine == [] and not trap.resolved
+
+    exaggerated, arc = "C'est sûr, Daryz gagne la course une deuxième fois", "Daryz essaie de gagner la course une deuxième fois"
+    assert titre_loop.grade_trap(exaggerated, "c'est sûr", [3], honest=arc) == {"correct": False, "fine": []}
+    graded = titre_loop.grade_trap(exaggerated, "c'est sûr", [2], honest=arc)
+    assert graded == {"correct": False, "fine": [2]}, "Daryz is in the honest headline: stet"
+    graded = titre_loop.grade_trap(exaggerated, "c'est sûr", [0, 1, 3], honest=arc)
+    assert graded["correct"] is True, "the words that say too much, and one more that does too"
 
 
 def test_a1_builds_from_tiles_without_a_model_call(db: Session) -> None:
@@ -438,7 +474,7 @@ def test_a1_builds_from_tiles_without_a_model_call(db: Session) -> None:
     solve_three(revue, row)
     solve_trap(revue, row)
     build = revue.view(row).titre.build
-    assert build.input == "tiles" and build.avoid_fr == "tout le monde" and len(build.subjects) == 2
+    assert build.input == "tiles" and build.avoid_fr == "toujours calme" and len(build.subjects) == 2
     assert act(revue, row, act="build", parts=[5, 0]).error.code == "pick_tiles"
     view = act(revue, row, act="build", parts=[0, 0]).session.titre
     assert view.build.proof == "clean" and view.build.printed_fr == "La Fête de la musique est gratuite"
@@ -462,7 +498,7 @@ def test_a2_completes_the_frame_romy_marks_and_the_learner_fixes(db: Session) ->
     solve_trap(revue, row)
     build = revue.view(row).titre.build
     assert build.input == "frame" and build.frame.fr == "La Fête de la musique" and build.frame.tr
-    assert act(revue, row, act="build", text="plaît à tout le monde").error.code == "says_too_much"
+    assert act(revue, row, act="build", text="est toujours calme").error.code == "says_too_much"
     assert act(revue, row, act="build", text="dure 30 heures").error.code == "number_not_in_claims"
     assert not events(row, "titre")[-1].get("act") == "build", "a refusal records nothing"
     result = act(revue, row, act="build", text="est gratuite et le gens sont content")

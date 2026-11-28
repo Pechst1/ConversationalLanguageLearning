@@ -2,19 +2,19 @@
  "headlines": [
   {
    "a1": {
+    "fr": "La fête est gratuite",
+    "en": "The festival is free",
+    "de": "Das Fest ist kostenlos"
+   },
+   "a2": {
     "fr": "Une fête gratuite pour toutes les musiques",
     "en": "A free festival for every kind of music",
     "de": "Ein kostenloses Fest für jede Musik"
    },
-   "a2": {
-    "fr": "Une fête gratuite et ouverte à toutes les musiques",
-    "en": "A free festival, open to every kind of music",
-    "de": "Ein kostenloses Fest, offen für jede Musik"
-   },
    "b1": {
-    "fr": "Le 21 juin, une fête gratuite et ouverte à toutes les musiques",
-    "en": "On 21 June, a free festival open to every kind of music",
-    "de": "Am 21. Juni ein kostenloses Fest, offen für jede Musik"
+    "fr": "Le 21 juin, une fête gratuite pour toutes les musiques",
+    "en": "On 21 June, a free festival for every kind of music",
+    "de": "Am 21. Juni ein kostenloses Fest für jede Musik"
    },
    "role": "honest",
    "claim_id": "c2",
@@ -22,26 +22,26 @@
   },
   {
    "a1": {
-    "fr": "La fête plaît à tout le monde",
-    "en": "Everyone likes the festival",
-    "de": "Das Fest gefällt allen"
+    "fr": "La fête est gratuite et toujours calme",
+    "en": "The festival is free and always calm",
+    "de": "Das Fest ist kostenlos und immer ruhig"
    },
    "a2": {
-    "fr": "Le 21 juin, tout le monde aime la fête",
-    "en": "On 21 June, everyone loves the festival",
-    "de": "Am 21. Juni lieben alle das Fest"
+    "fr": "Une fête gratuite pour toutes les musiques, toujours calme",
+    "en": "A free festival for every kind of music, always calm",
+    "de": "Ein kostenloses Fest für jede Musik, immer ruhig"
    },
    "b1": {
-    "fr": "Fête de la musique : une nuit qui plaît à tout le monde",
-    "en": "Fête de la musique: a night everyone likes",
-    "de": "Fête de la musique: eine Nacht, die allen gefällt"
+    "fr": "Le 21 juin, une fête gratuite pour toutes les musiques, toujours calme",
+    "en": "On 21 June, a free festival for every kind of music, always calm",
+    "de": "Am 21. Juni ein kostenloses Fest für jede Musik, immer ruhig"
    },
    "role": "exaggerated",
    "claim_id": "c3",
    "why": {
-    "fr": "Pas tout le monde : la fête fait du bruit, et il y a de nombreuses plaintes.",
-    "en": "Not everyone: the festival makes noise, and there are many complaints.",
-    "de": "Nicht allen: Das Fest macht Lärm, und es gibt viele Beschwerden."
+    "fr": "Pas toujours calme : la fête fait du bruit, et il y a de nombreuses plaintes.",
+    "en": "Not always calm: the festival makes noise, and there are many complaints.",
+    "de": "Nicht immer ruhig: Das Fest macht Lärm, und es gibt viele Beschwerden."
    }
   },
   {
@@ -70,7 +70,7 @@
   }
  ],
  "stretch": "always",
- "wrong_fr": "tout le monde",
+ "wrong_fr": "toujours calme",
  "build": {
   "subjects": [
    {
