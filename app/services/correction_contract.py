@@ -233,18 +233,11 @@ def _subject_before_objects(tokens: list[Tok], text: str, index: int) -> int | N
     return None
 
 
-def _subject_person(tokens: list[Tok], text: str, index: int) -> str | None:
-    """Who the subject right before ``tokens[index]`` is, or ``None`` when the
-    sentence does not say (:func:`_subject_at`)."""
-
-    found = _subject_at(tokens, text, index)
-    return found[1] if found else None
-
-
 def _subject_at(tokens: list[Tok], text: str, index: int) -> tuple[str, str] | None:
     """The subject pronoun of the verb at ``tokens[index]`` and its person, or ``None``
     when the sentence does not say. Only a subject read with confidence may prove a
-    form right or wrong."""
+    form right or wrong, and a rule's note names this word, the one the person was read
+    from (#1125: «Je lui a dit» is fixed because of «je», never because of «lui»)."""
 
     at = _subject_before_objects(tokens, text, index)
     if at is not None:
@@ -3169,6 +3162,49 @@ def _predicate_adjective_plural(source: str, tokens: list[Tok], index: int) -> E
                  subject=subject.low, right=right, wrong=original)
 
 
+#: What may open a clause before its subject («… et tes murs sont …»).
+_CLAUSE_OPENERS = frozenset({"et", "mais", "ou", "donc", "alors", "quand", "si", "que", "qu", "parce", "car"})
+
+
+def _predicate_adjective_feminine(source: str, tokens: list[Tok], index: int) -> Edit | None:
+    """#1105 (live walk 27 Nov): «Ta chambre est très grand» was a review item's key.
+
+    A feminine determiner and a feminine noun open the clause (``ta chambre``, both say
+    feminine), then «est», one degree word at most, and an adjective of the closed table
+    :data:`_FEMININE_OF_ADJECTIVE` in its masculine form that ends its phrase: the
+    adjective takes the feminine. «Le prix de la chambre est grand» (the subject is «le
+    prix»), a noun of either gender and any adjective outside the table stay as written.
+    """
+
+    tok = tokens[index]
+    if index < 2 or tok.low != "est":
+        return None
+    det, noun = tokens[index - 2], tokens[index - 1]
+    if det.low not in _FEMININE_ARTICLES or not (_joined(source, det, noun) and _joined(source, noun, tok)):
+        return None
+    if "'" in source[det.start : noun.end]:
+        return None
+    if index >= 3 and _joined(source, tokens[index - 3], det) and tokens[index - 3].low not in _CLAUSE_OPENERS:
+        return None  # «… de la chambre est»: «la chambre» is not plainly the subject
+    if noun.low in _TWO_GENDER_NOUNS or _noun_gender(noun.low) != "f":
+        return None
+    at = index + 1
+    if at < len(tokens) and tokens[at].low in _DEGREE_WORDS and _joined(source, tok, tokens[at]):
+        at += 1
+    if at >= len(tokens) or not _joined(source, tokens[at - 1], tokens[at]):
+        return None
+    adjective = tokens[at]
+    written = source[adjective.start : adjective.end]
+    feminine = _FEMININE_OF_ADJECTIVE.get(written)
+    if feminine is None:
+        return None
+    after = tokens[at + 1] if at + 1 < len(tokens) else None
+    if after is not None and _joined(source, adjective, after) and after.low not in _PHRASE_END_WORDS:
+        return None
+    return _edit("FR_ADJ_AGREE", source, adjective.start, adjective.end, feminine,
+                 noun=noun.low, right=feminine, wrong=written)
+
+
 _NUMBER_FOLLOWERS = (
     r"deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|"
     r"vingt|trente|quarante|cinquante|soixante|mille"
@@ -3221,26 +3257,35 @@ def _raw_edits(source: str, cast: Mapping[str, str]) -> list[Edit]:
 
         # --- person of être / avoir / aller after a plain subject pronoun -------------
         if tok.low in _FORM_PERSONS and prev is not None and joined_prev:
-            person = _subject_person(tokens, source, i)
+            said = _subject_at(tokens, source, i)
             persons = _FORM_PERSONS[tok.low]
-            if person is not None and person not in persons:
+            if said is not None and said[1] not in persons:
+                # #1125: the note names the subject the person was read from («Je lui a
+                # dit»: «je»), never the clitic or «ne» right before the verb.
+                subject = "je" if said[0] == "j" else said[0]
                 lemma = _FORM_LEMMA[tok.low]
-                right = _PERSON_FORMS[lemma][person]
+                right = _PERSON_FORMS[lemma][said[1]]
                 pronoun = source[prev.start : prev.end]
                 if prev.low == "je" and right[0] in "aeiouhéèê":
                     apostrophe = "’" if "’" in source else "'"
                     glued = _case(pronoun, "j") + apostrophe + right
                     add(_edit("FR_PERSON_AUX", source, prev.start, tok.end, glued,
-                              subject=pronoun.casefold(), right=glued))
+                              subject=subject, right=glued))
                 else:
                     add(_edit("FR_PERSON_AUX", source, tok.start, tok.end,
-                              _case(source[tok.start:tok.end], right), subject=pronoun.casefold(), right=right))
+                              _case(source[tok.start:tok.end], right), subject=subject, right=right))
                 continue
 
         # --- walk 14: a predicate adjective after a plural subject («Nous sommes drôle») ---
         plural_adjective = _predicate_adjective_plural(source, tokens, i)
         if plural_adjective is not None:
             add(plural_adjective)
+            continue
+
+        # --- #1105: a predicate adjective after a feminine noun («Ta chambre est grand») ---
+        feminine_adjective = _predicate_adjective_feminine(source, tokens, i)
+        if feminine_adjective is not None:
+            add(feminine_adjective)
             continue
 
         # --- être-verbs conjugated with avoir; agreement after être ------------------
@@ -3952,6 +3997,67 @@ def _an_article_before(wrong: str, tokens: list[Tok], index: int, context: objec
     if before in _PRONOUN_CONTEXT:
         return False
     return lexicon_pos(tokens[index + 1].low) == "noun"
+
+
+#: #1099: the determiners that are also object pronouns in front of a verb: «je la
+#: vois», «puis l'éteint», «je leur parle».
+_CLITIC_DETERMINERS = frozenset({"le", "la", "les", "l", "leur"})
+#: #1099: the coordinators that may drop the subject of the verb after them: «… puis
+#: l'éteint», «et la range».
+_DROPPED_SUBJECT_COORDINATORS = frozenset({"et", "puis", "mais", "ou"})
+
+
+def object_pronoun_at(text: object, start: int) -> bool:
+    """#1099: is the «le», «la», «les», «l'» or «leur» at ``start`` in ``text`` an
+    object pronoun in front of a verb, and so no determiner?
+
+    A surface that marks an article asks this, from the same lexicon and pronoun
+    list the rules' own elision and gender checks use. A clitic sits between a
+    subject (said or dropped) and its verb, so it is a pronoun only where the word in
+    front is one of these and the word after it can be a verb:
+
+    - a subject pronoun, another clitic or «ne»: «je la porte», «tu ne l'aimes pas»;
+    - a name or a plain noun that is the subject: «Margaux la regarde», «le chat la
+      regarde»;
+    - «et», «puis», «mais», «ou» with the subject dropped, and then only in front of an
+      inflected form the lexicon knows as a verb alone: «puis l'éteint», «et la range».
+
+    Anything else stays a determiner: at the start of a clause («La ferme est loin»: a
+    clitic never opens a statement), after an ordinary verb or a preposition («Romy
+    voit la ferme», «J'aime le sourire de Margaux»), and after a coordinator in front of
+    a word the lexicon also has as a noun, an adjective or an infinitive («et la ferme»,
+    «et le devoir»).
+    """
+
+    source = _norm(text)
+    tokens = _tokens(source)
+    index = next((i for i, tok in enumerate(tokens) if tok.start == start), None)
+    if index is None or index == 0 or tokens[index].low not in _CLITIC_DETERMINERS or index + 1 >= len(tokens):
+        return False
+    prev, tok, nxt = tokens[index - 1], tokens[index], tokens[index + 1]
+    if not (_joined(source, prev, tok) and _joined(source, tok, nxt)) or source[prev.end : tok.start] == "-":
+        return False  # it opens its clause («Alors, la table…», «Prends-le»)
+    if not _could_be_verb(nxt.low):
+        return False
+    if prev.low in _PRONOUN_CONTEXT or _subject_noun_at(source, tokens, index - 1):
+        return True
+    return prev.low in _DROPPED_SUBJECT_COORDINATORS and _lemma(nxt.low) is None and _noun_lemma(nxt.low) is None
+
+
+def _subject_noun_at(source: str, tokens: list[Tok], at: int) -> bool:
+    """#1099: is ``tokens[at]`` a subject a clitic may follow: a name («Margaux la
+    regarde», «Lila les appelle»), or a noun after its determiner or one that is no
+    verb form («le chat la regarde»)? In «Elle garde la place» a verb stands in front."""
+
+    word = tokens[at]
+    if _names_a_subject_in_front(source, word, False):
+        return True
+    if _noun_gender(word.low) is None:
+        return False
+    det = tokens[at - 1] if at > 0 and _joined(source, tokens[at - 1], word) else None
+    if det is not None and (det.low in _DET_GENDER or det.low in _PLURAL_DETS):
+        return True
+    return not _could_be_verb(word.low)
 
 
 def _word_before(context: object, quoted: str) -> str | None:
@@ -4754,6 +4860,7 @@ __all__ = [
     "note_for_form",
     "note_from_form",
     "note_matches_form",
+    "object_pronoun_at",
     "reconcile_notes",
     "to_erratum",
     "verify_edit",

@@ -670,4 +670,9 @@ def test_grammar_items_stay_pure() -> None:
         if isinstance(node, ast.ImportFrom) and node.module
     }
     # The shared language policy is pure too; bank/catalogue I/O stays in grammar_units.
-    assert imported <= {"__future__", "typing", "app.services.journey_contracts", "app.services.chrome_language", "app.services.learner_facts"}, imported
+    # The correction contract is the rules' pure French reading (lexicon only, no DB, no
+    # model): #1099 asks it whether a «la» / «l'» is an article or an object pronoun.
+    assert imported <= {
+        "__future__", "typing", "app.services.journey_contracts", "app.services.chrome_language",
+        "app.services.learner_facts", "app.services.correction_contract",
+    }, imported
