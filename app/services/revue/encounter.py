@@ -1211,6 +1211,13 @@ def first_json_object(text: str) -> Any:
         return json.JSONDecoder().raw_decode(text[start:])[0]
 
 
+#: Romy's edit calls, when the first answer came back empty or cut short, ask once more with
+#: this many times their budget (at least :data:`EDIT_RETRY_MIN_TOKENS`); the budget is a
+#: ceiling, paid only when used ([[gpt5-empty-content-token-starvation]]).
+EDIT_RETRY_FACTOR = 3
+EDIT_RETRY_MIN_TOKENS = 6000
+
+
 @dataclass
 class OpenAIRevueProvider:
     """The app's LLM service (``app.services.llm_service.LLMService``), one JSON call per task.
@@ -1247,6 +1254,11 @@ class OpenAIRevueProvider:
     def _ask(self, task: str, payload: dict[str, Any], **fmt: Any) -> dict[str, Any]:
         return self.ask_json(_TASKS[task].format(**fmt), payload, system=_SYSTEMS.get(task, _SYSTEM), label=task)
 
+    def retry_budget(self) -> int:
+        """The larger completion budget an edit call asks with once more (:meth:`ask_json`)."""
+
+        return max(EDIT_RETRY_FACTOR * self.max_tokens, EDIT_RETRY_MIN_TOKENS)
+
     def ask_json(
         self,
         instructions: str,
@@ -1255,33 +1267,56 @@ class OpenAIRevueProvider:
         system: str = _SYSTEM,
         temperature: float = 0.4,
         label: str = "task",
+        retry_starved: bool = False,
     ) -> dict[str, Any]:
         """One structured JSON call; the cost lands on :attr:`spent_usd`. The rubric critic
-        (:class:`app.services.revue.grading.LLMRubricScorer`) uses it with its own system prompt."""
+        (:class:`app.services.revue.grading.LLMRubricScorer`) uses it with its own system prompt.
 
-        try:
-            result = self._llm().generate_chat_completion(
-                [{"role": "user", "content": f"{instructions}\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False)}"}],
-                system_prompt=system,
-                temperature=temperature,
-                max_tokens=self.max_tokens,
-                response_format={"type": "json_object"},
-                reasoning_effort="low",
-                **({"model": self.model} if self.model else {}),
-            )
-        except Exception as exc:  # noqa: BLE001 - the service falls back to authored lines
-            raise RevueProviderError(str(exc)) from exc
-        cost = float(getattr(result, "cost", 0.0) or 0.0)
-        with self._lock:
-            self.spent_usd += cost
-        self._local.spent = self.thread_spent() + cost
-        try:
-            data = first_json_object(result.content or "")
-        except (TypeError, ValueError) as exc:
-            raise RevueProviderError(f"{label}: not JSON") from exc
-        if not isinstance(data, dict):
-            raise RevueProviderError(f"{label}: not an object")
-        return data
+        ``retry_starved`` (Romy's edit calls, 2026-11-22): an answer that came back empty
+        (``llm_service.is_empty_content``: the reasoning spent the budget) or cut short (not
+        JSON) is asked once more with :meth:`retry_budget`; a second failure raises as before.
+        A real run on «Le titre» (gpt-6-luna, 1600 tokens, «Le pourquoi»'s why in up to three
+        languages) came back empty and the learner's headline printed unread."""
+
+        from app.services.llm_service import is_empty_content
+
+        content = f"{instructions}\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False)}"
+        budget = self.max_tokens
+        attempts = 2 if retry_starved else 1
+        for attempt in range(1, attempts + 1):
+            last = attempt == attempts
+            try:
+                result = self._llm().generate_chat_completion(
+                    [{"role": "user", "content": content}],
+                    system_prompt=system,
+                    temperature=temperature,
+                    max_tokens=budget,
+                    response_format={"type": "json_object"},
+                    reasoning_effort="low",
+                    **({"model": self.model} if self.model else {}),
+                )
+            except Exception as exc:  # noqa: BLE001 - the service falls back to authored lines
+                if not last and is_empty_content(exc):
+                    budget = self.retry_budget()
+                    logger.info("revue {}: empty answer, asking once more with {} tokens", label, budget)
+                    continue
+                raise RevueProviderError(str(exc)) from exc
+            cost = float(getattr(result, "cost", 0.0) or 0.0)
+            with self._lock:
+                self.spent_usd += cost
+            self._local.spent = self.thread_spent() + cost
+            try:
+                data = first_json_object(result.content or "")
+            except (TypeError, ValueError) as exc:
+                if not last:
+                    budget = self.retry_budget()
+                    logger.info("revue {}: answer not JSON, asking once more with {} tokens", label, budget)
+                    continue
+                raise RevueProviderError(f"{label}: not JSON") from exc
+            if not isinstance(data, dict):
+                raise RevueProviderError(f"{label}: not an object")
+            return data
+        raise RevueProviderError(f"{label}: no answer")  # pragma: no cover - the loop returns or raises
 
     def vocabulary(
         self, *, claims: list[dict[str, str]], count: int, language: str, prefer: Sequence[str] = (),
@@ -1317,7 +1352,7 @@ class OpenAIRevueProvider:
 
         # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
         return self.ask_json(edit_instructions(context), context, system=COMPTOIR_EDIT_SYSTEM, temperature=0.5,
-                             label="comptoir_edit")
+                             label="comptoir_edit", retry_starved=True)
 
     def fil_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Le fil»: Romy's edit of the learner's two-sentence telling (one call)."""
@@ -1327,7 +1362,7 @@ class OpenAIRevueProvider:
 
         # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
         return self.ask_json(fil_edit_instructions(context), context, system=FIL_EDIT_SYSTEM, temperature=0.3,
-                             label="fil_edit")
+                             label="fil_edit", retry_starved=True)
 
     def titre_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Le titre»: Romy's edit of the learner's headline (one call)."""
@@ -1337,7 +1372,7 @@ class OpenAIRevueProvider:
 
         # Today's instructions unless the context asks for the marks' why («Le pourquoi»).
         return self.ask_json(titre_edit_instructions(context), context, system=TITRE_EDIT_SYSTEM, temperature=0.3,
-                             label="titre_edit")
+                             label="titre_edit", retry_starved=True)
 
     def rubrique_edit(self, context: dict[str, Any]) -> dict[str, Any]:
         """«La photo», «Le micro»: Romy's edit of the learner's caption or questions (one call)."""
@@ -1345,7 +1380,7 @@ class OpenAIRevueProvider:
         from app.services.revue.rubrique_proof import EDIT_SYSTEM, edit_instructions
 
         return self.ask_json(edit_instructions(context), context, system=EDIT_SYSTEM, temperature=0.3,
-                             label=f"{context.get('kind') or 'rubrique'}_edit")
+                             label=f"{context.get('kind') or 'rubrique'}_edit", retry_starved=True)
 
     def micro_match(self, context: dict[str, Any]) -> dict[str, Any]:
         """«Le micro»: which of the candidate facts an ambiguous question asks for (one call)."""

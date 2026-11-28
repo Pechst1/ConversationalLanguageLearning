@@ -14,7 +14,7 @@ import { Action } from '@/components/atelier-v2/ui';
 import { frenchSpacing } from '@/lib/french-typography';
 import type { RvIntoxPage, RvMicroPage, RvPhotoPage, RvTitrePage } from '@/lib/revue-rubriques-types';
 
-import type { ComptoirCopy } from '../comptoir/comptoir-copy';
+import { closeLineIn, type ComptoirCopy } from '../comptoir/comptoir-copy';
 import { RomyLine } from '../comptoir/RvComptoirParts';
 import { fill } from '../revue-copy';
 import { RvTroisMotsSlot } from '../rdv/RvTroisMots';
@@ -302,7 +302,7 @@ export function RvRubriquePage({
         <RvTroisMotsSlot sessionId={session.id} chrome={session.plan.uiLanguage} mother={session.plan.glossLanguage} closed={Boolean(closing) && !props.readOnly} />
         {clipping}
         {/* «La belle édition»: the front page opens the screen; Romy's thanks follow it. */}
-        {closing && !ended && closing.romyLineFr && <RomyLine line={{ fr: closing.romyLineFr, tr: null }} props={props} />}
+        {closing && !ended && closing.romyLineFr && <RomyLine line={closeLineIn(closing.romyLineFr, props.glossLanguage)} props={props} />}
         {closing?.vignette && <RvCloseVignette vignette={closing.vignette} week={session.week.label} stamping={!ended} copy={copy} />}
         {closing && (
           <p className="rv-colophon" lang="fr">
