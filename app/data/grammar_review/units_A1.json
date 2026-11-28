@@ -1116,7 +1116,7 @@
       "sub_band": "A1.2",
       "prerequisites": "FR2_A11_CONTRACTIONS",
       "contrast_partners": "",
-      "detector": "regex:\\b(?:à côté|en face|près|loin|au bout|autour|au-dessus|au-dessous|au milieu)\\s+(?:de|du|des|d')|\\b(?:sur|sous|devant|derrière|entre)\\s+(?:le|la|l'|les|un|une|mon|ma|mes|ton|ta|son|sa|ce|cet|cette|ces)\\b",
+      "detector": "regex:\\b(?:à côté|en face|près|loin|au bout|autour|au-dessus|au-dessous|au milieu)\\s+(?:de|du|des|d')|\\b(?!sur\\s+(?:un|une|le|la|l'|les|ce|cet|cette)\\s*(?:\\w+\\s+){0,2}(?:an|ans|année|années|mois|semaine|semaines|jour|jours|période|total|trimestre|trimestres|décennie|siècle)\\b)(?:sur|sous|devant|derrière|entre)\\s+(?:le|la|l'|les|un|une|mon|ma|mes|ton|ta|son|sa|ce|cet|cette|ces)\\b",
       "rule_short_en": "Dans (in), sur (on), sous (under), devant (in front of), derrière (behind), à côté de (next to).",
       "rule_short_de": "Dans (in), sur (auf), sous (unter), devant (vor), derrière (hinter), à côté de (neben).",
       "rule_short_fr": "Pour situer : dans, sur, sous, devant, derrière, entre, à côté de, en face de, près de.",

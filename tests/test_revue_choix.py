@@ -397,3 +397,58 @@ def test_the_front_page_carries_the_servers_day_for_its_edition(db: Session, mon
     assert offer.model_dump(mode="json")["edition_date"] == datetime.now(UTC).astimezone(PARIS).date().isoformat()
     monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", False)
     assert "edition_date" not in RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), WEEK).model_dump(mode="json")
+
+
+# ---------------------------------------------------------------------------
+# 4. True reasons (real-data run 2026-11-22: 5 of 17 front-page reasons were false)
+# ---------------------------------------------------------------------------
+
+
+def test_a_card_promises_only_the_words_of_the_rubric_it_deals(db: Session, monkeypatch) -> None:
+    """D1: Anna's produce card dealt «Le titre» promised 3 of her words, but «caisse» and
+    «panier» were only in the counter's takes. The reason is scored over the card's own rubric."""
+
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    monkeypatch.setattr(settings, "REVUE_CHOICE_ENABLED", True)
+    fete = next(d for d in evergreens_for_week(WEEK) if d.id == FETE)
+    assert not enc.appears_in(choix.story_french(fete, "a2", keys=["titre"]), "le silence"), "only in the takes"
+    assert enc.appears_in(choix.story_french(fete, "a2", keys=["comptoir"]), "le silence")
+    focus(monkeypatch, due=("le silence",))
+    revue = RevueEncounter(db, FakeRevueProvider())
+    revue.ranked(make_user(db), WEEK)
+    assert revue.why_for(FETE, key="titre")["due_words"] == []
+    assert revue.why_for(FETE, key="comptoir")["due_words"] == ["le silence"]
+    dealt = assignments.deal
+    for forced in ("titre", "comptoir"):
+        monkeypatch.setattr(assignments, "deal", lambda offered, recent, _k=forced, **kw:
+                            _k if _k in offered else dealt(offered, recent, **kw))
+        choices = RevueEncounter(db, FakeRevueProvider()).week_offer(make_user(db), WEEK).model_dump(mode="json")["choices"]
+        assert any(card["dossier_id"] == FETE for card in choices)
+        for card in choices:
+            dossier = next(d for d in evergreens_for_week(WEEK) if d.id == card["dossier_id"])
+            text = choix.story_french(dossier, "a2", keys=[card["assignment"]["key"]])
+            for word in (card.get("why") or {}).get("due_words") or []:
+                assert enc.appears_in(text, word), (card["dossier_id"], card["assignment"]["key"], word)
+
+
+def test_the_session_keeps_the_reason_of_the_rubric_it_plays(db: Session, monkeypatch) -> None:
+    """D1: the reason kept on the dossier choice is the dealt rubric's, not the story's sum."""
+
+    monkeypatch.setattr(settings, "REVUE_PEDAGOGY_PICK_ENABLED", True)
+    focus(monkeypatch, due=("le silence",))
+    row = RevueEncounter(db, FakeRevueProvider()).start(make_user(db), week=WEEK, dossier_id=FETE, assignment="titre")
+    assert dossier_choice(row)["mode"] == "titre"
+    assert dossier_choice(row)["why"]["due_words"] == []
+
+
+def test_the_story_is_scored_on_the_lead_the_learner_reads() -> None:
+    """D6: a story without an A2 lead scored its summary, while the A2 learner reads its A1 lead."""
+
+    from app.services.revue.dossier import StoryLead, StoryLeads
+
+    bac = next(d for d in evergreens_for_week(WEEK) if d.id == BAC)
+    only_a1 = bac.model_copy(update={"leads": StoryLeads(a1=StoryLead(fr="Le lycéen mange une pomme."))})
+    assert only_a1.lead_for("A2").fr == "Le lycéen mange une pomme."
+    text = choix.story_french(only_a1, "a2")
+    assert "pomme" in text and bac.summary_fr not in text
+    assert bac.summary_fr in choix.story_french(only_a1, "b1"), "B1 reads the summary"

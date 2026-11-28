@@ -463,3 +463,24 @@ def test_an_infinitive_or_singular_the_claim_inflects_is_kept() -> None:
     assert not enc.appears_in("Seize chevaux courent l'Arc.", "la course")
     strict = [row["fr"] for row in enc.extract_vocabulary([{"id": "c1", "fr": "Seize chevaux courent, Paris compte 91 marchés."}], 5, strict=True)]
     assert strict == [], "strict extraction takes only nouns that come with their article"
+
+
+def test_a_stem_match_leaves_only_an_inflectional_ending() -> None:
+    """D2 (real-data run 2026-11-22): the due word «cours» was promised in a story that only
+    said «course». A word matches its form or an inflection of it, never another word."""
+
+    assert not enc.appears_in("La course a lieu dimanche.", "cours")
+    assert not enc.appears_in("La course a lieu dimanche.", "le cours")
+    assert not enc.appears_in("Les coureurs partent.", "le cours")
+    assert not enc.appears_in("Le parisien lit.", "Paris")
+    assert enc.appears_in("Les cours reprennent lundi.", "le cours")
+    assert enc.appears_in("Il prend des cours.", "cours")
+    # real lemma matches stay
+    assert enc.appears_in("Les grèves continuent.", "la grève")
+    assert enc.appears_in("Elle porte une robe.", "porter")
+    assert enc.appears_in("Ils portaient des robes.", "porter")
+    assert enc.appears_in("Les élèves finissent tôt.", "finir")
+    assert enc.appears_in("La salle est grande.", "grand")
+    assert enc.appears_in("Il a vendu sa maison.", "vendre")
+    assert enc.appears_in("On attend les résultats.", "le résultat")
+    assert enc.appears_in("Les journaux parlent du bac.", "le journal")
