@@ -25,6 +25,8 @@ character who was there may mention it once, in one line; nothing beyond the rec
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -49,7 +51,8 @@ INSTRUCTION = (
     "first) refer to it ONCE, naturally, in one short line — e.g. Romy says the piece ran («notre "
     "papier»), or a regular still disagrees with what the learner said at the counter — and that "
     "line may reuse ONE of papier_echo.kept_words. Never state anything about the news story beyond "
-    "papier_echo (headline_fr and what the learner did); never quote more than it holds; never "
+    "papier_echo (headline_fr, learner_did and, when present, regulars_remember: what a regular "
+    "who was there remembers of it, for that regular's line only); never quote more than it holds; never "
     "refer to it twice in the scene. If today's situation makes it forced, leave it out entirely."
 )
 
@@ -253,4 +256,147 @@ def director_context(db: Any, user: Any, *, now: datetime | None = None) -> dict
     return director_block(echo, now=now) if echo is not None else None
 
 
-__all__ = ["CONTEXT_KEY", "Echo", "director_block", "director_context", "echo_for", "enabled"]
+# ---------------------------------------------------------------------------
+# The guard: what a written page may say of the echo (no model call)
+# ---------------------------------------------------------------------------
+#
+# The instruction asks for one line, by someone who was there, with nothing beyond the record.
+# A page is refused (the scene's reask names why) when a line that speaks of the learner's piece
+# is said twice, is said by someone not in ``present``, or states a number or a proper name the
+# record does not hold. A line «speaks of the piece» when it names the paper («Le Papier», «ton
+# article», «notre papier», «le micro-trottoir», «dans le journal») or shares a proper name or
+# two content words with the headline or what the learner printed. Lines that touch none of it
+# are never read further: a sheet of paper («le papier») is not the newspaper.
+
+_MARKERS = (
+    re.compile(r"\bLe Papier\b"),
+    re.compile(r"\b(?:ton|ta|notre|votre|mon|ma)\s+(?:papier|article|micro-trottoir)\b", re.IGNORECASE),
+    re.compile(r"\bmicro-trottoir\b", re.IGNORECASE),
+    re.compile(r"\b(?:dans|au)\s+(?:le\s+)?journal\b", re.IGNORECASE),
+)
+#: A word without its elision («l'écrivain» is «l» and «écrivain»).
+_WORD = re.compile(r"[^\W\d_][\w-]*", re.UNICODE)
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+_CAPITAL = re.compile(r"\b[A-ZÀ-ÖØ-Þ][\w-]{2,}")
+#: What opens a sentence or a quote: the capital after it is no name.
+_OPENERS = ".!?«»:;—–\"(…"
+#: Capitalised words that are not a fact about the story.
+_COMMON_CAPS = {
+    "monsieur", "madame", "mademoiselle", "papier", "romy", "paris", "mistral", "comptoir", "titre",
+    "micro", "trottoir", "journal", "hier", "oui", "non", "merci", "bravo", "bonjour",
+}
+_MIN_KEYWORD = 5
+_STOP = {
+    "parce", "comme", "alors", "aussi", "encore", "toujours", "jamais", "quand", "depuis", "avant",
+    "apres", "entre", "contre", "leurs", "notre", "votre", "cette", "celui", "celle", "pense", "faire",
+}
+
+
+def _fold(text: str) -> str:
+    text = unicodedata.normalize("NFKD", str(text).replace("’", "'"))
+    return "".join(c for c in text if not unicodedata.combining(c)).casefold()
+
+
+def _words(text: str) -> set[str]:
+    return {_fold(w).strip("-") for w in _WORD.findall(str(text or ""))}
+
+
+def _keywords(text: str) -> set[str]:
+    return {w for w in _words(text) if len(w) >= _MIN_KEYWORD and w not in _STOP}
+
+
+def _name_spans(text: str) -> list[str]:
+    """The capitalised words of ``text`` that open neither it, a sentence nor a quote."""
+
+    text = str(text or "")
+    out = []
+    for match in _CAPITAL.finditer(text):
+        before = text[: match.start()].rstrip()
+        if before and before[-1] not in _OPENERS:
+            out.append(match.group(0))
+    return out
+
+
+def _names(text: str) -> set[str]:
+    return {_fold(name).strip("-") for name in _name_spans(text)}
+
+
+def _numbers(text: str) -> list[str]:
+    return [n.replace(",", ".") for n in _NUMBER.findall(str(text or ""))]
+
+
+def _record_text(block: dict[str, Any]) -> str:
+    did = block.get("learner_did") or {}
+    parts = [block.get("headline_fr"), block.get("rubric"), block.get("desk_fr"), block.get("when_fr")]
+    parts += [str(v) for v in did.values()]
+    parts += [str(p.get("name") or "") for p in block.get("present") or [] if isinstance(p, dict)]
+    parts += [str(w) for w in block.get("kept_words") or []]
+    for row in block.get("regulars_remember") or []:
+        if isinstance(row, dict):
+            parts += [str(row.get("name") or ""), str(row.get("fr") or "")]
+    return " ".join(str(p) for p in parts if p)
+
+
+def _speaks_of_it(text: str, block: dict[str, Any]) -> bool:
+    if any(marker.search(text) for marker in _MARKERS):
+        return True
+    did = block.get("learner_did") or {}
+    story = " ".join(str(v) for v in [block.get("headline_fr"), *did.values()] if v)
+    words = _words(text)
+    if _names(block.get("headline_fr") or "") - _COMMON_CAPS & words:
+        return True
+    return len(_keywords(story) & words) >= 2
+
+
+def page_issue(
+    lines: list[tuple[str | None, str]], block: dict[str, Any] | None, *, known_names: set[str] | None = None
+) -> tuple[str, str] | None:
+    """``(reason, hint)`` when the page's echo breaks the instruction, else ``None``.
+
+    ``lines`` are the page's printed lines as ``(speaker id or None for narration, text)``;
+    ``block`` is the context's ``papier_echo``; ``known_names`` the world's names (the cast's,
+    the places'), which a line may always say."""
+
+    if not isinstance(block, dict) or not block.get("headline_fr"):
+        return None
+    seen: set[str] = set()
+    mentions: list[tuple[str | None, str]] = []
+    for speaker, text in lines:
+        text = str(text or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        if _speaks_of_it(text, block):
+            mentions.append((speaker, text))
+    if not mentions:
+        return None
+    if len(mentions) > 1:
+        quoted = " / ".join(f"«{text[:70]}»" for _s, text in mentions[:3])
+        return (
+            "papier_echo_repeated",
+            f"The learner's Papier is spoken of in {len(mentions)} lines ({quoted}). papier_echo may "
+            "come up once, in one short line: keep the best one and take the others out.",
+        )
+    speaker, text = mentions[0]
+    present = {str(p.get("id")) for p in block.get("present") or [] if isinstance(p, dict)}
+    if speaker is not None and speaker not in present:
+        return (
+            "papier_echo_absent_speaker",
+            f"{speaker} speaks of the learner's Papier («{text[:80]}») but was not there: only "
+            f"{sorted(present)} (papier_echo.present) may. Give the line to one of them or leave it out.",
+        )
+    record = _record_text(block)
+    allowed = _words(record) | _COMMON_CAPS | _words(" ".join(known_names or ()))
+    numbers = [n for n in _numbers(text) if n not in set(_numbers(record))]
+    names = _names(text) - allowed
+    if numbers or names:
+        invented = ", ".join(dict.fromkeys([*numbers, *(n for n in _name_spans(text) if _fold(n).strip("-") in names)]))
+        return (
+            "papier_echo_beyond_record",
+            f"«{text[:80]}» says {invented} about the learner's Papier, which papier_echo does not hold. "
+            "Say only what papier_echo holds (headline_fr, what the learner did, kept_words), or leave it out.",
+        )
+    return None
+
+
+__all__ = ["CONTEXT_KEY", "Echo", "director_block", "director_context", "echo_for", "enabled", "page_issue"]

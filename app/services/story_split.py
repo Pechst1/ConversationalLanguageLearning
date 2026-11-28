@@ -812,6 +812,9 @@ def planner_payload(context: dict, rejections: list[str]) -> dict:
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "learner_agency_rules": agency or None,
         "special": _special(context),
+        # «Papier · l'écho»: what the learner did at the paper lately (REVUE_ECHO_ENABLED). Real
+        # run of 22 Nov 2026: left out here, it never reached the page written ahead of time.
+        **({"papier_echo": echo} if (echo := context.get("papier_echo")) else {}),
         # Phase 2: on a later act, the act's role, the day's first act and the day's hook.
         **({"act": act} if (act := context.get(ACT_KEY)) else {}),
         "previous_rejections": rejections,
@@ -824,6 +827,16 @@ def _taken_titles(context: dict) -> list[str]:
         for item in (context.get("recent_situations") or [])[-RECENT_DAYS * 3 :]
         if item.get("title_fr")
     ]
+
+
+def _papier_echo_on_page(context: dict, on_page: list[str]) -> dict | None:
+    """The context's ``papier_echo`` when someone on the page is in its ``present``."""
+
+    echo = context.get("papier_echo")
+    if not isinstance(echo, dict):
+        return None
+    present = {str(row.get("id")) for row in echo.get("present") or [] if isinstance(row, dict)}
+    return echo if present & set(on_page) else None
 
 
 def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict:
@@ -866,6 +879,8 @@ def author_payload(context: dict, plan: PagePlan, rejections: list[str]) -> dict
         "concept": _concept(context),
         "story_words": context.get(engine.STORY_WORDS_KEY) or None,
         "special": _special(context),
+        # «Papier · l'écho»: only a page with someone who was there may speak of it.
+        **({"papier_echo": echo} if (echo := _papier_echo_on_page(context, on_page)) else {}),
         # Red-thread design: what the app's ending makes true, the hook as authored and
         # the learner's marks that come back today (as slots).
         **(

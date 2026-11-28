@@ -8124,6 +8124,33 @@ def _settle_speaker_labels(draft: SceneDraft, context: dict) -> None:
             setattr(holder, field, clean)
 
 
+def _check_papier_echo(draft: SceneDraft, context: dict) -> None:
+    """«Papier · l'écho»: a page that speaks of the learner's Papier does it once, by someone
+    who was there, and says nothing the record does not hold (``revue.echo.page_issue``). Real
+    run of 22 Nov 2026: only the prompt held the writer to it. No model call."""
+
+    block = context.get("papier_echo")
+    if not block:
+        return
+    from app.services.revue import echo
+
+    lines: list[tuple[str | None, str]] = []
+    for panel in draft.panels:
+        lines.append((None, panel.narration_fr))
+        lines += [(line.character_id, line.text_fr) for line in panel.dialogue]
+    lines.append((draft.character_id, draft.opening_line_fr))
+    world = context.get("world") or {}
+    known = {
+        str(row.get("name") or "")
+        for row in [*(world.get("cast") or []), *(world.get("locations") or [])]
+        if isinstance(row, dict)
+    }
+    known.add(str((context.get("learner") or {}).get("name") or ""))
+    issue = echo.page_issue(lines, block, known_names={name for name in known if name})
+    if issue is not None:
+        raise StoryUnavailable(issue[0], hint=issue[1])
+
+
 def _validate_scene(draft: SceneDraft, context: dict):
     # Red-thread design: the learner's own words go where the page carries their slot,
     # before any guard reads the page.
@@ -8218,6 +8245,7 @@ def _validate_scene(draft: SceneDraft, context: dict):
     _check_canon_register(draft, context)
     _check_departed_cast(draft, context)
     _check_flag_contradiction(draft, context, learner_text)
+    _check_papier_echo(draft, context)
     _check_season_gap(draft, context, learner_text)
     if str(context.get("control_language") or "").strip().lower() == "fr":
         # #144: the app says tu to the learner; a French task line in vous is the app
