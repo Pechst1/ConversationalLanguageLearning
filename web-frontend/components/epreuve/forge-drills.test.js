@@ -395,11 +395,11 @@ test('the page poses each format: typed, dictation, spot and mine, rafale', () =
   assert.match(transform, /updateAnswer\(item\.id, spotChanged\(tokens, edits\) \? spotAnswer\(tokens, edits\) : ''\);/);
   // The right line once: a miss reads it in its correction, a right answer hears it.
   // Owner 2026-11-13: and never while a second chance is open.
-  assert.match(transform, /const modelAudio = submitted && !solutionWithheld\(correction\) && !\(drill && correction\?\.verdict !== 'correct'\) && /);
+  assert.match(transform, /const modelText = submitted && !solutionWithheld\(correction\) && !\(drill && correction\?\.verdict !== 'correct'\) && /);
 
   const session = PAGE.slice(PAGE.indexOf('function SessionView('), PAGE.indexOf('function ActionRow('));
   assert.match(session, /\{isNamedDrill\(drill\) && \(drill !== 'rafale' \|\| rafale\) && <ForgeDrillTag drill=\{drill\} copy=\{fc\} \/>\}/);
-  assert.match(session, /picked=\{round === 'recognize' \? drill !== 'typed' \|\| typedAsIs : round === 'transform' && Boolean\(drill\)\}/);
+  assert.match(session, /const pickedAnswer = round === 'recognize' \? drill !== 'typed' \|\| typedAsIs : round === 'transform' && Boolean\(drill\);/);
   assert.match(session, /<ForgeRafale\s+key=\{burstItemKey\(servedBurst\)\}/);
   assert.match(session, /\{round === 'recognize' && !rafale && \(/);
   assert.match(session, /\{!rafale && <ExerciseFeedbackMoment/);

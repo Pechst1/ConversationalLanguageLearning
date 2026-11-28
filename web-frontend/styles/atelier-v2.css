@@ -2508,6 +2508,18 @@
     color: var(--av2-red);
   }
 }
+/* The marked word of a missed line (EpAnswerLine) is body-size text on the dark card:
+   the same lift, for the same reason. */
+:root[data-theme='dark'] .av2:not(.av2--light) .ep-answer[data-tone='open'] .ep-mark,
+.av2--dark .ep-answer[data-tone='open'] .ep-mark {
+  color: var(--av2-red);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .av2:not(.av2--light) .ep-answer[data-tone='open'] .ep-mark,
+  :root:not([data-theme]) .av2:not(.av2--light) .ep-answer[data-tone='open'] .ep-mark {
+    color: var(--av2-red);
+  }
+}
 
 /* WP-77 — faces. A portrait disc that has a drawn face shows it edge to edge;
    the small byline disc grows a little so a face is still a face. */

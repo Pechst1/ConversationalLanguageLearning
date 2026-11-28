@@ -139,8 +139,7 @@ export type EpreuveCopy = {
   repair_parts_label: string;
   repair_parts_gap: string;
   /** Owner 2026-11-13: before the second chance, where and why, never the solution. */
-  miss_where: string;
-  miss_choice: string;
+  answer_edit: string;
   miss_sub: string;
   show_solution: string;
   showing_solution: string;
@@ -331,8 +330,7 @@ const FR: EpreuveCopy = {
   repair_parts_ok: 'Phrase corrigée. Elle reviendra plus tard.',
   repair_no: 'Pas tout à fait — reprends la ligne.',
   repair_parts_label: 'Corrige les mots marqués',
-  miss_where: 'Ce qui ne va pas',
-  miss_choice: 'Pas cette réponse',
+  answer_edit: 'Touche ta phrase pour la changer',
   miss_sub: 'Cherche d’abord toi-même ; la solution vient après.',
   show_solution: 'Voir la solution',
   model_answer: 'Une réponse possible',
@@ -517,8 +515,7 @@ const EN: EpreuveCopy = {
   repair_parts_ok: 'Line fixed. It comes back later.',
   repair_no: 'Not quite — try the line again.',
   repair_parts_label: 'Fix the marked words',
-  miss_where: 'What is off',
-  miss_choice: 'Not this answer',
+  answer_edit: 'Tap your line to change it',
   miss_sub: 'Find it yourself first; the solution comes after.',
   show_solution: 'Show the solution',
   model_answer: 'One possible answer',
@@ -703,8 +700,7 @@ const DE: EpreuveCopy = {
   repair_parts_ok: 'Ausgebessert. Der Satz kommt später wieder.',
   repair_no: 'Nicht ganz — versuch die Zeile noch einmal.',
   repair_parts_label: 'Korrigiere die markierten Wörter',
-  miss_where: 'Was nicht stimmt',
-  miss_choice: 'Nicht diese Antwort',
+  answer_edit: 'Tippe auf deine Zeile, um sie zu ändern',
   miss_sub: 'Finde es zuerst selbst; die Lösung kommt danach.',
   show_solution: 'Lösung zeigen',
   model_answer: 'Eine mögliche Antwort',
