@@ -45,6 +45,7 @@ import {
   StateBlock,
   Surface,
 } from '@/components/atelier-v2/ui';
+import { BilanReleveSection } from '@/components/bilan/BilanReleveSection';
 import CarnetTab from '@/components/cahiers/CarnetTab';
 import { NbSectionHead } from '@/components/cahiers/CahierV2';
 import LevelPlanCard from '@/components/releve/LevelPlanCard';
@@ -440,6 +441,10 @@ export default function Releve() {
           </Surface>
         )}
       </section>
+
+      {/* ---- Le bilan: this week so far and the weeks played (#bilan); draws
+          nothing while BILAN_ENABLED is off ---- */}
+      <BilanReleveSection language={chromeLanguage} />
 
       {/* ---- Le Carnet (WP-95): what the level means in practice ---- */}
       <div id="carnet" className="nb-rv__sec">

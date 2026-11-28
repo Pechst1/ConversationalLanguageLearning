@@ -1418,6 +1418,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bilan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Bilan */
+        get: operations["read_bilan_api_v1_bilan_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bilan/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Card */
+        get: operations["read_card_api_v1_bilan_card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/can-dos": {
         parameters: {
             query?: never;
@@ -7278,6 +7312,137 @@ export interface components {
             };
             /** Attempt Id */
             attempt_id?: string | null;
+        };
+        /** Bilan */
+        Bilan: {
+            /** Closed */
+            closed: boolean;
+            /** Days */
+            days: components["schemas"]["BilanDay"][];
+            /** Days Played */
+            days_played: number;
+            /** Is Current */
+            is_current: boolean;
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "en" | "de" | "fr";
+            /** Level */
+            level: string;
+            /** Lines */
+            lines: components["schemas"]["BilanLine"][];
+            /** Next Week Start */
+            next_week_start?: string | null;
+            /** Previous Week Start */
+            previous_week_start?: string | null;
+            /** Rules */
+            rules: components["schemas"]["BilanRule"][];
+            story: components["schemas"]["BilanStory"];
+            /** Timezone */
+            timezone: string;
+            /** Week End */
+            week_end: string;
+            /** Week Start */
+            week_start: string;
+            /** Weeks */
+            weeks: components["schemas"]["BilanWeekRef"][];
+            words: components["schemas"]["BilanWords"];
+        };
+        /** BilanCard */
+        BilanCard: {
+            /** Days Played */
+            days_played: number;
+            /** Week Start */
+            week_start?: string | null;
+        };
+        /** BilanDay */
+        BilanDay: {
+            /** Date */
+            date: string;
+            /** Future */
+            future: boolean;
+            /** Played */
+            played: boolean;
+        };
+        /** BilanDecision */
+        BilanDecision: {
+            /** Date */
+            date: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "choice" | "promise" | "resolved";
+            /** Label Fr */
+            label_fr: string;
+        };
+        /** BilanEpisode */
+        BilanEpisode: {
+            /** Date */
+            date: string;
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** BilanLine */
+        BilanLine: {
+            /** Date */
+            date: string;
+            /** Source */
+            source: string;
+            /** Text Fr */
+            text_fr: string;
+        };
+        /** BilanRule */
+        BilanRule: {
+            /** Concept Id */
+            concept_id: number;
+            /** From Label */
+            from_label?: string | null;
+            /** From Stage */
+            from_stage: string;
+            /** Stage */
+            stage: string;
+            /** Stage Label */
+            stage_label?: string | null;
+            /** Title */
+            title: string;
+            /** Title Fr */
+            title_fr: string;
+        };
+        /** BilanStory */
+        BilanStory: {
+            /** Decisions */
+            decisions: components["schemas"]["BilanDecision"][];
+            /** Episodes */
+            episodes: components["schemas"]["BilanEpisode"][];
+            /** Next Fr */
+            next_fr?: string | null;
+        };
+        /** BilanWeekRef */
+        BilanWeekRef: {
+            /** Days Played */
+            days_played: number;
+            /** Week Start */
+            week_start: string;
+        };
+        /** BilanWord */
+        BilanWord: {
+            /** Gloss */
+            gloss: string;
+            /** Word */
+            word: string;
+        };
+        /** BilanWords */
+        BilanWords: {
+            /** Held Count */
+            held_count: number;
+            /** New Count */
+            new_count: number;
+            /** Reviewed Count */
+            reviewed_count: number;
+            /** Shown */
+            shown: components["schemas"]["BilanWord"][];
         };
         /** Body_import_anki_cards_api_v1_anki_import_post */
         Body_import_anki_cards_api_v1_anki_import_post: {
@@ -21352,6 +21517,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_bilan_api_v1_bilan_get: {
+        parameters: {
+            query?: {
+                /** @description Any day of the week asked for (learner-local). */
+                week?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Bilan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_card_api_v1_bilan_card_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BilanCard"];
                 };
             };
         };

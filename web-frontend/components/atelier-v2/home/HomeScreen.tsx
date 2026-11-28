@@ -28,6 +28,7 @@ import React from 'react';
 import Link from 'next/link';
 
 import { GoldPill } from '@/components/gold/GoldPill';
+import { BilanHomeCard } from '@/components/bilan/BilanHomeCard';
 import { PlacementOfferChip } from '@/components/onboarding/PlacementOfferChip';
 import { MurChip, MurEntry } from '@/components/cast/items/MurEntry';
 
@@ -434,6 +435,10 @@ export function HomeScreen({
           <DayPlanRow day={day} language={language} />
         </div>
       ) : null}
+
+      {/* «Le bilan»: after the week closes, one calm card to the week (BILAN_ENABLED;
+          renders nothing while the switch is off, the week was empty or it was read). */}
+      <BilanHomeCard className="av2-home__section" />
 
       {/* WP-81: at most one quiet row — a letter waiting, words due. */}
       {oneThing && shownChips.length === 0 && <MurChip className="av2-home__section av2-home__chips" />}

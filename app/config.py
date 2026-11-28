@@ -944,6 +944,14 @@ class Settings(BaseSettings):
             "marked before print (/correcteur, /revue/correcteur/*). Off: every route is a 404."
         ),
     )
+    BILAN_ENABLED: bool = Field(
+        False,
+        description=(
+            "«Le bilan»: the learner's week on one page (/bilan, GET /bilan, GET /bilan/card), "
+            "a calm card on Home after the week closes and one Monday push. Computed on read, "
+            "no model call. Off: every route is a 404 and the push never goes."
+        ),
+    )
     REVUE_COMPTOIR_ENABLED: bool = Field(
         False,
         description=(
