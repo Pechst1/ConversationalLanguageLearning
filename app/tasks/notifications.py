@@ -320,6 +320,11 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
     At the learner's local 19:00, once per local day, in a character's voice.
     The streak is read through `app.services.streak` — checked on the date, so
     a learner whose chain already broke is not told it is at risk.
+
+    ``STORY_REMEMBERED_HOOK``: on an evening whose day is not played and whose last
+    played day ended on a remembered hook, that hook goes out instead (one push, never
+    beside the streak line), whatever the streak's length, gated on ``practice_reminders``
+    and ``DAILY_PUSH_CAP`` and sent once per hook (``_remembered_hook_push``).
     """
     from app.services.notification_service import NotificationService
     from app.services.serial_notifications import streak_at_risk_push
@@ -329,8 +334,13 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
     db = SessionLocal()
     eligible = delivered = 0
     try:
+        from app.services import remembered_hook
+
         for user in _push_users(db):
-            if not getattr(user, "streak_notifications", True):
+            streak_on = bool(getattr(user, "streak_notifications", True))
+            # STORY_REMEMBERED_HOOK: the remembered hook's push is a story push, gated on
+            # practice reminders, not on the streak setting.
+            if not streak_on and not remembered_hook.enabled():
                 continue
             local = _local_now(user, moment)
             if not _in_window(_minute_of(local), STREAK_REMINDER_MINUTE):
@@ -342,19 +352,26 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
                     continue
                 state = settle_streak(db, user, today=today)
                 db.commit()
-                if state.days < 2 or _day_done(db, user, today, state.today_done):
+                if _day_done(db, user, today, state.today_done):
+                    continue
+                # STORY_REMEMBERED_HOOK: yesterday's remembered hook, from the character
+                # concerned, in place of the streak line (never both), once per hook, and
+                # also on a streak shorter than two days (the evening of day 2).
+                hook_push = _remembered_hook_push(db, user, today)
+                if hook_push is None and (state.days < 2 or not streak_on):
                     continue
                 eligible += 1
-                push = streak_at_risk_push(db, user, days=state.days)
+                push = hook_push or streak_at_risk_push(db, user, days=state.days)
                 count = NotificationService(db).send_notification(
                     user.id, push.message, push.title,
-                    data=push.data("streak_reminder", key),
+                    data=push.data("remembered_hook" if hook_push else "streak_reminder", key),
                 )
                 if count:
                     delivered += count
                     _record_sent(
                         db, user, STREAK_REMINDER_EVENT, key,
-                        {"title": push.title, "message": push.message, "days": state.days, "deliveries": count},
+                        {"title": push.title, "message": push.message, "days": state.days, "deliveries": count,
+                         **({"kind": "remembered_hook", "hook_date": push.teaser_date} if hook_push else {})},
                     )
             except Exception:
                 db.rollback()
@@ -363,6 +380,35 @@ def send_streak_reminders(now: str | None = None) -> dict[str, int]:
         return {"eligible_users": eligible, "notifications_sent": delivered}
     finally:
         db.close()
+
+
+def _remembered_hook_push(db, user: User, today: date):
+    """The evening's remembered-hook push (``serial_notifications.remembered_hook_push``),
+    or None: the flag off, the learner opted out of practice reminders, the day's pushes
+    already at :data:`DAILY_PUSH_CAP`, or this hook already pushed on an earlier evening."""
+
+    from app.services import remembered_hook
+    from app.services.serial_notifications import remembered_hook_push
+
+    if not remembered_hook.enabled() or not getattr(user, "practice_reminders", True):
+        return None
+    try:
+        if pushes_sent_on(db, user, today) >= DAILY_PUSH_CAP:
+            return None
+        push = remembered_hook_push(db, user, today=today)
+        if push is None:
+            return None
+        sent = db.scalars(
+            select(PilotEvent.payload).where(
+                PilotEvent.user_id == user.id, PilotEvent.event_type == STREAK_REMINDER_EVENT
+            )
+        ).all()
+        if any((row or {}).get("kind") == "remembered_hook" and (row or {}).get("hook_date") == push.teaser_date for row in sent):
+            return None
+        return push
+    except Exception:  # noqa: BLE001 - the streak line is never lost to this
+        logger.exception("remembered hook push skipped", user_id=str(user.id))
+        return None
 
 
 def review_reminder_copy(total_due: int) -> tuple[str, str]:

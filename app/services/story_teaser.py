@@ -677,8 +677,9 @@ def hook_line(teaser: dict | None) -> str:
 #: planned beat; ``contract``: the day contract's authored hook; ``tentpole``: an
 #: authored tentpole's own line; ``pick``: the learner's «Demain» pick; ``scene``: what
 #: today's scene left (its ending's step, the writer's question, a promise or a plant);
-#: ``generic``: one of the season's long questions.
-HOOK_SOURCES = ("plan", "beat", "contract", "tentpole", "pick", "scene", "generic")
+#: ``generic``: one of the season's long questions; ``remembered``: the learner's own
+#: decision in the scene, told (``remembered_hook``, ``STORY_REMEMBERED_HOOK``).
+HOOK_SOURCES = ("plan", "beat", "contract", "tentpole", "pick", "scene", "generic", "remembered")
 
 
 def hook_source(teaser: dict | None) -> str:

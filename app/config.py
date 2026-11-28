@@ -784,6 +784,18 @@ class Settings(BaseSettings):
             "reply stands."
         ),
     )
+    STORY_REMEMBERED_HOOK: bool = Field(
+        False,
+        description=(
+            "Tomorrow's hook remembers what the learner decided (#466, #455, #620): on a "
+            "generated day where the scene's record holds a clear yes or no to what a "
+            "character put to the learner, the day's one hook says that decision and asks "
+            "what follows, from authored templates per decision and level, never quoting the "
+            "learner. Done, Home, the Quartier and «Précédemment» print it; it is held from "
+            "the morning push and sent in the evening slot instead of the streak line, once. "
+            "No decision (or a tentpole day): the authored hook unchanged. Off: main."
+        ),
+    )
     STORY_SHARED_PAGES: bool = Field(
         False,
         description=(
