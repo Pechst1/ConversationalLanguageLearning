@@ -1070,6 +1070,100 @@ def reordering_correction(
 #: The label of an accent the key refuses in a free answer (#297).
 _ACCENT_LABEL: dict[str, str] = {"en": "Accent", "de": "Akzent", "fr": "Accent"}
 
+_EDGE_MARKS = ".,;:!?…«»\"()"
+
+
+def hyphen_slip(wrong: Any, fix: Any) -> bool:
+    """#1119: ``fix`` is ``wrong`` with words the learner wrote apart joined by a hyphen
+    («quarante neuf» -> «quarante-neuf», «est ce que» -> «est-ce que»), and ``wrong`` is
+    no accepted spelling of it («vingt et un» / «vingt-et-un» are both right)."""
+
+    from app.services.spelling_variants import is_variant_edit
+
+    left, right = fold_typography(wrong), fold_typography(fix)
+    return (
+        bool(left)
+        and left != right
+        and left.replace("-", " ").split() == right.replace("-", " ").split()
+        and right.count("-") > left.count("-")
+        and not is_variant_edit(wrong, fix)
+    )
+
+
+def hyphen_reading(text: Any, accepted: Any) -> tuple[str, list[tuple[str, str]]] | None:
+    """``(key, [(written, joined), …])`` when ``text`` is an accepted answer but for the
+    hyphens of some of its words (:func:`hyphen_slip`), else ``None``. ``written`` is the
+    learner's stretch as typed, ``joined`` the key's hyphenated word."""
+
+    line = str(text or "")
+    for key in (str(answer) for answer in accepted or [] if str(answer or "").strip()):
+        if not hyphen_slip(line, key):
+            continue
+        said, wanted = line.split(), key.split()
+        pairs: list[tuple[str, str]] = []
+        at = 0
+        for word in wanted:
+            core = word.strip(_EDGE_MARKS)
+            size = core.count("-") + 1
+            stretch = said[at : at + size]
+            if size > 1 and len(stretch) == size and fold_typography(" ".join(stretch)).replace("-", " ") == fold_typography(core).replace("-", " "):
+                pairs.append((" ".join(stretch).strip(_EDGE_MARKS), core))
+                at += size
+                continue
+            if at >= len(said) or fold_typography(said[at]) != fold_typography(word):
+                break
+            at += 1
+        else:
+            if pairs and at == len(said):
+                return key, pairs
+    return None
+
+
+def hyphen_erratum(written: str, joined: str, language: Any) -> dict[str, Any]:
+    """The miss of a missing hyphen: named, with the rule when it is a number's, and a
+    ``hint`` that says what is missing without the form (the solution may wait)."""
+
+    from app.services.spelling_variants import is_written_number
+
+    language_key = _language(language)
+    kind = "forge.diff.hyphen_number" if is_written_number(joined) else "forge.diff.hyphen"
+    note = _copy(kind, language_key, target=joined)
+    return {
+        "item_id": "",
+        "display_label": _copy("forge.diff.hyphen_label", language_key),
+        "learner_text": written,
+        "corrected_target": joined,
+        "why_wrong": note,
+        "repair_hint": "",
+        "hint": _copy(f"{kind}_hint", language_key),
+        "severity": 1,
+        "recurring": True,
+        "task_error_type": "orthography",
+    }
+
+
+def _held_to_hyphen(
+    refined: dict[str, Any], reading: tuple[str, list[tuple[str, str]]], *, language: Any
+) -> dict[str, Any]:
+    """#1119: a free answer that is an accepted answer but for a hyphen («Gus a payé
+    quarante neuf euros …»): the hyphen is its one issue, named and marked, whatever a
+    model said. The model's reading had been refused by every check on the way («quarante
+    neuf» -> «quarante-neuf» read as a spelling variant, then as words gone and come), and
+    the card showed the learner's own line with no mark and no reason."""
+
+    key, pairs = reading
+    concept = next((item for item in refined.get("errata") or [] if isinstance(item, dict)), {})
+    errata = [
+        {**hyphen_erratum(written, joined, language), "concept_id": concept.get("concept_id"), "external_id": concept.get("external_id")}
+        for written, joined in pairs
+    ]
+    refined.update({"errata": errata, "lexical_gaps": [], "missing_targets": [], "corrected_answer": key})
+    refined.pop("feedback_notes_native", None)
+    refined["verdict"] = "partial"
+    refined["score_0_4"] = min(max(float(refined.get("score_0_4") or 0), 2.0), 2.5)
+    refined["notes_native"] = notes_native(errata)
+    return refined
+
 
 def _held_to_accent(refined: dict[str, Any], reading: Any, *, learner_text: Any, language: Any) -> dict[str, Any]:
     """A free answer that is an accepted answer up to its accents
@@ -1262,6 +1356,10 @@ def _placed_fixes(
 def _derived_gap(wrong: str, fix: str, language_key: str) -> dict[str, Any]:
     """A correction read off the two sentences, for a difference the model did not list."""
 
+    if hyphen_slip(wrong, fix):
+        # #1119: «quarante neuf» -> «quarante-neuf» is a hyphen, not «the ending of
+        # quarante» and an extra «neuf» (a hyphenated word is one token to the diff).
+        return {**hyphen_erratum(wrong, fix, language_key), "derived_from_sentence": True}
     ops = token_diff(wrong, fix)
     accent_only = bool(ops) and all(op["kind"] == "accent" for op in ops)
     note = describe_diff(ops, language_key)
@@ -1373,7 +1471,11 @@ def refine_production_correction(
     if reading is not None:
         # #297: right words, right order, an accent off — the accent is the one issue.
         return _held_to_accent(refined, reading, learner_text=learner_text, language=language)
-    reordered = reordering_correction(learner_text, accepted, language)
+    hyphens = hyphen_reading(learner_text, accepted)
+    if hyphens is not None:
+        # #1119: right words, right order, a hyphen missing: the hyphen is the one issue.
+        return _held_to_hyphen(refined, hyphens, language=language)
+    reordered =reordering_correction(learner_text, accepted, language)
     if reordered is not None:
         answer, erratum = reordered
         concept = next((item for item in refined.get("errata") or [] if isinstance(item, dict)), {})

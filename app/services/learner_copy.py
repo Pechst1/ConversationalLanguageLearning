@@ -765,6 +765,33 @@ LEARNER_COPY: dict[str, dict[str, str]] = {
         "de": "Korrektur",
         "fr": "Correction",
     },
+    # #1119: a line that is the key but for a hyphen («quarante neuf») is told so, with
+    # the rule; while the solution waits, the hint says what is missing without the form.
+    "forge.diff.hyphen_label": {
+        "en": "Hyphen",
+        "de": "Bindestrich",
+        "fr": "Trait d’union",
+    },
+    "forge.diff.hyphen": {
+        "en": "«{target}» is written with a hyphen.",
+        "de": "«{target}» schreibt man mit Bindestrich.",
+        "fr": "« {target} » s’écrit avec un trait d’union.",
+    },
+    "forge.diff.hyphen_hint": {
+        "en": "A hyphen is missing in the marked words.",
+        "de": "In den markierten Wörtern fehlt ein Bindestrich.",
+        "fr": "Il manque un trait d’union dans les mots marqués.",
+    },
+    "forge.diff.hyphen_number": {
+        "en": "«{target}» takes a hyphen: from 17 to 99, the parts of a number are joined with hyphens, except around «et» (vingt et un).",
+        "de": "«{target}» schreibt man mit Bindestrich: Von 17 bis 99 verbindet ein Bindestrich die Teile einer Zahl, außer rund um «et» (vingt et un).",
+        "fr": "« {target} » prend un trait d’union : de 17 à 99, les parties d’un nombre sont reliées par un trait d’union, sauf autour de « et » (vingt et un).",
+    },
+    "forge.diff.hyphen_number_hint": {
+        "en": "A hyphen is missing in this number: from 17 to 99, the parts of a number are joined with hyphens, except around «et».",
+        "de": "In dieser Zahl fehlt ein Bindestrich: Von 17 bis 99 verbindet ein Bindestrich die Teile einer Zahl, außer rund um «et».",
+        "fr": "Il manque un trait d’union dans ce nombre : de 17 à 99, les parties d’un nombre sont reliées par un trait d’union, sauf autour de « et ».",
+    },
     "forge.diff.order": {
         "en": "The words are right, but not in this order.",
         "de": "Die Wörter stimmen, aber nicht in dieser Reihenfolge.",

@@ -992,7 +992,12 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
     the pronoun) is not what the rule is about, so a learner who changed it («la
     gare», «Nous préférons») did not slip on the rule, and reciting the rule's
     headline would blame the wrong thing. Without two distinct choices the item
-    gives no such evidence and this is False."""
+    gives no such evidence and this is False.
+
+    #1109: a word the learner ADDED that no choice and no ``target_span`` holds is
+    outside the rule as well («ils ont écouté à»: an English speaker's «listen to»).
+    The choices and the span are what the item declares the rule's words to be (#542);
+    a word none of them has is not the rule's form."""
 
     options = [str(option) for option in (item.get("choices") or item.get("options") or []) if isinstance(option, str)]
     forms = [_normalize(option).split() for option in dict.fromkeys([target, *options]) if _normalize(option)]
@@ -1000,7 +1005,11 @@ def _miss_outside_the_rule(item: dict[str, Any], learner: str, target: str) -> b
         return False
     fixed = set.intersection(*(set(form) for form in forms))
     learner_words = set(_normalize(learner).split())
-    return bool(fixed) and not fixed <= learner_words
+    if fixed and not fixed <= learner_words:
+        return True
+    declared = set().union(*(set(form) for form in forms), _normalize(item.get("target_span")).split())
+    added = {_normalize(op["learner"]) for op in token_diff(learner, target) if op.get("kind") == "extra"}
+    return bool(added - declared - {""})
 
 
 def _form_right_only_order_differs(
@@ -6843,7 +6852,7 @@ class AtelierCorrectionService:
         generic = {_copy("atelier.generic.why", language), _copy("atelier.generic.repair", language)}
         for candidate in candidates:
             text = str(candidate or "").strip()
-            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens):
+            if text and text not in generic and solution_gate.scrub_hint(text, phrases, tokens, language, (learner_text,)):
                 erratum["hint"] = text
                 return
 

@@ -2322,7 +2322,7 @@ def withheld_recall_note(task: RecallTask, correction: Correction, *, language: 
         # A build is made of the answer's own words: naming one of them says where the
         # order goes wrong, not what it is. Only the whole sentence gives it away.
         tokens = set()
-    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens)
+    note = solution_gate.scrub_hint(correction.note_native, phrases, tokens, language, (learner,))
     if note:
         return note
     from app.services.learner_copy import learner_text

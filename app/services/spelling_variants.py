@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-__all__ = ["is_variant_edit", "same_word_variant"]
+__all__ = ["is_variant_edit", "is_written_number", "same_word_variant"]
 
 _APOSTROPHES = str.maketrans({"’": "'", "‘": "'", "ʼ": "'", "`": "'", "´": "'"})
 #: Any space before a high punctuation mark or after «, before »: French and Swiss usage differ.
@@ -165,11 +165,48 @@ def same_word_variant(left: str, right: str) -> bool:
     )
 
 
+#: Parts the traditional spelling writes apart: «et», «cent» and «mille» stand between spaces.
+_WRITTEN_APART = frozenset({"et", "cent", "cents", "mille"})
+
+
+def _accepted_number_spelling(text: str) -> bool:
+    """#1119: a written number in one of its two accepted spellings. The reform joins
+    every part with a hyphen («vingt-et-un», «deux-cents»); the traditional spelling
+    joins the parts below a hundred with a hyphen and writes «et», «cent» and «mille»
+    apart («vingt et un», «quarante-neuf», «deux cent trois»). «quarante neuf» is
+    neither: its hyphen is missing in both."""
+
+    if " " not in text:
+        return True
+    parts = re.split(r"([ -])", text)
+    words, joins = parts[0::2], parts[1::2]
+    for index, join in enumerate(joins):
+        apart = words[index] in _WRITTEN_APART or words[index + 1] in _WRITTEN_APART
+        if (join == " ") != apart:
+            return False
+    return True
+
+
+def is_written_number(text: str) -> bool:
+    """«quarante-neuf», «vingt et un»: every word of ``text`` (hyphens split) is a number word."""
+
+    words = text.casefold().replace("-", " ").split()
+    return bool(words) and all(word in _NUMBER_WORDS for word in words)
+
+
 def _number_variant(left: str, right: str) -> bool:
-    """«vingt et un» / «vingt-et-un», «deux cents» / «deux-cents»."""
+    """«vingt et un» / «vingt-et-un», «deux cents» / «deux-cents»: the same number in its
+    two accepted spellings. A spelling that is neither («quarante neuf» for
+    «quarante-neuf», #1119) is a slip a correction may fix."""
 
     a, b = left.replace("-", " ").split(), right.replace("-", " ").split()
-    return a == b and len(a) > 1 and all(word in _NUMBER_WORDS for word in a)
+    return (
+        a == b
+        and len(a) > 1
+        and all(word in _NUMBER_WORDS for word in a)
+        and _accepted_number_spelling(left)
+        and _accepted_number_spelling(right)
+    )
 
 
 def is_variant_edit(span: object, replacement: object) -> bool:

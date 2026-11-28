@@ -4246,6 +4246,11 @@ def changes_what_was_said(
     old, new = _WORD.findall(old_text), _WORD.findall(new_text)
     if old_text.count("?") != new_text.count("?"):
         return "the_question"
+    if old != new and _WORD.findall(old_text.replace("-", " ")) == _WORD.findall(new_text.replace("-", " ")):
+        # #1119: «quarante neuf» -> «quarante-neuf» joins the same words with a hyphen.
+        # A hyphenated word is one token here, so the join read as two words gone and
+        # one come, and the only fix of the line was refused as a rewrite.
+        return None
     asked, asks = _what_it_asks(old), _what_it_asks(new)
     if (question or (question is None and "?" in old_text) or "qu'est-ce" in asked) and asked != asks:
         if not (listed and len(asked) == len(asks)):
