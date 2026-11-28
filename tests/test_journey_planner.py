@@ -1060,14 +1060,19 @@ def test_an_erratum_is_posed_as_a_repair_of_the_learners_wording() -> None:
         label_fr="enverrai",
         label_native="The future of 'envoyer' is irregular: j'enverrai.",
     )
+    from app.services.repair_context import RepairContext
+
     task = planner.build_recall_task(
-        target=target, scenario=_brief(), affordances=[], optional=False, learner_text="envoyerai"
+        target=target, scenario=_brief(), affordances=[], optional=False, learner_text="envoyerai",
+        repair=RepairContext(sentence="Je vous envoyerai la lettre demain."),
     )
     assert task is not None
     assert task.task_type == "short_answer"
-    assert task.prompt_fr == "envoyerai"
+    # #1098: a one-word slip is posed inside the sentence it sat in, marked.
+    assert task.prompt_fr == "Je vous envoyerai la lettre demain."
+    assert task.slip_fr == "envoyerai"
     assert task.instruction_native == "Write this correctly in French."
-    assert task.accepted_answers == ["enverrai"]
+    assert task.accepted_answers == ["enverrai", "Je vous enverrai la lettre demain."]
     # The explanation names the answer, so it is not offered as a "translation".
     assert task.translation_native is None
     assert "enverrai" not in task.instruction_native
@@ -1087,6 +1092,24 @@ def test_a_multi_word_erratum_becomes_tiles_over_the_learners_wording() -> None:
     assert task.prompt_fr == "toute de suites"
     assert task.instruction_native == "Schreib das richtig auf Französisch."
     assert sorted(tile["text_fr"] for tile in task.options) == ["de", "suite", "tout"]
+
+
+def test_a_short_erratum_without_its_sentence_gets_no_recall_step() -> None:
+    """#1098: «une homme» alone is no line the learner wrote; nothing says what to fix."""
+
+    erratum = _candidate(
+        kind=TargetKind.ERROR,
+        identifier="e-6",
+        label_fr="un homme",
+        label_native="homme is masculine",
+        priority=9.0,
+        metadata={"erratum_learner": "une homme"},
+    )
+    plan = plan_journey(scenario=_brief(), candidates=[erratum])
+    assert not [
+        step for step in plan.steps
+        if step.kind is StepKind.RECALL and step.target is not None and step.target.kind is TargetKind.ERROR
+    ]
 
 
 def test_an_erratum_without_the_learners_wording_gets_no_recall_step() -> None:
@@ -1115,11 +1138,12 @@ def test_the_plan_reads_the_learners_wording_from_the_candidate() -> None:
         label_fr="un homme",
         label_native="homme is masculine",
         priority=9.0,
-        metadata={"erratum_learner": "une homme"},
+        metadata={"erratum_learner": "une homme", "erratum_context": "Je vois une homme au marché."},
     )
     plan = plan_journey(scenario=_brief(), candidates=[erratum])
     recall = next(step for step in plan.steps if step.kind is StepKind.RECALL)
-    assert recall.public_prompt["prompt_fr"] == "une homme"
+    assert recall.public_prompt["prompt_fr"] == "Je vois une homme au marché."
+    assert recall.public_prompt["slip_fr"] == "une homme"
     assert recall.public_prompt["instruction_native"] == "Write this correctly in French."
     assert "How do you say" not in recall.public_prompt["instruction_native"]
 

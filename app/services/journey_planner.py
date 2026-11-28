@@ -1112,6 +1112,11 @@ def _repairs_the_wording(learner: str, answer: str) -> bool:
     return 2 * common / (len(left) + len(right)) >= 0.35
 
 
+#: #1098: a slip or a fix shorter than this many words is no line on its own: it is
+#: posed inside the learner's sentence, and typed.
+_SHORT_SLIP_WORDS = 3
+
+
 def _says_the_key(learner: str, key: str) -> bool:
     """Is the learner's line already one of the key's right wordings?
 
@@ -1123,6 +1128,50 @@ def _says_the_key(learner: str, key: str) -> bool:
 
     said = _fold(learner)
     return any(_fold(answer) == said for answer in widened_answers([key]))
+
+
+def _slip_in_sentence(sentence: str, learner: str) -> bool:
+    """Is the slip marked inside a longer sentence it was made in?"""
+
+    return bool(sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner))
+
+
+def own_error_is_poseable(learner_text: object, fix: object, sentence: object = None) -> bool:
+    """Can a stored slip be posed as «write what you said, correctly»?
+
+    The one rule :func:`build_recall_task` poses an erratum by, and the rule the errata
+    queue ranks by (``journey_errata.rank_errata_targets``). #1098 (verify of #1115):
+    the queue took its three slots before the planner refused a slip, so a slip that is
+    never posed is never reviewed, stays the most overdue, and keeps a slot for good,
+    while a slip that could be posed never reaches the day.
+    """
+
+    learner = " ".join(str(learner_text or "").split())
+    label_fr = " ".join(str(fix or "").split())
+    if not learner or not label_fr or _says_the_key(learner, label_fr):
+        # #805: «Write this correctly» over «le bureau de poste» for «la poste»:
+        # a line that is already a right way to say the key is no error.
+        return False
+    if _fold(label_fr) in _JUDGEMENT_BUTTONS or _fold(learner) in _JUDGEMENT_BUTTONS:
+        # Issue #104: errata filed before the fix carry a judgement item's
+        # buttons («À corriger» → «Correct»), not French the learner wrote.
+        return False
+    if _fold(label_fr) in _fold(learner):
+        # The wrong wording already contains the whole answer: showing it
+        # would spoil the repair.
+        return False
+    if not _repairs_the_wording(learner, label_fr):
+        # EXPERIENCE-REVIEW 2026-10-04: «Schreib richtig, was du gesagt hast»
+        # over a whole letter, with «clé» as the answer (a word the letter did
+        # not use), or over «der Schlüssel» (a tapped card). A repair is only
+        # honest when the right answer is recognisably a fix of the wording.
+        return False
+    if len(learner.split()) < _SHORT_SLIP_WORDS and not _slip_in_sentence(clean_text(sentence), learner):
+        # #1098: «c est», «a 10», «de Odile» alone under «Write what you said,
+        # correctly»: a fragment is no line the learner wrote, and with nothing
+        # around it nothing says what to fix. Without its sentence it is not posed.
+        return False
+    return True
 
 
 def build_recall_task(
@@ -1176,32 +1225,20 @@ def build_recall_task(
     rule_native: str | None = None
     sentence_answers: list[str] = []
     if target.kind is TargetKind.ERROR:
+        if not own_error_is_poseable(learner_text, label_fr, repair.sentence if repair else None):
+            return None
         learner = " ".join(str(learner_text or "").split())
-        if not learner or _says_the_key(learner, label_fr):
-            # #805: «Write this correctly» over «le bureau de poste» for «la poste»:
-            # a line that is already a right way to say the key is no error.
-            return None
-        if _fold(label_fr) in _JUDGEMENT_BUTTONS or _fold(learner) in _JUDGEMENT_BUTTONS:
-            # Issue #104: errata filed before the fix carry a judgement item's
-            # buttons («À corriger» → «Correct»), not French the learner wrote.
-            return None
-        if _fold(label_fr) in _fold(learner):
-            # The wrong wording already contains the whole answer: showing it
-            # would spoil the repair.
-            return None
-        if not _repairs_the_wording(learner, label_fr):
-            # EXPERIENCE-REVIEW 2026-10-04: «Schreib richtig, was du gesagt hast»
-            # over a whole letter, with «clé» as the answer (a word the letter did
-            # not use), or over «der Schlüssel» (a tapped card). A repair is only
-            # honest when the right answer is recognisably a fix of the wording.
-            return None
-        task_type: RecallTaskType = "tiles" if len(tokens) >= 2 else "short_answer"
+        sentence = clean_text(repair.sentence) if repair else ""
+        in_sentence = _slip_in_sentence(sentence, learner)
+        # #1098: a short fix is typed. Its own words as tiles («10», «à») leave nothing
+        # to think about, and a tile build only proves recognition, so a slip repaired
+        # right came back two days later.
+        task_type: RecallTaskType = "tiles" if len(tokens) >= _SHORT_SLIP_WORDS else "short_answer"
         prompt_fr = learner
         instruction_override = _localized(_ERROR_INSTRUCTION, language)
         gloss = None
         goal = recall_goal("repair_own", language)
-        sentence = clean_text(repair.sentence) if repair else ""
-        if sentence and find_slip(sentence, learner) and _fold(sentence) != _fold(learner):
+        if in_sentence:
             # The slip is marked inside the sentence it was made in.
             prompt_fr = sentence
             slip_fr = learner
@@ -7375,6 +7412,7 @@ __all__ = [
     "build_word_bank_task",
     "candidate_is_demonstrated",
     "merge_errata_candidates",
+    "own_error_is_poseable",
     "plan_because",
     "plan_target_reasons",
     "default_outcome_key",

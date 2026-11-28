@@ -27,7 +27,7 @@ from app.services.chrome_language import user_mother_tongue
 from app.services.grammar_feedback import infer_grammar_profile, profile_search_terms
 from app.services.learner_copy import learner_text
 from app.services.progress import ProgressService
-from app.services.repair_context import context_sentence
+from app.services.repair_context import context_sentence, sentence_holding
 
 
 def _normalize(value: Any) -> str:
@@ -393,6 +393,8 @@ class ErrorMemoryService:
             message_id=message_id,
             concept_id=concept_id,
             source_payload=source_payload,
+            # #1098: the learner's message is the text the detected span sat in.
+            submission_text=getattr(message, "content", None),
         )
 
     def record_erratum(
@@ -407,9 +409,21 @@ class ErrorMemoryService:
         message_id: UUID | None = None,
         source_payload: dict[str, Any] | None = None,
         merge_same_attempt: bool = False,
+        submission_text: str | None = None,
     ) -> dict[str, Any] | None:
+        """Save one erratum (or count it again on the row it repeats).
+
+        #1098: ``submission_text`` is what the learner wrote (a letter, a journal entry,
+        an answer). A slip saved without the sentence it sat in (``context_fr``) gets
+        that sentence of it here, once for every writer: a fragment alone («c est»,
+        «a 10») is no line to repair, so the planner would never pose it."""
+
         if erratum.get("task_error_type") == "task_compliance" and not erratum.get("recurring"):
             return None
+        if submission_text and not erratum.get("context_fr"):
+            context = sentence_holding(submission_text, erratum.get("learner_text"))
+            if context:
+                erratum = {**erratum, "context_fr": context}
         if erratum.get("remember") is False:
             # Issue #104: shown now, never drilled later (a right sentence sorted
             # «À corriger» has no French to repair).

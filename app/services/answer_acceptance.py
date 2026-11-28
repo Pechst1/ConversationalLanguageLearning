@@ -201,12 +201,17 @@ class Verdict:
     carries ``read_as``, the whole sentence the part stands for (the source with
     the part put in), and ``expected_part``, the stretch of ``expected`` the part
     answers. Both are ``None`` for an answer read as a whole sentence.
+
+    #1098: ``kept_slip`` is a repair answer that keeps the slip it repairs (the line as
+    the learner wrote it, or without the apostrophe the fix adds): never right, whatever
+    a fold forgives elsewhere.
     """
 
     correct: bool
     exact: bool = False
     accent_slip: bool = False
     typo: bool = False
+    kept_slip: bool = False
     note: str | None = None
     expected: str | None = None
     learner_word: str | None = None
@@ -731,6 +736,60 @@ def _repair_rank(verdict: Verdict) -> tuple[int, int, int, int]:
     return (0, 0, 0, _NOTE_PRIORITY.get(verdict.note or "", 0))
 
 
+def kept_slip_word(answer: object, source: object, key: object) -> str | None:
+    """#1098: what a repair answer kept of the slip it repairs, or ``None``.
+
+    A fold forgives typography everywhere: an apostrophe typed as a space is the same
+    answer (#1088). A repair is the one place where that typography may be the slip
+    itself: «c est» → «c'est», «de Allemagne» → «d'Allemagne». Read in place in the
+    learner's line (``source``) against the whole right line (``key``), an answer keeps
+    the slip when
+
+    * it leaves the line as the learner wrote it («c est» retyped): the line itself; or
+    * it lacks an apostrophe the fix adds, one the learner's line did not have
+      («d Allemagne»): that word of the key («d'allemagne»).
+
+    An apostrophe the line already had («à l'hôtel» typed «à l hotel» while «somes» is
+    the slip) is not what the repair is about and stays forgiven typography.
+    """
+
+    said, shown, right = fold_typography(answer), fold_typography(source), fold_typography(key)
+    if not said or not shown or not right or shown == right:
+        return None
+    readings = [said, *(sentence for sentence, _part, _context in repair_readings(answer, source, key))]
+    if shown in readings:
+        return shown
+    shown_words = {strip_accents(word) for word in shown.split()}
+    read_words = [{strip_accents(word) for word in reading.split()} for reading in readings]
+    for word in right.split():
+        bare = strip_accents(word)
+        if "'" in word and bare not in shown_words and not any(bare in words for words in read_words):
+            return word
+    return None
+
+
+def _refuse_a_kept_slip(verdict: Verdict, answer: object, source: object, keys: list[str]) -> Verdict:
+    """#1098: a right verdict on a repair answer that keeps its slip, refused."""
+
+    if not verdict.correct:
+        return verdict
+    key = verdict.expected or (keys[0] if keys else "")
+    kept = kept_slip_word(answer, source, key)
+    if kept is None:
+        return verdict
+    if kept == fold_typography(source):
+        return Verdict(correct=False, kept_slip=True, expected=verdict.expected)
+    expected_word = next((word for word in str(key).split() if fold_typography(word) == kept), kept)
+    return Verdict(
+        correct=False,
+        kept_slip=True,
+        note="apostrophe",
+        expected=verdict.expected,
+        learner_word=kept.replace("'", " "),
+        expected_word=expected_word.strip(".,;:!?…"),
+    )
+
+
 def judge_repair(
     answer: object,
     source: object,
@@ -751,8 +810,14 @@ def judge_repair(
 
     keys = [str(item) for item in accepted if item and str(item).strip()]
     best = judge(answer, keys, accents=accents, typo=typo, article_optional=article_optional)
-    if best.exact or not str(source or "").strip():
+    if not str(source or "").strip():
         return best
+    # #1098: before the exact shortcut: the fold reads «Oui, c est loin.» as the
+    # key «Oui, c'est loin.» letter for letter, and that line is the slip kept.
+    best = _refuse_a_kept_slip(best, answer, source, keys)
+    if best.exact:
+        return best
+    refused = best.kept_slip
     said = fold_typography(answer).split()
     shown = fold_typography(source).split()
     whole = len(said) >= len(shown)
@@ -767,7 +832,13 @@ def judge_repair(
         for sentence, part, _context in repair_readings(answer, source, key):
             if fold_typography(sentence) == fold_typography(answer):
                 continue
-            verdict = judge(sentence, [key], accents=accents, typo=typo, article_optional=article_optional)
+            verdict = _refuse_a_kept_slip(
+                judge(sentence, [key], accents=accents, typo=typo, article_optional=article_optional),
+                sentence,
+                source,
+                [key],
+            )
+            refused = refused or verdict.kept_slip
             # The edge test only decides how a miss is shown, never whether a right
             # part is accepted: «nous amuser avec des amis demain» starts and ends on
             # «Nous allons nous amusons avec des amis demain.»'s edge words and is
@@ -776,6 +847,9 @@ def judge_repair(
                 continue
             if _repair_rank(verdict) > _repair_rank(best):
                 best = replace(verdict, read_as=sentence, expected_part=part)
+    if refused and not best.correct:
+        # #1098: a miss that is the slip kept says so, whichever reading names it.
+        best = replace(best, kept_slip=True)
     if best.correct or whole or best.read_as is not None:
         return best
     expected = best.expected or (keys[0] if keys else None)
@@ -845,7 +919,7 @@ def accent_policy(
 
 
 #: Among misses, the note that tells the learner the most wins.
-_NOTE_PRIORITY = {"line_form": 6, "gender": 5, "elision": 4, "accent": 3, "form": 2, "typo": 1}
+_NOTE_PRIORITY = {"line_form": 6, "gender": 5, "elision": 4, "apostrophe": 4, "accent": 3, "form": 2, "typo": 1}
 
 
 def _rank(verdict: Verdict) -> tuple[int, int, int, int]:
@@ -1670,6 +1744,12 @@ NOTE_COPY: dict[str, dict[str, str]] = {
         "en": "Right — watch the article: «{expected_word}».",
         "de": "Richtig — achte auf den Artikel: «{expected_word}».",
         "fr": "Juste — attention à l'article : « {expected_word} ».",
+    },
+    # #1098: where the apostrophe is what a repair fixes, it is not forgiven.
+    "apostrophe": {
+        "en": "Here the apostrophe is the fix: «{expected_word}», not «{learner_word}».",
+        "de": "Hier ist der Apostroph die Korrektur: «{expected_word}», nicht «{learner_word}».",
+        "fr": "Ici, l'apostrophe est la correction : « {expected_word} », pas « {learner_word} ».",
     },
     "elision_ok": {
         "en": "Right — before a vowel: «{expected_word}».",

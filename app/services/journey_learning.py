@@ -2039,7 +2039,10 @@ def repaired_sentence_of(task: RecallTask) -> str | None:
     from app.services.repair_context import corrected_sentence
 
     whole = corrected_sentence(task.source_fr, task.slip_fr, task.solution_fr)
-    if not whole or fold_for_comparison(whole) == fold_for_comparison(task.source_fr):
+    # #1098: the learner typed the line, so its marks are theirs: «Oui, c'est loin.»
+    # repairs «Oui, c est loin.», though the speech fold reads the two as one line
+    # (and then left the item with no line to judge the answer against).
+    if not whole or fold_for_written_comparison(whole) == fold_for_written_comparison(task.source_fr):
         return None
     return whole
 
@@ -2579,7 +2582,9 @@ def evaluate_recall(
                 article_optional=recall_article_optional,
                 accents=accents,
             )
-            is_correct = is_correct or typed_verdict.correct
+            # #1098: an answer that keeps the slip it repairs («c est» for «c'est») is
+            # never right, though the plain fold reads it as the key.
+            is_correct = typed_verdict.correct if typed_verdict.kept_slip else (is_correct or typed_verdict.correct)
         else:
             typed_verdict = judge(
                 answer.text, _accepted_answers(task), article_optional=recall_article_optional, accents=accents

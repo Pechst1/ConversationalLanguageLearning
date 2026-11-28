@@ -259,17 +259,35 @@ def build_errata_target(error: UserError, *, now: datetime | None = None) -> Err
 
 
 def rank_errata_targets(
-    errors: list[UserError], *, limit: int = DEFAULT_TARGET_LIMIT, now: datetime | None = None
+    errors: list[UserError],
+    *,
+    limit: int = DEFAULT_TARGET_LIMIT,
+    now: datetime | None = None,
+    poseable_only: bool = True,
 ) -> list[ErrataTarget]:
     """Rank stored mistakes, best first, one per concept-or-memory key.
 
     Deduplication is by concept where a concept is known and by memory key
     otherwise: three gender slips on three different nouns are one lesson, and
     filling the day with all three would crowd out everything else.
+
+    #1098: a slip the planner cannot pose as a repair (``own_error_is_poseable``: a
+    fragment with no sentence, a line that is already right, …) takes no slot. It
+    would never be posed, so never reviewed, so stay the most overdue for good and
+    keep the slip that can be posed out of the day. ``poseable_only=False`` is for a
+    surface that does not pose the slip as a repair (the Revue's correcteur).
     """
+
+    from app.services.journey_planner import own_error_is_poseable
 
     now = now or datetime.now(UTC)
     built = [target for target in (build_errata_target(error, now=now) for error in errors) if target]
+    if poseable_only:
+        built = [
+            target
+            for target in built
+            if own_error_is_poseable(target.example_learner, target.example_correct, target.context_fr)
+        ]
     built.sort(key=lambda target: (-target.priority, -target.overdue_days, target.error_id))
     seen: set[str] = set()
     ranked: list[ErrataTarget] = []
@@ -295,10 +313,12 @@ def errata_targets_for_user(
     limit: int = DEFAULT_TARGET_LIMIT,
     now: datetime | None = None,
     due_by: datetime | None = None,
+    poseable_only: bool = True,
 ) -> list[ErrataTarget]:
     """The learner's ranked errata targets. Reads the queue; changes nothing.
 
-    ``due_by`` widens "due" from now to that moment, and ranks as of then."""
+    ``due_by`` widens "due" from now to that moment, and ranks as of then.
+    ``poseable_only``: see :func:`rank_errata_targets`."""
 
     from dataclasses import replace
 
@@ -307,7 +327,9 @@ def errata_targets_for_user(
 
     records = ErrorMemoryService(db).due_error_records(user, limit=max(limit * 6, 12), due_by=due_by)
     # Round 3: a stored half-finished edit is never a repair to deal.
-    ranked = rank_errata_targets(drillable_errors(db, records), limit=limit, now=due_by or now)
+    ranked = rank_errata_targets(
+        drillable_errors(db, records), limit=limit, now=due_by or now, poseable_only=poseable_only
+    )
     explain = str(user_correction_language(user))
     if explain == str(user_chrome_language(user)):
         return ranked
