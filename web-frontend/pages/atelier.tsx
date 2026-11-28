@@ -64,6 +64,7 @@ import {
   EpRule,
   EpPrompt,
   EpScenePrompt,
+  EpSpeakerLabel,
   Blank,
   EpOpts,
   EpOpt,
@@ -5269,9 +5270,8 @@ function EpreuveWiringStyles() {
       .ep .ep-composed-input:focus { border-color: var(--app-blue); box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--app-blue) 30%, transparent); }
       .ep .ep-composed-input::placeholder { color: var(--app-ink-3); font-style: italic; }
       .ep .ep-output .word-count, .ep .ep-produce-panel .word-count { margin-top: -5px; font: 800 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-ink-3); }
-      .ep .ep-character-byline { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 0; }
-      .ep .ep-character-byline span { font: 700 18px/1.1 var(--app-serif); font-style: italic; color: var(--app-ink); }
-      .ep .ep-character-byline em, .ep .ep-world-reply > span { font: 900 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-blue); }
+      .ep .ep-character-byline { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--app-ink); border-bottom: 1px solid var(--app-ink); padding: 8px 0; }
+      .ep .ep-world-reply > span { font: 900 8px/1 var(--app-grotesk); letter-spacing: .12em; text-transform: uppercase; color: var(--app-blue); }
       .ep .ep-world-reply { margin: 10px 0 0; border-left: 3px solid var(--app-blue); background: var(--app-sheet); padding: 12px 14px; color: var(--app-ink); }
       .ep .ep-world-reply p { margin: 6px 0 0; font: 500 17px/1.35 var(--app-serif); }
       .ep .ep-feedback { margin-top: 20px; }
@@ -5407,8 +5407,8 @@ export function OutputLadderPanel({
           {item.scene && character.id && (
             <CastPortrait characterId={String(character.id)} name={String(character.name)} size="xs" ring />
           )}
-          <span>{character.name}</span>
-          <em lang="fr">{String(character.register || 'vous')}</em>
+          {/* #951: the name and the register are one label, never a loose «tu» line. */}
+          <EpSpeakerLabel name={String(character.name)} register={String(character.register || 'vous')} />
         </div>
       )}
       <EpScenePrompt

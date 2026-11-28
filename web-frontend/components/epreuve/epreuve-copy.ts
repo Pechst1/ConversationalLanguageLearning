@@ -71,6 +71,9 @@ export type EpreuveCopy = {
   speak_placeholder: string;
   conversation_placeholder: string;
   conversation_with: string;
+  /** #951: what the speaker's register means, said after their name on one label line. */
+  speaker_tu: string;
+  speaker_vous: string;
   produce_placeholder: string;
   produce_missing: string;
   produce_words_label: string;
@@ -275,6 +278,8 @@ const FR: EpreuveCopy = {
   speak_placeholder: 'Tes mots apparaissent ici.',
   conversation_placeholder: 'Ta réponse…',
   conversation_with: 'Conversation avec {name}',
+  speaker_tu: 'te tutoie',
+  speaker_vous: 'te vouvoie',
   produce_placeholder: 'Ton paragraphe…',
   produce_missing: 'La consigne est indisponible.',
   produce_words_label: 'Les mots à placer',
@@ -461,6 +466,8 @@ const EN: EpreuveCopy = {
   speak_placeholder: 'Your words appear here.',
   conversation_placeholder: 'Your reply…',
   conversation_with: 'Conversation with {name}',
+  speaker_tu: 'says tu to you',
+  speaker_vous: 'says vous to you',
   produce_placeholder: 'Your paragraph…',
   produce_missing: 'The task is unavailable.',
   produce_words_label: 'Words to use',
@@ -647,6 +654,8 @@ const DE: EpreuveCopy = {
   speak_placeholder: 'Deine Wörter erscheinen hier.',
   conversation_placeholder: 'Deine Antwort…',
   conversation_with: 'Gespräch mit {name}',
+  speaker_tu: 'duzt dich',
+  speaker_vous: 'siezt dich',
   produce_placeholder: 'Dein Absatz…',
   produce_missing: 'Die Aufgabe ist nicht verfügbar.',
   produce_words_label: 'Wörter zum Einbauen',
@@ -793,6 +802,18 @@ export function epreuveCopy(language: unknown): EpreuveCopy {
 /** `{n}`-style placeholders filled in. */
 export function fill(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in values ? String(values[key]) : match));
+}
+
+/**
+ * #951: a dialogue's speaker is one label, «Lila · te tutoie», never the name and a bare
+ * «tu» chip laid out side by side (each read as its own line, «Lila / tu», and taken for
+ * part of the question). The note says what the register means; empty when there is none.
+ */
+export function speakerLabelNote(copy: EpreuveCopy, register: unknown): string {
+  const value = String(register ?? '').trim().toLowerCase();
+  if (value === 'tu') return copy.speaker_tu;
+  if (value === 'vous') return copy.speaker_vous;
+  return '';
 }
 
 /**
